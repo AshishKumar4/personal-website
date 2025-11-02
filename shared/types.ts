@@ -57,3 +57,8 @@ export interface LoginResponse {
     token: string;
     user: AuthUser;
 }
+// Site Config type
+export interface SiteConfig {
+  subtitle: string;
+  bio: string;
+}
