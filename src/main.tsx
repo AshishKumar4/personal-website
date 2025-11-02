@@ -10,10 +10,22 @@ import {
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
 import '@/index.css'
 import { HomePage } from '@/pages/HomePage'
+import { BlogPage } from '@/pages/BlogPage';
+import { BlogPostPage } from '@/pages/BlogPostPage';
 const router = createBrowserRouter([
   {
     path: "/",
     element: <HomePage />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/blog",
+    element: <BlogPage />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/blog/:slug",
+    element: <BlogPostPage />,
     errorElement: <RouteErrorBoundary />,
   },
 ]);
