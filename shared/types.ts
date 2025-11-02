@@ -48,3 +48,12 @@ export interface BlogPost {
   author: string;
   createdAt: number; // epoch millis
 }
+// Auth types
+export interface AuthUser {
+    username: string;
+    hashedPassword?: string; // Only on server
+}
+export interface LoginResponse {
+    token: string;
+    user: AuthUser;
+}
