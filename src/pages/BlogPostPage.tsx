@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PortfolioLayout } from '@/components/layout/PortfolioLayout';
+import { AnimatedGridBackground } from '@/components/ui/AnimatedGridBackground';
 import { BlogPost } from '@shared/types';
 import { api } from '@/lib/api-client';
 import { Toaster, toast } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Calendar, User } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 export function BlogPostPage() {
   const { slug } = useParams<{ slug: string }>();
   const [post, setPost] = useState<BlogPost | null>(null);
@@ -30,6 +29,7 @@ export function BlogPostPage() {
   }, [slug]);
   return (
     <PortfolioLayout>
+      <AnimatedGridBackground />
       <main className="relative z-10 py-24 md:py-32">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
@@ -58,10 +58,10 @@ export function BlogPostPage() {
                     {post.author}
                   </div>
                 </div>
-                <div className="mt-12 prose-styles max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {post.content}
-                  </ReactMarkdown>
+                <div className="mt-12 prose prose-invert prose-lg text-light-slate max-w-none space-y-6 leading-relaxed">
+                  {post.content.split('\n').map((paragraph, index) => (
+                    <p key={index}>{paragraph}</p>
+                  ))}
                 </div>
               </article>
             ) : (

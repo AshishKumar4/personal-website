@@ -39,3 +39,12 @@ export interface GitHubRepo {
   stars: number;
   forks: number;
 }
+// Blog types
+export interface BlogPost {
+  id: string; // Should be the same as slug for IndexedEntity
+  slug: string;
+  title: string;
+  content: string;
+  author: string;
+  createdAt: number; // epoch millis
+}
