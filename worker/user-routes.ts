@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Env } from './core-utils';
 import { UserEntity, ChatBoardEntity, BlogEntity, AuthEntity, SiteConfigEntity } from "./entities";
 import { ok, bad, notFound, isStr } from './core-utils';
-import type { BlogPost, SiteConfig } from "@shared/types";
+import type { BlogPost, SiteConfig, ChangePasswordPayload } from "@shared/types";
 // Simple token validation middleware (for demo purposes)
 const authMiddleware = async (c: any, next: any) => {
   const authHeader = c.req.header('Authorization');
@@ -32,6 +32,36 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     } else {
       return c.json({ success: false, error: 'Invalid credentials' }, 401);
     }
+  });
+  app.post('/api/admin/change-password', authMiddleware, async (c) => {
+    const { currentPassword, newPassword } = await c.req.json() as Partial<ChangePasswordPayload>;
+    if (!isStr(currentPassword) || !isStr(newPassword)) {
+      return bad(c, 'Current and new passwords are required');
+    }
+    if (newPassword.length < 6) {
+      return bad(c, 'New password must be at least 6 characters long');
+    }
+    const adminUser = new AuthEntity(c.env, "admin");
+    if (!(await adminUser.exists())) {
+      return notFound(c, 'Admin user not found');
+    }
+    const storedUser = await adminUser.getState();
+    // Verify current password
+    const encoder = new TextEncoder();
+    const currentPasswordData = encoder.encode(currentPassword);
+    const currentPasswordHashBuffer = await crypto.subtle.digest('SHA-256', currentPasswordData);
+    const currentPasswordHashArray = Array.from(new Uint8Array(currentPasswordHashBuffer));
+    const currentPasswordHashed = currentPasswordHashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    if (currentPasswordHashed !== storedUser.hashedPassword) {
+      return c.json({ success: false, error: 'Invalid current password' }, 401);
+    }
+    // Hash and save new password
+    const newPasswordData = encoder.encode(newPassword);
+    const newPasswordHashBuffer = await crypto.subtle.digest('SHA-256', newPasswordData);
+    const newPasswordHashArray = Array.from(new Uint8Array(newPasswordHashBuffer));
+    const newPasswordHashed = newPasswordHashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    await adminUser.save({ username: "admin", hashedPassword: newPasswordHashed });
+    return ok(c, { message: 'Password updated successfully' });
   });
   // SITE CONFIG
   app.get('/api/config', async (c) => {
