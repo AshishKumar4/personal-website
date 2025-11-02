@@ -63,7 +63,7 @@ export function AdminSettingsPage() {
                 <Label htmlFor="backgroundEffect" className="text-light-slate">Background Effect</Label>
                 <Select
                   value={config.backgroundEffect}
-                  onValueChange={(value: 'grid' | 'particles' | 'aurora' | 'vortex') => setConfig({ ...config, backgroundEffect: value })}
+                  onValueChange={(value: 'grid' | 'particles' | 'aurora' | 'vortex' | 'matrix') => setConfig({ ...config, backgroundEffect: value })}
                 >
                   <SelectTrigger className="w-[280px] bg-dark-navy border-lightest-navy/50 text-lightest-slate focus:ring-green">
                     <SelectValue placeholder="Select an effect" />
@@ -73,6 +73,7 @@ export function AdminSettingsPage() {
                     <SelectItem value="particles">Cosmic Particles</SelectItem>
                     <SelectItem value="aurora">Northern Lights</SelectItem>
                     <SelectItem value="vortex">Cosmic Vortex</SelectItem>
+                    <SelectItem value="matrix">Matrix Rain</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

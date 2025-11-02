@@ -64,7 +64,7 @@ export interface SiteConfig {
   subtitle: string;
   bio: string;
   about: string;
-  backgroundEffect: 'grid' | 'particles' | 'aurora' | 'vortex';
+  backgroundEffect: 'grid' | 'particles' | 'aurora' | 'vortex' | 'matrix';
 }
 // Password Change type
 export interface ChangePasswordPayload {
