@@ -72,9 +72,9 @@ export function AdminPage() {
       }
       handleCancelEdit();
       fetchPosts();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to save post:", error);
-      toast.error('Failed to save post.');
+      toast.error(error?.message || 'Failed to save post.');
     }
   };
   const handleDelete = async (slug: string) => {
@@ -85,9 +85,9 @@ export function AdminPage() {
       await api(`/api/posts/${slug}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
       toast.success('Post deleted successfully!');
       fetchPosts();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to delete post:", error);
-      toast.error('Failed to delete post.');
+      toast.error(error?.message || 'Failed to delete post.');
     }
   };
   return (
