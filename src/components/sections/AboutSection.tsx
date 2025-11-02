@@ -1,25 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { PERSONAL_INFO } from '@/components/config/constants';
-import { api } from '@/lib/api-client';
-import { SiteConfig } from '@shared/types';
-import { Skeleton } from '@/components/ui/skeleton';
 export function AboutSection() {
-  const [config, setConfig] = useState<SiteConfig | null>(null);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const data = await api<SiteConfig>('/api/config');
-        setConfig(data);
-      } catch (error) {
-        console.error("Failed to fetch site config:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchConfig();
-  }, []);
   return (
     <motion.section
       id="about"
@@ -35,17 +17,7 @@ export function AboutSection() {
         </h2>
         <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-12 items-start">
           <div className="md:col-span-2 space-y-4 text-light-slate leading-relaxed">
-            {loading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-4 w-full bg-light-navy" />
-                <Skeleton className="h-4 w-full bg-light-navy" />
-                <Skeleton className="h-4 w-5/6 bg-light-navy" />
-                <Skeleton className="h-4 w-full bg-light-navy mt-4" />
-                <Skeleton className="h-4 w-4/6 bg-light-navy" />
-              </div>
-            ) : (
-              <p>{config?.about}</p>
-            )}
+            <p>{PERSONAL_INFO.about}</p>
           </div>
           <div className="relative group w-full max-w-xs mx-auto md:mx-0">
             <div className="absolute -inset-0.5 bg-green rounded-lg blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt"></div>

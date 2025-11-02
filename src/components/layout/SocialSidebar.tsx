@@ -7,7 +7,7 @@ export function SocialSidebar() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5, delay: 1.5 }}
-      className="hidden md:flex fixed bottom-0 left-10 w-10 flex-col items-center space-y-6 z-20"
+      className="hidden md:flex fixed bottom-0 left-10 w-10 flex-col items-center space-y-6 z-10"
     >
       {SOCIAL_LINKS.map(({ name, url, Icon }) => (
         <a
