@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import type { Env } from './core-utils';
-import { UserEntity, ChatBoardEntity, BlogEntity, AuthEntity, SiteConfigEntity } from "./entities";
+import { UserEntity, ChatBoardEntity, BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity } from "./entities";
 import { ok, bad, notFound, isStr } from './core-utils';
-import type { BlogPost, SiteConfig, ChangePasswordPayload } from "@shared/types";
+import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience } from "@shared/types";
 // Simple token validation middleware (for demo purposes)
 const authMiddleware = async (c: any, next: any) => {
   const authHeader = c.req.header('Authorization');
@@ -23,7 +23,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const storedUser = await user.getState();
     const encoder = new TextEncoder();
     const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashBuffer = await crypto.subtle.digest('SHA-26', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashedPassword = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     if (hashedPassword === storedUser.hashedPassword) {
@@ -70,10 +70,10 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     return ok(c, await config.getState());
   });
   app.put('/api/config', authMiddleware, async (c) => {
-    const { subtitle, bio } = await c.req.json() as Partial<SiteConfig>;
-    if (!isStr(subtitle) || !isStr(bio)) return bad(c, 'subtitle and bio are required');
+    const { subtitle, bio, about } = await c.req.json() as Partial<SiteConfig>;
+    if (!isStr(subtitle) || !isStr(bio) || !isStr(about)) return bad(c, 'subtitle, bio, and about are required');
     const config = new SiteConfigEntity(c.env, "main");
-    await config.save({ subtitle, bio });
+    await config.save({ subtitle, bio, about });
     return ok(c, await config.getState());
   });
   // USERS
@@ -121,7 +121,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/posts', async (c) => {
     await BlogEntity.ensureSeed(c.env);
     const page = await BlogEntity.list(c.env);
-    // sort by createdAt descending
     page.items.sort((a, b) => b.createdAt - a.createdAt);
     return ok(c, page);
   });
@@ -155,6 +154,41 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const slug = c.req.param('slug');
     const deleted = await BlogEntity.delete(c.env, slug);
     return ok(c, { slug, deleted });
+  });
+  // EXPERIENCE (Public)
+  app.get('/api/experiences', async (c) => {
+    await ExperienceEntity.ensureSeed(c.env);
+    const page = await ExperienceEntity.list(c.env);
+    return ok(c, page);
+  });
+  // EXPERIENCE (Protected Admin Routes)
+  app.post('/api/experiences', authMiddleware, async (c) => {
+    const body = await c.req.json() as Partial<Experience>;
+    const newExperience: Experience = {
+      id: crypto.randomUUID(),
+      company: body.company || '',
+      logoUrl: body.logoUrl || '',
+      role: body.role || '',
+      duration: body.duration || '',
+      location: body.location || '',
+      description: body.description || '',
+      skills: body.skills || [],
+    };
+    const created = await ExperienceEntity.create(c.env, newExperience);
+    return ok(c, created);
+  });
+  app.put('/api/experiences/:id', authMiddleware, async (c) => {
+    const id = c.req.param('id');
+    const body = await c.req.json() as Partial<Experience>;
+    const exp = new ExperienceEntity(c.env, id);
+    if (!await exp.exists()) return notFound(c, 'experience not found');
+    const updated = await exp.mutate(s => ({ ...s, ...body, id: s.id }));
+    return ok(c, updated);
+  });
+  app.delete('/api/experiences/:id', authMiddleware, async (c) => {
+    const id = c.req.param('id');
+    const deleted = await ExperienceEntity.delete(c.env, id);
+    return ok(c, { id, deleted });
   });
   // DELETE: Users
   app.delete('/api/users/:id', async (c) => ok(c, { id: c.req.param('id'), deleted: await UserEntity.delete(c.env, c.req.param('id')) }));
