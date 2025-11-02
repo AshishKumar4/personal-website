@@ -5,13 +5,15 @@ import { BlogPost } from '@shared/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 export function AdminPostsPage() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,21 +138,31 @@ export function AdminPostsPage() {
         </CardContent>
       </Card>
       <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-light-navy border-lightest-navy/20 text-slate">
+        <DialogContent className="bg-light-navy border-lightest-navy/20 text-slate sm:max-w-[90vw] h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-lightest-slate">{currentPost?.slug ? 'Edit Post' : 'Create New Post'}</DialogTitle>
           </DialogHeader>
           {currentPost && (
-            <form onSubmit={handleFormSubmit} className="space-y-4">
-              <div>
+            <form onSubmit={handleFormSubmit} className="flex-1 flex flex-col overflow-hidden">
+              <div className="mb-4">
                 <Label htmlFor="title" className="text-light-slate">Title</Label>
                 <Input id="title" value={currentPost.title} onChange={(e) => setCurrentPost({ ...currentPost, title: e.target.value })} className="bg-dark-navy border-lightest-navy/50 text-lightest-slate focus:ring-green" />
               </div>
-              <div>
-                <Label htmlFor="content" className="text-light-slate">Content</Label>
-                <Textarea id="content" value={currentPost.content} onChange={(e) => setCurrentPost({ ...currentPost, content: e.target.value })} rows={10} className="bg-dark-navy border-lightest-navy/50 text-lightest-slate focus:ring-green" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-hidden">
+                <div className="flex flex-col">
+                  <Label htmlFor="content" className="text-light-slate mb-2">Content (Markdown)</Label>
+                  <Textarea id="content" value={currentPost.content} onChange={(e) => setCurrentPost({ ...currentPost, content: e.target.value })} className="bg-dark-navy border-lightest-navy/50 text-lightest-slate focus:ring-green flex-1 resize-none" />
+                </div>
+                <div className="flex flex-col">
+                  <Label className="text-light-slate mb-2">Live Preview</Label>
+                  <div className="prose-styles bg-dark-navy border border-lightest-navy/50 rounded-md p-4 overflow-y-auto flex-1">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {currentPost.content || 'Start typing to see a preview...'}
+                    </ReactMarkdown>
+                  </div>
+                </div>
               </div>
-              <DialogFooter>
+              <DialogFooter className="pt-4 mt-auto">
                 <DialogClose asChild>
                   <Button type="button" variant="secondary">Cancel</Button>
                 </DialogClose>
