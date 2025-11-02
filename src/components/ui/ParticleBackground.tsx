@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, useAnimation } from 'framer-motion';
-const NUM_PARTICLES = 400;
+const NUM_PARTICLES = 100;
 const Particle = () => {
   const controls = useAnimation();
   const duration = Math.random() * 5 + 5; // 5 to 10 seconds
