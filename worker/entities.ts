@@ -86,7 +86,7 @@ export class SiteConfigEntity extends Entity<SiteConfig> {
         if (!(await config.exists())) {
             await config.save({
                 subtitle: "I love building things.",
-                bio: "I'm an ML engineer and open-source enthusiast with a passion for building things that matter. My work often involves diving deep into generative AI, particularly diffusion models, and exploring the frontiers of AI-driven innovation. When I'm not coding, you can find me flying FPV drones, working on 3D printing projects, or relaxing with a game of Minecraft or Valorant. For me, it's all about the joy of creating—whether in code or in the physical world."
+                bio: "I'm an ML engineer and open-source enthusiast with a passion for science and technology. I love building things from scratch and challenging myself. My hobbies are building and flying FPV drones, and playing minecraft and valorant. I don't really like coding tbh (since I wrote an x86 kernel from scratch when I was 15)"
             });
             console.log("Default site configuration created.");
         }
