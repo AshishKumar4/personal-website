@@ -62,3 +62,8 @@ export interface SiteConfig {
   subtitle: string;
   bio: string;
 }
+// Password Change type
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}

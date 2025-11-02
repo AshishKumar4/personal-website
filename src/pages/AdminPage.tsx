@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PortfolioLayout } from '@/components/layout/PortfolioLayout';
 import { AnimatedGridBackground } from '@/components/ui/AnimatedGridBackground';
-import { BlogPost, SiteConfig } from '@shared/types';
+import { BlogPost, SiteConfig, ChangePasswordPayload } from '@shared/types';
 import { api } from '@/lib/api-client';
 import { getToken, clearToken } from '@/lib/auth';
 import { Toaster, toast } from '@/components/ui/sonner';
@@ -12,7 +12,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/componen
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Trash2, Edit, PlusCircle, Settings, Save } from 'lucide-react';
+import { Trash2, Edit, PlusCircle, Settings, Save, KeyRound } from 'lucide-react';
 export function AdminPage() {
   const navigate = useNavigate();
   const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -20,6 +20,7 @@ export function AdminPage() {
   const [isEditing, setIsEditing] = useState<BlogPost | null>(null);
   const [postFormData, setPostFormData] = useState({ title: '', content: '' });
   const [siteConfig, setSiteConfig] = useState<SiteConfig>({ subtitle: '', bio: '' });
+  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const fetchPosts = useCallback(async () => {
     try {
       const response = await api<{ items: BlogPost[] }>('/api/posts');
@@ -60,6 +61,10 @@ export function AdminPage() {
   const handleConfigInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setSiteConfig(prev => ({ ...prev, [name]: value }));
+  };
+  const handlePasswordInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({ ...prev, [name]: value }));
   };
   const handleEditClick = (post: BlogPost) => {
     setIsEditing(post);
@@ -106,6 +111,35 @@ export function AdminPage() {
       toast.error(error?.message || 'Failed to save site settings.');
     }
   };
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error("New passwords do not match.");
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      toast.error("New password must be at least 6 characters long.");
+      return;
+    }
+    const token = getToken();
+    if (!token) return;
+    try {
+      const payload: ChangePasswordPayload = {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      };
+      await api('/api/admin/change-password', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+      toast.success('Password changed successfully!');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error: any) {
+      console.error("Failed to change password:", error);
+      toast.error(error?.message || 'Failed to change password.');
+    }
+  };
   const handleDelete = async (slug: string) => {
     if (!window.confirm('Are you sure you want to delete this post?')) return;
     const token = getToken();
@@ -147,6 +181,30 @@ export function AdminPage() {
                   </CardContent>
                   <CardFooter className="flex justify-end">
                     <Button type="submit" className="bg-green text-dark-navy hover:bg-green/90"><Save className="mr-2 h-4 w-4" /> Save Settings</Button>
+                  </CardFooter>
+                </form>
+              </Card>
+              <Card className="bg-light-navy border-lightest-navy/20">
+                <CardHeader>
+                  <CardTitle className="text-2xl text-lightest-slate flex items-center"><KeyRound className="mr-2" /> Change Password</CardTitle>
+                </CardHeader>
+                <form onSubmit={handlePasswordSubmit}>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label htmlFor="currentPassword" className="text-light-slate">Current Password</Label>
+                      <Input id="currentPassword" name="currentPassword" type="password" value={passwordData.currentPassword} onChange={handlePasswordInputChange} required className="bg-dark-navy text-lightest-slate" />
+                    </div>
+                    <div>
+                      <Label htmlFor="newPassword" className="text-light-slate">New Password</Label>
+                      <Input id="newPassword" name="newPassword" type="password" value={passwordData.newPassword} onChange={handlePasswordInputChange} required className="bg-dark-navy text-lightest-slate" />
+                    </div>
+                    <div>
+                      <Label htmlFor="confirmPassword" className="text-light-slate">Confirm New Password</Label>
+                      <Input id="confirmPassword" name="confirmPassword" type="password" value={passwordData.confirmPassword} onChange={handlePasswordInputChange} required className="bg-dark-navy text-lightest-slate" />
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex justify-end">
+                    <Button type="submit" className="bg-green text-dark-navy hover:bg-green/90"><Save className="mr-2 h-4 w-4" /> Update Password</Button>
                   </CardFooter>
                 </form>
               </Card>
