@@ -1,11 +1,12 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FileText, Settings, Shield, LogOut, Home } from 'lucide-react';
+import { FileText, Settings, Shield, LogOut, Home, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { clearToken } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 const navItems = [
   { href: '/admin/posts', label: 'Posts', icon: FileText },
+  { href: '/admin/experience', label: 'Experience', icon: Briefcase },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
   { href: '/admin/security', label: 'Security', icon: Shield },
 ];

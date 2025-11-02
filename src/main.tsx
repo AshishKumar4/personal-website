@@ -18,6 +18,7 @@ import { AdminLayout } from '@/components/layout/AdminLayout';
 import { AdminPostsPage } from '@/pages/AdminPostsPage';
 import { AdminSettingsPage } from '@/pages/AdminSettingsPage';
 import { AdminSecurityPage } from '@/pages/AdminSecurityPage';
+import { AdminExperiencePage } from '@/pages/AdminExperiencePage';
 const router = createBrowserRouter([
   {
     path: "/",
@@ -46,6 +47,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/admin/posts" replace /> },
       { path: "posts", element: <AdminPostsPage /> },
+      { path: "experience", element: <AdminExperiencePage /> },
       { path: "settings", element: <AdminSettingsPage /> },
       { path: "security", element: <AdminSecurityPage /> },
     ]

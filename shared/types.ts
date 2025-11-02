@@ -21,6 +21,7 @@ export interface ChatMessage {
 }
 // Portfolio types
 export interface Experience {
+  id: string;
   company: string;
   logoUrl: string;
   role: string;
@@ -61,6 +62,7 @@ export interface LoginResponse {
 export interface SiteConfig {
   subtitle: string;
   bio: string;
+  about: string;
 }
 // Password Change type
 export interface ChangePasswordPayload {

@@ -1,9 +1,8 @@
 import { Github, Linkedin } from 'lucide-react';
-import { Experience, Project } from '@shared/types';
+import { Project } from '@shared/types';
 export const PERSONAL_INFO = {
   name: "Ashish Kumar Singh",
   title: "ML Researcher & Software Engineer",
-  about: "Machine Learning Researcher and Software Engineer with 5+ years of expertise in advancing computer vision, NLP, and distributed systems. Currently a Software Engineer Intern at Cloudflare and pursuing an M.S. in Applied Machine Learning at the University of Maryland, College Park, with a focus on generative AI (diffusion models, Transformers) and scalable ML infrastructure. Proven track record of driving innovation in industry and academia.",
   email: "ashishkmr472@gmail.com",
   profilePicture: "https://avatars.githubusercontent.com/u/36689133?v=4",
 };
@@ -24,35 +23,6 @@ export const NAV_LINKS = [
   { name: "Experience", href: "#experience" },
   { name: "Projects", href: "#projects" },
   { name: "Blog", href: "/blog" },
-];
-export const PROFESSIONAL_EXPERIENCE: Experience[] = [
-  {
-    company: "Cloudflare",
-    logoUrl: "https://www.cloudflare.com/favicon.ico",
-    role: "Software Engineer Intern",
-    duration: "Jun 2025 - Present · 4 mos",
-    location: "Maryland, United States · Remote",
-    description: "Working in the Emerging Technology and Incubation team, focusing on advanced machine learning and AI infrastructure development and exploring multi agentic orchestration frameworks and their applications.",
-    skills: ["Generative AI", "Distributed Systems", "Cloudflare Workers"],
-  },
-  {
-    company: "Dyte (now Cloudflare)",
-    logoUrl: "https://cdn.prod.website-files.com/63ca2acc6352c21abe583d0/63cb76071fe6f5c0f6478cfa_favicon.svg",
-    role: "Machine Learning and Systems Engineer",
-    duration: "Jun 2021 - Aug 2024 · 3 yrs 3 mos",
-    location: "India · Hybrid",
-    description: "Spearheaded architecture design and development of WebRTC SFU/Networking Stack, increasing load handling capacity/scalability by 15x. Engineered voice-to-voice bot SDK (Deepgram + LLaMA) with <800ms latency using speculative execution. Developed LLM powered automations to monitor GitHub repository changes and auto-generate reports, cutting manual reporting by 15 hours weekly and improving code review efficiency by 20%.",
-    skills: ["WebRTC", "Generative AI", "Distributed Systems", "Golang", "Python"],
-  },
-  {
-    company: "HyperVerge Inc.",
-    logoUrl: "https://cdn.hyperverge.co/wp-content/uploads/2021/08/favicon.png",
-    role: "Machine Learning Researcher",
-    duration: "Jul 2020 - Jun 2021 · 1 yr",
-    location: "Bengaluru, Karnataka, India",
-    description: "Spearheaded research and development to build state-of-the-art facial anti-spoofing CV models, achieved ISO 30107-3 certification with nearly 0% false positives. Implemented distributed and parallelized data processing and TPU training pipelines, drastically reducing training times from weeks to hours—a 30x performance increase.",
-    skills: ["Computer Vision", "PyTorch", "TensorFlow", "Distributed Training", "C++"],
-  },
 ];
 export const KEY_PROJECTS: Project[] = [
   {
