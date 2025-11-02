@@ -1,8 +1,9 @@
-import { Github, Linkedin } from 'lucide-react';
+import { GitHub, Linkedin } from 'lucide-react';
 import { Experience, Project } from '@shared/types';
 export const PERSONAL_INFO = {
   name: "Ashish Kumar Singh",
   title: "ML Researcher & Software Engineer",
+  bio: "I’m Ashish—an ML engineer, tinkerer, and open-source enthusiast who finds genuine joy in building things that push the boundaries of what’s possible. Ever since I was a kid writing x86 assembly code just to see how kernels tick, I’ve been fascinated by the intricate details of technology and the endless potential of machine learning. Today, I still love getting my hands dirty with code, scaling massive experiments across distributed systems, and collaborating with like-minded folks to tackle hard problems head-on. For me, it’s all about learning something new each day, creating tools that make a difference, and exploring the frontiers of AI-driven innovation.",
   about: "Machine Learning Researcher and Software Engineer with 5+ years of expertise in advancing computer vision, NLP, and distributed systems. Currently a Software Engineer Intern at Cloudflare and pursuing an M.S. in Applied Machine Learning at the University of Maryland, College Park, with a focus on generative AI (diffusion models, Transformers) and scalable ML infrastructure. Proven track record of driving innovation in industry and academia.",
   email: "ashishkmr472@gmail.com",
   profilePicture: "https://avatars.githubusercontent.com/u/36689133?v=4",
@@ -11,7 +12,7 @@ export const SOCIAL_LINKS = [
   {
     name: "GitHub",
     url: "https://github.com/ashishkumar4",
-    Icon: Github,
+    Icon: GitHub,
   },
   {
     name: "LinkedIn",
@@ -23,7 +24,6 @@ export const NAV_LINKS = [
   { name: "About", href: "#about" },
   { name: "Experience", href: "#experience" },
   { name: "Projects", href: "#projects" },
-  { name: "Blog", href: "/blog" },
 ];
 export const PROFESSIONAL_EXPERIENCE: Experience[] = [
   {
@@ -37,7 +37,7 @@ export const PROFESSIONAL_EXPERIENCE: Experience[] = [
   },
   {
     company: "Dyte (now Cloudflare)",
-    logoUrl: "https://cdn.prod.website-files.com/63ca2acc6352c21abe583d0/63cb76071fe6f5c0f6478cfa_favicon.svg",
+    logoUrl: "https://cdn.prod.website-files.com/63ca2acc6352c221abe583d0/63cb76071fe6f5c0f6478cfa_favicon.svg",
     role: "Machine Learning and Systems Engineer",
     duration: "Jun 2021 - Aug 2024 · 3 yrs 3 mos",
     location: "India · Hybrid",
@@ -46,7 +46,7 @@ export const PROFESSIONAL_EXPERIENCE: Experience[] = [
   },
   {
     company: "HyperVerge Inc.",
-    logoUrl: "https://cdn.hyperverge.co/wp-content/uploads/2021/08/favicon.png",
+    logoUrl: "https://cdn.hyperverge.co/wp-content/uploads/2025/08/favicon.png",
     role: "Machine Learning Researcher",
     duration: "Jul 2020 - Jun 2021 · 1 yr",
     location: "Bengaluru, Karnataka, India",
@@ -63,7 +63,7 @@ export const KEY_PROJECTS: Project[] = [
   },
   {
     name: "Cloudflare VibeSDK Templates",
-    description: "This repository contains the official template catalog used by the Cloudflare VibeSDK project — a modern, open source ���vibe coding” starter kit where users can build apps with AI agents.",
+    description: "This repository contains the official template catalog used by the Cloudflare VibeSDK project — a modern, open source “vibe coding” starter kit where users can build apps with AI agents.",
     repo: "cloudflare/vibesdk-templates",
     url: "https://github.com/cloudflare/vibesdk-templates",
   },
