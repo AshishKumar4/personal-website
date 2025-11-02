@@ -64,6 +64,7 @@ export interface SiteConfig {
   subtitle: string;
   bio: string;
   about: string;
+  backgroundEffect: 'grid' | 'particles';
 }
 // Password Change type
 export interface ChangePasswordPayload {

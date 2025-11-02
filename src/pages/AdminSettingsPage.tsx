@@ -9,8 +9,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 export function AdminSettingsPage() {
-  const [config, setConfig] = useState<SiteConfig>({ subtitle: '', bio: '', about: '' });
+  const [config, setConfig] = useState<SiteConfig>({ subtitle: '', bio: '', about: '', backgroundEffect: 'grid' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
@@ -48,6 +49,35 @@ export function AdminSettingsPage() {
       <h1 className="text-3xl font-bold text-lightest-slate font-display">Site Settings</h1>
       <form onSubmit={handleSave}>
         <Card className="bg-light-navy border-lightest-navy/20">
+          <CardHeader>
+            <CardTitle className="text-lightest-slate">Appearance</CardTitle>
+            <CardDescription className="text-slate">
+              Customize the look and feel of your site.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-10 w-full bg-dark-navy" />
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="backgroundEffect" className="text-light-slate">Background Effect</Label>
+                <Select
+                  value={config.backgroundEffect}
+                  onValueChange={(value: 'grid' | 'particles') => setConfig({ ...config, backgroundEffect: value })}
+                >
+                  <SelectTrigger className="w-[280px] bg-dark-navy border-lightest-navy/50 text-lightest-slate focus:ring-green">
+                    <SelectValue placeholder="Select an effect" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-light-navy border-lightest-navy/20 text-slate">
+                    <SelectItem value="grid">Blueprint Grid</SelectItem>
+                    <SelectItem value="particles">Cosmic Particles</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        <Card className="bg-light-navy border-lightest-navy/20 mt-6">
           <CardHeader>
             <CardTitle className="text-lightest-slate">Homepage Content</CardTitle>
             <CardDescription className="text-slate">

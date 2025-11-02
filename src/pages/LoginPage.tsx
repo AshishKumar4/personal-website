@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PortfolioLayout } from '@/components/layout/PortfolioLayout';
-import { AnimatedGridBackground } from '@/components/ui/AnimatedGridBackground';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -36,7 +35,6 @@ export function LoginPage() {
   };
   return (
     <PortfolioLayout>
-      <AnimatedGridBackground />
       <main className="relative z-10 flex items-center justify-center min-h-screen py-24">
         <motion.div
           initial={{ opacity: 0, y: -20 }}

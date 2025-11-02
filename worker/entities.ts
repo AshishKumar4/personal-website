@@ -161,14 +161,15 @@ export class AuthEntity extends Entity<AuthUser> {
 // SITE CONFIG ENTITY
 export class SiteConfigEntity extends Entity<SiteConfig> {
     static readonly entityName = "siteConfig";
-    static readonly initialState: SiteConfig = { subtitle: "", bio: "", about: "" };
+    static readonly initialState: SiteConfig = { subtitle: "", bio: "", about: "", backgroundEffect: 'grid' };
     static async seedData(env: { GlobalDurableObject: DurableObjectNamespace<any> }): Promise<void> {
         const config = new SiteConfigEntity(env, "main");
         if (!(await config.exists())) {
             await config.save({
                 subtitle: "I love building things.",
                 bio: "I'm an ML engineer and open-source enthusiast with a passion for science and technology. I love building things from scratch and challenging myself. My hobbies are building and flying FPV drones, and playing minecraft and valorant. I don't really like coding tbh (since I wrote an x86 kernel from scratch when I was 15)",
-                about: "Machine Learning Researcher and Software Engineer with 5+ years of expertise in advancing computer vision, NLP, and distributed systems. Currently a Software Engineer Intern at Cloudflare and pursuing an M.S. in Applied Machine Learning at the University of Maryland, College Park, with a focus on generative AI (diffusion models, Transformers) and scalable ML infrastructure. Proven track record of driving innovation in industry and academia."
+                about: "Machine Learning Researcher and Software Engineer with 5+ years of expertise in advancing computer vision, NLP, and distributed systems. Currently a Software Engineer Intern at Cloudflare and pursuing an M.S. in Applied Machine Learning at the University of Maryland, College Park, with a focus on generative AI (diffusion models, Transformers) and scalable ML infrastructure. Proven track record of driving innovation in industry and academia.",
+                backgroundEffect: 'grid'
             });
             console.log("Default site configuration created.");
         }
