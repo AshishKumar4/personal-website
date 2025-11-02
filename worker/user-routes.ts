@@ -72,14 +72,13 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.put('/api/config', authMiddleware, async (c) => {
     const { subtitle, bio, about, backgroundEffect } = await c.req.json() as Partial<SiteConfig>;
     if (!isStr(subtitle) || !isStr(bio) || !isStr(about)) return bad(c, 'subtitle, bio, and about are required');
-    if (!isStr(backgroundEffect) || !['grid', 'particles'].includes(backgroundEffect)) {
+    if (!isStr(backgroundEffect) || !['grid', 'particles', 'aurora', 'vortex'].includes(backgroundEffect)) {
       return bad(c, 'A valid background effect is required.');
     }
     const config = new SiteConfigEntity(c.env, "main");
     await config.save({ subtitle, bio, about, backgroundEffect });
     return ok(c, await config.getState());
   });
-
   // BLOG POSTS (Public)
   app.get('/api/posts', async (c) => {
     await BlogEntity.ensureSeed(c.env);
@@ -185,5 +184,4 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const deleted = await ProjectEntity.delete(c.env, id);
     return ok(c, { id, deleted });
   });
-
 }
