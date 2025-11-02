@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { KEY_PROJECTS } from '@/components/config/constants';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Star, GitFork, ExternalLink } from 'lucide-react';
-import { GitHubRepo, Project } from '@shared/types';
-import { api } from '@/lib/api-client';
-import { Skeleton } from '@/components/ui/skeleton';
-const ProjectCard = ({ name, description, repo, url }: Project) => {
+import { GitHubRepo } from '@shared/types';
+const ProjectCard = ({ name, description, repo, url }: { name: string; description: string; repo: string; url: string; }) => {
   const [repoData, setRepoData] = useState<GitHubRepo | null>(null);
   useEffect(() => {
     const fetchRepoData = async () => {
       try {
-        // Use a CORS proxy or a backend endpoint if hitting rate limits
         const response = await fetch(`https://api.github.com/repos/${repo}`);
         if (response.ok) {
           const data = await response.json();
@@ -23,9 +21,7 @@ const ProjectCard = ({ name, description, repo, url }: Project) => {
         console.error("Failed to fetch GitHub repo data:", error);
       }
     };
-    if (repo) {
-      fetchRepoData();
-    }
+    fetchRepoData();
   }, [repo]);
   return (
     <motion.div
@@ -48,7 +44,7 @@ const ProjectCard = ({ name, description, repo, url }: Project) => {
           </CardContent>
         </div>
         <CardFooter>
-          {repoData ? (
+          {repoData && (
             <div className="flex items-center space-x-4 text-sm font-mono text-slate">
               <div className="flex items-center">
                 <Star size={16} className="mr-1 text-green" />
@@ -59,8 +55,6 @@ const ProjectCard = ({ name, description, repo, url }: Project) => {
                 <span>{repoData.forks}</span>
               </div>
             </div>
-          ) : (
-            <div className="h-5 w-20"></div> // Placeholder for alignment
           )}
         </CardFooter>
       </Card>
@@ -68,21 +62,6 @@ const ProjectCard = ({ name, description, repo, url }: Project) => {
   );
 };
 export function ProjectsSection() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const response = await api<{ items: Project[] }>('/api/projects');
-        setProjects(response.items);
-      } catch (error) {
-        console.error("Failed to fetch projects:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProjects();
-  }, []);
   return (
     <motion.section
       id="projects"
@@ -94,38 +73,21 @@ export function ProjectsSection() {
     >
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="section-heading">
-          <span className="font-mono text-green text-xl md:text-2xl mr-3">03.</span> Things I've Built
+          <span className="font-mono text-green text-xl md:text-2xl mr-3">03.</span> Things I’ve Built
         </h2>
         <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {loading ? (
-            [...Array(5)].map((_, i) => (
-              <Card key={i} className="bg-light-navy border-lightest-navy/20 h-full flex flex-col justify-between">
-                <CardHeader>
-                  <Skeleton className="h-6 w-3/4 bg-dark-navy" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-4 w-full bg-dark-navy" />
-                  <Skeleton className="h-4 w-5/6 bg-dark-navy mt-2" />
-                </CardContent>
-                <CardFooter>
-                  <Skeleton className="h-5 w-20 bg-dark-navy" />
-                </CardFooter>
-              </Card>
-            ))
-          ) : (
-            projects.map((project, index) => (
-               <motion.div
-                key={project.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.5 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="h-full"
-              >
-                <ProjectCard {...project} />
-              </motion.div>
-            ))
-          )}
+          {KEY_PROJECTS.map((project, index) => (
+             <motion.div
+              key={project.name}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.5 }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+              className="h-full"
+            >
+              <ProjectCard {...project} />
+            </motion.div>
+          ))}
         </div>
       </div>
     </motion.section>
