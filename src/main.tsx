@@ -5,6 +5,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   createBrowserRouter,
+  Navigate,
   RouterProvider,
 } from "react-router-dom";
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
@@ -13,7 +14,10 @@ import { HomePage } from '@/pages/HomePage'
 import { BlogPage } from '@/pages/BlogPage';
 import { BlogPostPage } from '@/pages/BlogPostPage';
 import { LoginPage } from '@/pages/LoginPage';
-import { AdminPage } from '@/pages/AdminPage';
+import { AdminLayout } from '@/components/layout/AdminLayout';
+import { AdminPostsPage } from '@/pages/AdminPostsPage';
+import { AdminSettingsPage } from '@/pages/AdminSettingsPage';
+import { AdminSecurityPage } from '@/pages/AdminSecurityPage';
 const router = createBrowserRouter([
   {
     path: "/",
@@ -37,8 +41,14 @@ const router = createBrowserRouter([
   },
   {
     path: "/admin",
-    element: <AdminPage />,
+    element: <AdminLayout />,
     errorElement: <RouteErrorBoundary />,
+    children: [
+      { index: true, element: <Navigate to="/admin/posts" replace /> },
+      { path: "posts", element: <AdminPostsPage /> },
+      { path: "settings", element: <AdminSettingsPage /> },
+      { path: "security", element: <AdminSecurityPage /> },
+    ]
   },
 ]);
 createRoot(document.getElementById('root')!).render(
