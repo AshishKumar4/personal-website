@@ -48,7 +48,7 @@ export const PROFESSIONAL_EXPERIENCE: Experience[] = [
   },
   {
     company: "HyperVerge Inc.",
-    logoUrl: "https://cdn.hyperverge.co/wp-content/uploads/2025/08/favicon.png",
+    logoUrl: "https://cdn.hyperverge.co/wp-content/uploads/2021/08/favicon.png",
     role: "Machine Learning Researcher",
     duration: "Jul 2020 - Jun 2021 · 1 yr",
     location: "Bengaluru, Karnataka, India",
@@ -65,7 +65,7 @@ export const KEY_PROJECTS: Project[] = [
   },
   {
     name: "Cloudflare VibeSDK Templates",
-    description: "This repository contains the official template catalog used by the Cloudflare VibeSDK project — a modern, open source ���vibe coding” starter kit where users can build apps with AI agents.",
+    description: "This repository contains the official template catalog used by the Cloudflare VibeSDK project — a modern, open source “vibe coding” starter kit where users can build apps with AI agents.",
     repo: "cloudflare/vibesdk-templates",
     url: "https://github.com/cloudflare/vibesdk-templates",
   },
