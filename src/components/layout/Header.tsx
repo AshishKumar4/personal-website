@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion, useScroll } from 'framer-motion';
-import { NAV_LINKS, PERSONAL_INFO } from '@/components/config/constants';
+import { PERSONAL_INFO } from '@/components/config/constants';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Link, useLocation } from 'react-router-dom';
+const NAV_LINKS = [
+  { name: "About", href: "#about" },
+  { name: "Experience", href: "#experience" },
+  { name: "Projects", href: "#projects" },
+  { name: "Blog", href: "/blog" },
+];
 const NavLink = ({ href, children, onClick }: { href: string, children: React.ReactNode, onClick?: () => void }) => {
   const location = useLocation();
   const isExternalPage = href.startsWith('/');
