@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PortfolioLayout } from '@/components/layout/PortfolioLayout';
+import { AnimatedGridBackground } from '@/components/ui/AnimatedGridBackground';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -26,15 +27,16 @@ export function LoginPage() {
       saveToken(response.token);
       toast.success('Login successful!');
       navigate('/admin');
-    } catch (error: any) {
+    } catch (error) {
       console.error("Login failed:", error);
-      toast.error(error?.message || 'Login failed. Please check your credentials.');
+      toast.error('Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
   };
   return (
     <PortfolioLayout>
+      <AnimatedGridBackground />
       <main className="relative z-10 flex items-center justify-center min-h-screen py-24">
         <motion.div
           initial={{ opacity: 0, y: -20 }}

@@ -1,8 +1,8 @@
 /**
  * Minimal real-world demo: One Durable Object instance per entity (User, ChatBoard), with Indexes for listing.
  */
-import { IndexedEntity } from "./core-utils";
-import type { User, Chat, ChatMessage, BlogPost } from "@shared/types";
+import { Entity, IndexedEntity } from "./core-utils";
+import type { User, Chat, ChatMessage, BlogPost, AuthUser } from "@shared/types";
 import { MOCK_CHAT_MESSAGES, MOCK_CHATS, MOCK_USERS } from "@shared/mock-data";
 // USER ENTITY: one DO instance per user
 export class UserEntity extends IndexedEntity<User> {
@@ -56,5 +56,25 @@ export class BlogEntity extends IndexedEntity<BlogPost> {
     static readonly indexName = "blogPosts";
     static readonly initialState: BlogPost = { id: "", slug: "", title: "", content: "", author: "", createdAt: 0 };
     static seedData = SEED_BLOG_POSTS;
-    static override keyOf(state: BlogPost): string { return state.slug; }
+    static keyOf(state: BlogPost): string { return state.slug; }
+}
+// AUTH ENTITY
+export class AuthEntity extends Entity<AuthUser> {
+    static readonly entityName = "auth";
+    static readonly initialState: AuthUser = { username: "", hashedPassword: "" };
+    static async seedData(env: { GlobalDurableObject: DurableObjectNamespace<any> }): Promise<void> {
+        const adminUser = new AuthEntity(env, "admin");
+        if (!(await adminUser.exists())) {
+            // In a real app, use a secure password hashing library like bcrypt or Argon2.
+            // For this demo, we'll use a simple SHA-256 hash.
+            const password = "admin"; // Default password
+            const encoder = new TextEncoder();
+            const data = encoder.encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashedPassword = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            await adminUser.save({ username: "admin", hashedPassword });
+            console.log("Default admin user created.");
+        }
+    }
 }

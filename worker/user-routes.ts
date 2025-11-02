@@ -1,9 +1,38 @@
 import { Hono } from "hono";
 import type { Env } from './core-utils';
-import { UserEntity, ChatBoardEntity, BlogEntity } from "./entities";
+import { UserEntity, ChatBoardEntity, BlogEntity, AuthEntity } from "./entities";
 import { ok, bad, notFound, isStr } from './core-utils';
+import type { BlogPost } from "@shared/types";
+// Simple token validation middleware (for demo purposes)
+const authMiddleware = async (c: any, next: any) => {
+  const authHeader = c.req.header('Authorization');
+  if (authHeader !== `Bearer supersecrettoken`) {
+    return c.json({ success: false, error: 'Unauthorized' }, 401);
+  }
+  await next();
+};
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/test', (c) => c.json({ success: true, data: { name: 'CF Workers Demo' }}));
+  // AUTH
+  app.post('/api/login', async (c) => {
+    await AuthEntity.seedData(c.env);
+    const { username, password } = await c.req.json();
+    if (!isStr(username) || !isStr(password)) return bad(c, 'username and password required');
+    const user = new AuthEntity(c.env, username);
+    if (!await user.exists()) return notFound(c, 'user not found');
+    const storedUser = await user.getState();
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashedPassword = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    if (hashedPassword === storedUser.hashedPassword) {
+      // In a real app, generate a proper JWT. For this demo, a static token is used.
+      return ok(c, { token: 'supersecrettoken', user: { username: storedUser.username } });
+    } else {
+      return c.json({ success: false, error: 'Invalid credentials' }, 401);
+    }
+  });
   // USERS
   app.get('/api/users', async (c) => {
     await UserEntity.ensureSeed(c.env);
@@ -45,7 +74,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     if (!await chat.exists()) return notFound(c, 'chat not found');
     return ok(c, await chat.sendMessage(userId, text.trim()));
   });
-  // BLOG POSTS
+  // BLOG POSTS (Public)
   app.get('/api/posts', async (c) => {
     await BlogEntity.ensureSeed(c.env);
     const page = await BlogEntity.list(c.env);
@@ -58,6 +87,31 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const post = new BlogEntity(c.env, slug);
     if (!await post.exists()) return notFound(c, 'post not found');
     return ok(c, await post.getState());
+  });
+  // BLOG POSTS (Protected Admin Routes)
+  app.post('/api/posts', authMiddleware, async (c) => {
+    const { title, content, author } = await c.req.json() as Partial<BlogPost>;
+    if (!isStr(title) || !isStr(content) || !isStr(author)) return bad(c, 'title, content, and author required');
+    const slug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
+    const newPost: BlogPost = { id: slug, slug, title, content, author, createdAt: Date.now() };
+    const postEntity = new BlogEntity(c.env, slug);
+    if (await postEntity.exists()) return bad(c, 'a post with this slug already exists');
+    const created = await BlogEntity.create(c.env, newPost);
+    return ok(c, created);
+  });
+  app.put('/api/posts/:slug', authMiddleware, async (c) => {
+    const slug = c.req.param('slug');
+    const { title, content } = await c.req.json() as Partial<BlogPost>;
+    if (!isStr(title) || !isStr(content)) return bad(c, 'title and content required');
+    const post = new BlogEntity(c.env, slug);
+    if (!await post.exists()) return notFound(c, 'post not found');
+    const updated = await post.mutate(s => ({ ...s, title, content }));
+    return ok(c, updated);
+  });
+  app.delete('/api/posts/:slug', authMiddleware, async (c) => {
+    const slug = c.req.param('slug');
+    const deleted = await BlogEntity.delete(c.env, slug);
+    return ok(c, { slug, deleted });
   });
   // DELETE: Users
   app.delete('/api/users/:id', async (c) => ok(c, { id: c.req.param('id'), deleted: await UserEntity.delete(c.env, c.req.param('id')) }));

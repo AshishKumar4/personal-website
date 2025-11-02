@@ -12,6 +12,8 @@ import '@/index.css'
 import { HomePage } from '@/pages/HomePage'
 import { BlogPage } from '@/pages/BlogPage';
 import { BlogPostPage } from '@/pages/BlogPostPage';
+import { LoginPage } from '@/pages/LoginPage';
+import { AdminPage } from '@/pages/AdminPage';
 const router = createBrowserRouter([
   {
     path: "/",
@@ -26,6 +28,16 @@ const router = createBrowserRouter([
   {
     path: "/blog/:slug",
     element: <BlogPostPage />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/admin/login",
+    element: <LoginPage />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/admin",
+    element: <AdminPage />,
     errorElement: <RouteErrorBoundary />,
   },
 ]);
