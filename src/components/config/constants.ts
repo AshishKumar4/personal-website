@@ -1,4 +1,4 @@
-import { GitHub, Linkedin } from 'lucide-react';
+import { Github, Linkedin } from 'lucide-react';
 import { Experience, Project } from '@shared/types';
 export const PERSONAL_INFO = {
   name: "Ashish Kumar Singh",
@@ -12,7 +12,7 @@ export const SOCIAL_LINKS = [
   {
     name: "GitHub",
     url: "https://github.com/ashishkumar4",
-    Icon: GitHub,
+    Icon: Github,
   },
   {
     name: "LinkedIn",
@@ -24,6 +24,7 @@ export const NAV_LINKS = [
   { name: "About", href: "#about" },
   { name: "Experience", href: "#experience" },
   { name: "Projects", href: "#projects" },
+  { name: "Blog", href: "/blog" },
 ];
 export const PROFESSIONAL_EXPERIENCE: Experience[] = [
   {
@@ -63,7 +64,7 @@ export const KEY_PROJECTS: Project[] = [
   },
   {
     name: "Cloudflare VibeSDK Templates",
-    description: "This repository contains the official template catalog used by the Cloudflare VibeSDK project — a modern, open source “vibe coding” starter kit where users can build apps with AI agents.",
+    description: "This repository contains the official template catalog used by the Cloudflare VibeSDK project — a modern, open source ���vibe coding” starter kit where users can build apps with AI agents.",
     repo: "cloudflare/vibesdk-templates",
     url: "https://github.com/cloudflare/vibesdk-templates",
   },
