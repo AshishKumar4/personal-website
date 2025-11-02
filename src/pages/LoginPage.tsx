@@ -27,9 +27,9 @@ export function LoginPage() {
       saveToken(response.token);
       toast.success('Login successful!');
       navigate('/admin');
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login failed:", error);
-      toast.error('Login failed. Please check your credentials.');
+      toast.error(error?.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
