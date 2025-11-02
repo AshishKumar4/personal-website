@@ -55,4 +55,22 @@
     content: '';
     @apply block w-full md:w-64 h-[1px] bg-lightest-navy ml-4;
   }
+  .prose-styles {
+    @apply text-light-slate leading-relaxed;
+  }
+  .prose-styles h1, .prose-styles h2, .prose-styles h3, .prose-styles h4, .prose-styles h5, .prose-styles h6 {
+    @apply font-bold text-lightest-slate mb-4 mt-8;
+  }
+  .prose-styles h1 { @apply text-4xl; }
+  .prose-styles h2 { @apply text-3xl; }
+  .prose-styles h3 { @apply text-2xl; }
+  .prose-styles p { @apply mb-4; }
+  .prose-styles a { @apply text-green hover:underline; }
+  .prose-styles ul { @apply list-disc list-inside mb-4 space-y-2; }
+  .prose-styles ol { @apply list-decimal list-inside mb-4 space-y-2; }
+  .prose-styles li { @apply ml-4; }
+  .prose-styles blockquote { @apply border-l-4 border-green pl-4 italic text-slate my-6; }
+  .prose-styles code { @apply bg-light-navy text-green-tint font-mono text-sm px-1 py-0.5 rounded; }
+  .prose-styles pre { @apply bg-light-navy p-4 rounded-md overflow-x-auto my-6; }
+  .prose-styles pre code { @apply bg-transparent p-0; }
 }
