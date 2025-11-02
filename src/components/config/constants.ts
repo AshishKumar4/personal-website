@@ -17,9 +17,3 @@ export const SOCIAL_LINKS = [
     Icon: Linkedin,
   },
 ];
-export const NAV_LINKS = [
-  { name: "About", href: "#about" },
-  { name: "Experience", href: "#experience" },
-  { name: "Projects", href: "#projects" },
-  { name: "Blog", href: "/blog" },
-];
