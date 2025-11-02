@@ -8,6 +8,8 @@ import { api } from '@/lib/api-client';
 import { Toaster, toast } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Calendar, User } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 export function BlogPostPage() {
   const { slug } = useParams<{ slug: string }>();
   const [post, setPost] = useState<BlogPost | null>(null);
@@ -58,10 +60,10 @@ export function BlogPostPage() {
                     {post.author}
                   </div>
                 </div>
-                <div className="mt-12 prose prose-invert prose-lg text-light-slate max-w-none space-y-6 leading-relaxed">
-                  {post.content.split('\n').map((paragraph, index) => (
-                    <p key={index}>{paragraph}</p>
-                  ))}
+                <div className="mt-12 prose-styles max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {post.content}
+                  </ReactMarkdown>
                 </div>
               </article>
             ) : (
