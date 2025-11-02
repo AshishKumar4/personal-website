@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import React from "react";
 import { cn } from "@/lib/utils";
 interface AuroraBackgroundProps extends React.HTMLProps<HTMLDivElement> {
@@ -13,7 +14,7 @@ export const AuroraBackground = ({
   return (
     <div
       className={cn(
-        "relative flex flex-col h-full items-center justify-center",
+        "relative flex flex-col h-full items-center justify-center bg-dark-navy text-slate transition-bg",
         className
       )}
       {...props}
