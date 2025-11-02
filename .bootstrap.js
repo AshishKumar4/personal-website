@@ -77,11 +77,7 @@ function updateWranglerJsonc() {
 }
 
 function runSetupCommands() {
-    const commands = [
-    "bun add react-intersection-observer@^9.10.3",
-    "bun add react-markdown remark-gfm",
-    "bun install react-markdown remark-gfm"
-];
+    const commands = [];
     
     if (commands.length === 0) {
         console.log('⊘ No setup commands to run');
