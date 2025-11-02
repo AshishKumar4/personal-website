@@ -31,6 +31,7 @@ export interface Experience {
   skills: string[];
 }
 export interface Project {
+  id: string;
   name: string;
   description: string;
   repo: string;
