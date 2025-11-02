@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PortfolioLayout } from '@/components/layout/PortfolioLayout';
-import { AnimatedGridBackground } from '@/components/ui/AnimatedGridBackground';
 import { BlogPost } from '@shared/types';
 import { api } from '@/lib/api-client';
 import { Toaster, toast } from '@/components/ui/sonner';
@@ -31,7 +30,6 @@ export function BlogPostPage() {
   }, [slug]);
   return (
     <PortfolioLayout>
-      <AnimatedGridBackground />
       <main className="relative z-10 py-24 md:py-32">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>

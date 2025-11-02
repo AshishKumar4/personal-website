@@ -70,10 +70,13 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     return ok(c, await config.getState());
   });
   app.put('/api/config', authMiddleware, async (c) => {
-    const { subtitle, bio, about } = await c.req.json() as Partial<SiteConfig>;
+    const { subtitle, bio, about, backgroundEffect } = await c.req.json() as Partial<SiteConfig>;
     if (!isStr(subtitle) || !isStr(bio) || !isStr(about)) return bad(c, 'subtitle, bio, and about are required');
+    if (!isStr(backgroundEffect) || !['grid', 'particles'].includes(backgroundEffect)) {
+      return bad(c, 'A valid background effect is required.');
+    }
     const config = new SiteConfigEntity(c.env, "main");
-    await config.save({ subtitle, bio, about });
+    await config.save({ subtitle, bio, about, backgroundEffect });
     return ok(c, await config.getState());
   });
   // USERS
