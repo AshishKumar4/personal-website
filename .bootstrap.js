@@ -79,7 +79,8 @@ function updateWranglerJsonc() {
 function runSetupCommands() {
     const commands = [
     "bun add react-intersection-observer@^9.10.3",
-    "bun add react-markdown remark-gfm"
+    "bun add react-markdown remark-gfm",
+    "bun install react-markdown remark-gfm"
 ];
     
     if (commands.length === 0) {
