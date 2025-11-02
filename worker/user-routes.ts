@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import type { Env } from './core-utils';
-import { UserEntity, ChatBoardEntity, BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity } from "./entities";
+import { UserEntity, ChatBoardEntity, BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEntity } from "./entities";
 import { ok, bad, notFound, isStr } from './core-utils';
-import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience } from "@shared/types";
+import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project } from "@shared/types";
 // Simple token validation middleware (for demo purposes)
 const authMiddleware = async (c: any, next: any) => {
   const authHeader = c.req.header('Authorization');
@@ -23,7 +23,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const storedUser = await user.getState();
     const encoder = new TextEncoder();
     const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-26', data);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashedPassword = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     if (hashedPassword === storedUser.hashedPassword) {
@@ -188,6 +188,38 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.delete('/api/experiences/:id', authMiddleware, async (c) => {
     const id = c.req.param('id');
     const deleted = await ExperienceEntity.delete(c.env, id);
+    return ok(c, { id, deleted });
+  });
+  // PROJECTS (Public)
+  app.get('/api/projects', async (c) => {
+    await ProjectEntity.ensureSeed(c.env);
+    const page = await ProjectEntity.list(c.env);
+    return ok(c, page);
+  });
+  // PROJECTS (Protected Admin Routes)
+  app.post('/api/projects', authMiddleware, async (c) => {
+    const body = await c.req.json() as Partial<Project>;
+    const newProject: Project = {
+      id: body.name?.toLowerCase().replace(/\s+/g, '-') || crypto.randomUUID(),
+      name: body.name || '',
+      description: body.description || '',
+      repo: body.repo || '',
+      url: body.url || '',
+    };
+    const created = await ProjectEntity.create(c.env, newProject);
+    return ok(c, created);
+  });
+  app.put('/api/projects/:id', authMiddleware, async (c) => {
+    const id = c.req.param('id');
+    const body = await c.req.json() as Partial<Project>;
+    const proj = new ProjectEntity(c.env, id);
+    if (!await proj.exists()) return notFound(c, 'project not found');
+    const updated = await proj.mutate(s => ({ ...s, ...body, id: s.id }));
+    return ok(c, updated);
+  });
+  app.delete('/api/projects/:id', authMiddleware, async (c) => {
+    const id = c.req.param('id');
+    const deleted = await ProjectEntity.delete(c.env, id);
     return ok(c, { id, deleted });
   });
   // DELETE: Users
