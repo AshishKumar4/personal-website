@@ -6,6 +6,8 @@ import { api } from '@/lib/api-client';
 import { SiteConfig } from '@shared/types';
 import { AnimatedGridBackground } from '@/components/ui/AnimatedGridBackground';
 import { ParticleBackground } from '@/components/ui/ParticleBackground';
+import { AuroraBackgroundWrapper } from '@/components/ui/AuroraBackground';
+import { VortexBackground } from '@/components/ui/VortexBackground';
 type PortfolioLayoutProps = {
   children: React.ReactNode;
 };
@@ -30,6 +32,10 @@ export function PortfolioLayout({ children }: PortfolioLayoutProps) {
     switch (config.backgroundEffect) {
       case 'particles':
         return <ParticleBackground />;
+      case 'aurora':
+        return <AuroraBackgroundWrapper />;
+      case 'vortex':
+        return <VortexBackground />;
       case 'grid':
       default:
         return <AnimatedGridBackground />;
