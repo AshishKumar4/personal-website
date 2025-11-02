@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 export function AdminSettingsPage() {
-  const [config, setConfig] = useState<SiteConfig>({ subtitle: '', bio: '' });
+  const [config, setConfig] = useState<SiteConfig>({ subtitle: '', bio: '', about: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
@@ -49,21 +49,22 @@ export function AdminSettingsPage() {
       <form onSubmit={handleSave}>
         <Card className="bg-light-navy border-lightest-navy/20">
           <CardHeader>
-            <CardTitle className="text-lightest-slate">Hero Section Content</CardTitle>
+            <CardTitle className="text-lightest-slate">Homepage Content</CardTitle>
             <CardDescription className="text-slate">
-              Update the subtitle and bio displayed on the homepage.
+              Update the content displayed on the homepage.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             {loading ? (
               <>
                 <Skeleton className="h-10 w-full bg-dark-navy" />
                 <Skeleton className="h-24 w-full bg-dark-navy" />
+                <Skeleton className="h-32 w-full bg-dark-navy" />
               </>
             ) : (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="subtitle" className="text-light-slate">Subtitle</Label>
+                  <Label htmlFor="subtitle" className="text-light-slate">Hero Subtitle</Label>
                   <Input
                     id="subtitle"
                     value={config.subtitle}
@@ -72,12 +73,22 @@ export function AdminSettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="bio" className="text-light-slate">Bio</Label>
+                  <Label htmlFor="bio" className="text-light-slate">Hero Bio</Label>
                   <Textarea
                     id="bio"
                     value={config.bio}
                     onChange={(e) => setConfig({ ...config, bio: e.target.value })}
                     rows={5}
+                    className="bg-dark-navy border-lightest-navy/50 text-lightest-slate focus:ring-green"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="about" className="text-light-slate">About Me Section</Label>
+                  <Textarea
+                    id="about"
+                    value={config.about}
+                    onChange={(e) => setConfig({ ...config, about: e.target.value })}
+                    rows={8}
                     className="bg-dark-navy border-lightest-navy/50 text-lightest-slate focus:ring-green"
                   />
                 </div>
