@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import type { Env } from './core-utils';
-import { UserEntity, ChatBoardEntity, BlogEntity, AuthEntity } from "./entities";
+import { UserEntity, ChatBoardEntity, BlogEntity, AuthEntity, SiteConfigEntity } from "./entities";
 import { ok, bad, notFound, isStr } from './core-utils';
-import type { BlogPost } from "@shared/types";
+import type { BlogPost, SiteConfig } from "@shared/types";
 // Simple token validation middleware (for demo purposes)
 const authMiddleware = async (c: any, next: any) => {
   const authHeader = c.req.header('Authorization');
@@ -32,6 +32,19 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     } else {
       return c.json({ success: false, error: 'Invalid credentials' }, 401);
     }
+  });
+  // SITE CONFIG
+  app.get('/api/config', async (c) => {
+    await SiteConfigEntity.seedData(c.env);
+    const config = new SiteConfigEntity(c.env, "main");
+    return ok(c, await config.getState());
+  });
+  app.put('/api/config', authMiddleware, async (c) => {
+    const { subtitle, bio } = await c.req.json() as Partial<SiteConfig>;
+    if (!isStr(subtitle) || !isStr(bio)) return bad(c, 'subtitle and bio are required');
+    const config = new SiteConfigEntity(c.env, "main");
+    await config.save({ subtitle, bio });
+    return ok(c, await config.getState());
   });
   // USERS
   app.get('/api/users', async (c) => {
