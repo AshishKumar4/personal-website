@@ -94,7 +94,7 @@ export function ProjectsSection() {
     >
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="section-heading">
-          <span className="font-mono text-green text-xl md:text-2xl mr-3">03.</span> Things I��ve Built
+          <span className="font-mono text-green text-xl md:text-2xl mr-3">03.</span> Things I've Built
         </h2>
         <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {loading ? (
