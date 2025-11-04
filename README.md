@@ -1,6 +1,6 @@
 # CodePrint: Ashish Kumar Singh's Portfolio
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/AshishKumar4/personal-website)
 
 > A visually stunning and interactive personal portfolio with a 'blueprint' theme, showcasing projects, experience, and a future-planned blog. CodePrint is designed with a modern 'blueprint' aesthetic, featuring a sophisticated dark theme, subtle animated grid background, and smooth, fluid transitions powered by Framer Motion.
 
@@ -61,7 +61,7 @@ This project is designed for one-click deployment to Cloudflare.
 
 You can deploy directly by clicking the button below:
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/AshishKumar4/personal-website)
 
 Alternatively, you can deploy using the Wrangler CLI after setting up your Cloudflare account.
 
