@@ -53,18 +53,21 @@ export interface BlogPost {
 // Auth types
 export interface AuthUser {
     username: string;
-    hashedPassword?: string; // Only on server
+    hashedPassword?: string;
+    salt?: string;
+    sessionToken?: string;
+    tokenExpiry?: number;
 }
 export interface LoginResponse {
     token: string;
-    user: AuthUser;
+    user: Pick<AuthUser, 'username'>;
 }
 // Site Config type
 export interface SiteConfig {
   subtitle: string;
   bio: string;
   about: string;
-  backgroundEffect: 'grid' | 'particles' | 'aurora' | 'vortex' | 'matrix';
+  backgroundEffect: 'grid' | 'particles' | 'aurora' | 'matrix' | 'neural';
 }
 // Password Change type
 export interface ChangePasswordPayload {
