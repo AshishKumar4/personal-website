@@ -1,10 +1,20 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
+import { useTheme } from '@/hooks/use-theme';
+
 export const VortexBackground = ({
   className,
 }: {
   className?: string;
 }) => {
+  const prefersReducedMotion = useReducedMotion();
+  const { isDark } = useTheme();
+
+  // Theme-aware colors
+  const bgColor = isDark ? '#0a192f' : '#FAFAFA';
+  const accentColor = isDark ? '#64ffda' : '#EA580C';
+
   return (
     <div className={cn("fixed inset-0 w-full h-full -z-10 overflow-hidden", className)}>
       <style>
@@ -21,11 +31,18 @@ export const VortexBackground = ({
       <div
         className="absolute inset-0 w-full h-full bg-transparent"
       >
-        <div className="absolute inset-0 w-full h-full bg-dark-navy [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
         <div
-          className="absolute inset-0 h-full w-full opacity-20 animate-vortex-spin"
+          className="absolute inset-0 w-full h-full [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"
+          style={{ backgroundColor: bgColor }}
+        />
+        <div
+          className={cn(
+            "absolute inset-0 h-full w-full",
+            isDark ? "opacity-20" : "opacity-15",
+            !prefersReducedMotion && "animate-vortex-spin"
+          )}
           style={{
-            backgroundImage: 'conic-gradient(from 90deg at 50% 50%, #0a192f 0%, #64ffda 25%, #0a192f 100%)',
+            backgroundImage: `conic-gradient(from 90deg at 50% 50%, ${bgColor} 0%, ${accentColor} 25%, ${bgColor} 100%)`,
           }}
         />
       </div>
