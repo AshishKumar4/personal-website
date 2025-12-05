@@ -99,20 +99,63 @@ export class ProjectEntity extends IndexedEntity<Project> {
     static seedData = SEED_PROJECTS;
 }
 // AUTH ENTITY
+function bytesToHex(bytes: Uint8Array): string {
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function hashPasswordPBKDF2(password: string, salt: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(password),
+        'PBKDF2',
+        false,
+        ['deriveBits']
+    );
+    const hashBuffer = await crypto.subtle.deriveBits(
+        {
+            name: 'PBKDF2',
+            salt: encoder.encode(salt),
+            iterations: 100000,
+            hash: 'SHA-256'
+        },
+        keyMaterial,
+        256
+    );
+    return bytesToHex(new Uint8Array(hashBuffer));
+}
+
+async function hashPasswordLegacySHA256(password: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(password));
+    return bytesToHex(new Uint8Array(hashBuffer));
+}
+
+function generateSalt(): string {
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+    return bytesToHex(array);
+}
+
+function generateSessionToken(): string {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return bytesToHex(array);
+}
+
+export { hashPasswordPBKDF2, hashPasswordLegacySHA256, generateSalt, generateSessionToken };
+
 export class AuthEntity extends Entity<AuthUser> {
     static readonly entityName = "auth";
-    static readonly initialState: AuthUser = { username: "", hashedPassword: "" };
+    static readonly initialState: AuthUser = { username: "", hashedPassword: "", salt: "", sessionToken: "", tokenExpiry: 0 };
     static async seedData(env: { GlobalDurableObject: DurableObjectNamespace<any> }): Promise<void> {
         const adminUser = new AuthEntity(env, "admin");
         if (!(await adminUser.exists())) {
-            const password = "admin"; // Default password
-            const encoder = new TextEncoder();
-            const data = encoder.encode(password);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const hashedPassword = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            await adminUser.save({ username: "admin", hashedPassword });
-            console.log("Default admin user created.");
+            const password = "admin";
+            const salt = generateSalt();
+            const hashedPassword = await hashPasswordPBKDF2(password, salt);
+            await adminUser.save({ username: "admin", hashedPassword, salt, sessionToken: "", tokenExpiry: 0 });
+            console.log("Default admin user created with PBKDF2 hashing.");
         }
     }
 }

@@ -1,35 +1,41 @@
-import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FileText, Settings, Shield, LogOut, Home, Briefcase, Code } from 'lucide-react';
+import { FileText, Settings, Shield, LogOut, Home, Briefcase, Code, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { clearToken } from '@/lib/auth';
 import { cn } from '@/lib/utils';
+
 const navItems = [
+  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { href: '/admin/posts', label: 'Posts', icon: FileText },
   { href: '/admin/experience', label: 'Experience', icon: Briefcase },
   { href: '/admin/projects', label: 'Projects', icon: Code },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
   { href: '/admin/security', label: 'Security', icon: Shield },
 ];
+
 export function AdminSidebar() {
   const navigate = useNavigate();
+
   const handleLogout = () => {
     clearToken();
     navigate('/admin/login');
   };
+
   const baseLinkClass = "flex items-center px-4 py-3 text-sm font-medium rounded-md transition-colors";
-  const inactiveLinkClass = "text-slate hover:bg-light-navy hover:text-lightest-slate";
-  const activeLinkClass = "bg-lightest-navy text-green";
+  const inactiveLinkClass = "text-muted-foreground hover:bg-muted hover:text-foreground";
+  const activeLinkClass = "bg-muted text-primary";
+
   return (
-    <aside className="w-64 flex-shrink-0 bg-light-navy border-r border-lightest-navy/20 flex flex-col">
+    <aside className="w-64 flex-shrink-0 bg-card border-r border-border flex flex-col">
       <div className="p-6">
-        <h1 className="text-2xl font-bold font-mono text-green">Admin Panel</h1>
+        <h1 className="text-2xl font-bold font-mono text-primary">Admin Panel</h1>
       </div>
-      <nav className="flex-1 px-4 space-y-2">
+      <nav className="flex-1 px-4 space-y-1">
         {navItems.map((item) => (
           <NavLink
             key={item.href}
             to={item.href}
+            end={item.end}
             className={({ isActive }) => cn(baseLinkClass, isActive ? activeLinkClass : inactiveLinkClass)}
           >
             <item.icon className="mr-3 h-5 w-5" />
@@ -37,7 +43,7 @@ export function AdminSidebar() {
           </NavLink>
         ))}
       </nav>
-      <div className="p-4 border-t border-lightest-navy/20 space-y-2">
+      <div className="p-4 border-t border-border space-y-2">
         <NavLink
           to="/"
           className={cn(baseLinkClass, inactiveLinkClass)}
@@ -47,7 +53,7 @@ export function AdminSidebar() {
         </NavLink>
         <Button
           variant="ghost"
-          className="w-full justify-start text-slate hover:bg-light-navy hover:text-lightest-slate"
+          className="w-full justify-start text-muted-foreground hover:bg-muted hover:text-foreground"
           onClick={handleLogout}
         >
           <LogOut className="mr-3 h-5 w-5" />

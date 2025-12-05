@@ -6,8 +6,8 @@ import { SiteConfigProvider, useSiteConfig } from '@/contexts/SiteConfigContext'
 import { AnimatedGridBackground } from '@/components/ui/AnimatedGridBackground';
 import { ParticleBackground } from '@/components/ui/ParticleBackground';
 import { AuroraBackgroundWrapper } from '@/components/ui/AuroraBackground';
-import { VortexBackground } from '@/components/ui/VortexBackground';
 import { MatrixBackground } from '@/components/ui/MatrixBackground';
+import { NeuralBackground } from '@/components/ui/NeuralBackground';
 
 type PortfolioLayoutProps = {
   children: React.ReactNode;
@@ -26,10 +26,10 @@ function BackgroundRenderer() {
       return <ParticleBackground />;
     case 'aurora':
       return <AuroraBackgroundWrapper />;
-    case 'vortex':
-      return <VortexBackground />;
     case 'matrix':
       return <MatrixBackground />;
+    case 'neural':
+      return <NeuralBackground />;
     case 'grid':
     default:
       return <AnimatedGridBackground />;

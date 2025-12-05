@@ -21,6 +21,8 @@ import { AdminSettingsPage } from '@/pages/AdminSettingsPage';
 import { AdminSecurityPage } from '@/pages/AdminSecurityPage';
 import { AdminExperiencePage } from '@/pages/AdminExperiencePage';
 import { AdminProjectsPage } from '@/pages/AdminProjectsPage';
+import { AdminDashboardPage } from '@/pages/AdminDashboardPage';
+import { AdminPostEditorPage } from '@/pages/AdminPostEditorPage';
 const router = createBrowserRouter([
   {
     path: "/",
@@ -47,8 +49,10 @@ const router = createBrowserRouter([
     element: <AdminLayout />,
     errorElement: <RouteErrorBoundary />,
     children: [
-      { index: true, element: <Navigate to="/admin/posts" replace /> },
+      { index: true, element: <AdminDashboardPage /> },
       { path: "posts", element: <AdminPostsPage /> },
+      { path: "posts/new", element: <AdminPostEditorPage /> },
+      { path: "posts/:slug/edit", element: <AdminPostEditorPage /> },
       { path: "experience", element: <AdminExperiencePage /> },
       { path: "projects", element: <AdminProjectsPage /> },
       { path: "settings", element: <AdminSettingsPage /> },

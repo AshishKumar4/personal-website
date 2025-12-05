@@ -29,5 +29,11 @@
           "GlobalDurableObject"
         ]
       }
+    ],
+    "r2_buckets": [
+      {
+        "binding": "IMAGES_BUCKET",
+        "bucket_name": "blog-images"
+      }
     ]
 }

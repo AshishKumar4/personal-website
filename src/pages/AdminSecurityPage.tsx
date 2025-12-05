@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { api } from '@/lib/api-client';
-import { getToken } from '@/lib/auth';
+import { getToken, saveToken } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z.string().min(6, 'New password must be at least 6 characters'),
@@ -33,7 +33,7 @@ export function AdminSecurityPage() {
     setLoading(true);
     const token = getToken();
     try {
-      await api('/api/admin/change-password', {
+      const response = await api<{ message: string; token: string }>('/api/admin/change-password', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -41,6 +41,9 @@ export function AdminSecurityPage() {
           newPassword: data.newPassword,
         }),
       });
+      if (response.token) {
+        saveToken(response.token);
+      }
       toast.success('Password changed successfully.');
       form.reset();
     } catch (error: any) {
@@ -51,11 +54,11 @@ export function AdminSecurityPage() {
   };
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-lightest-slate font-display">Security</h1>
-      <Card className="bg-light-navy border-lightest-navy/20 max-w-2xl">
+      <h1 className="text-3xl font-bold text-foreground font-display">Security</h1>
+      <Card className="bg-card border-border max-w-2xl">
         <CardHeader>
-          <CardTitle className="text-lightest-slate">Change Password</CardTitle>
-          <CardDescription className="text-slate">
+          <CardTitle className="text-foreground">Change Password</CardTitle>
+          <CardDescription className="text-muted-foreground">
             Update your administrator password.
           </CardDescription>
         </CardHeader>
@@ -67,9 +70,9 @@ export function AdminSecurityPage() {
                 name="currentPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-light-slate">Current Password</FormLabel>
+                    <FormLabel className="text-muted-foreground">Current Password</FormLabel>
                     <FormControl>
-                      <Input type="password" {...field} className="bg-dark-navy border-lightest-navy/50 text-lightest-slate focus:ring-green" />
+                      <Input type="password" {...field} className="bg-background border-border text-foreground" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -80,9 +83,9 @@ export function AdminSecurityPage() {
                 name="newPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-light-slate">New Password</FormLabel>
+                    <FormLabel className="text-muted-foreground">New Password</FormLabel>
                     <FormControl>
-                      <Input type="password" {...field} className="bg-dark-navy border-lightest-navy/50 text-lightest-slate focus:ring-green" />
+                      <Input type="password" {...field} className="bg-background border-border text-foreground" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -93,9 +96,9 @@ export function AdminSecurityPage() {
                 name="confirmPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-light-slate">Confirm New Password</FormLabel>
+                    <FormLabel className="text-muted-foreground">Confirm New Password</FormLabel>
                     <FormControl>
-                      <Input type="password" {...field} className="bg-dark-navy border-lightest-navy/50 text-lightest-slate focus:ring-green" />
+                      <Input type="password" {...field} className="bg-background border-border text-foreground" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -103,8 +106,15 @@ export function AdminSecurityPage() {
               />
             </CardContent>
             <CardFooter>
-              <Button type="submit" disabled={loading} className="bg-green text-dark-navy hover:bg-green/90">
-                {loading ? 'Updating...' : 'Update Password'}
+              <Button type="submit" disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  'Update Password'
+                )}
               </Button>
             </CardFooter>
           </form>
