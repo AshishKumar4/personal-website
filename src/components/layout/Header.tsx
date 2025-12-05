@@ -1,19 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { motion, useScroll } from 'framer-motion';
 import { PERSONAL_INFO } from '@/components/config/constants';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useTheme } from '@/hooks/use-theme';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { Link, useLocation } from 'react-router-dom';
+
 const NAV_LINKS = [
   { name: "About", href: "#about" },
   { name: "Experience", href: "#experience" },
   { name: "Projects", href: "#projects" },
   { name: "Blog", href: "/blog" },
 ];
+
 const NavLink = ({ href, children, onClick }: { href: string, children: React.ReactNode, onClick?: () => void }) => {
   const location = useLocation();
   const isExternalPage = href.startsWith('/');
+
   if (isExternalPage) {
     // If we are already on the target page, treat it as an anchor link
     if (href.includes('#') && location.pathname === href.split('#')[0]) {
@@ -21,19 +26,25 @@ const NavLink = ({ href, children, onClick }: { href: string, children: React.Re
     }
     return <Link to={href} onClick={onClick}>{children}</Link>;
   }
+
   // If on a different page (like /blog), link to home page with anchor
   if (location.pathname !== '/') {
     return <Link to={`/${href}`} onClick={onClick}>{children}</Link>;
   }
+
   // Smooth scroll on home page
   return <a href={href} onClick={onClick}>{children}</a>;
 };
+
 export function Header() {
   const { scrollY } = useScroll();
   const [hidden, setHidden] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isMobile = useIsMobile();
+  const { isDark, toggleTheme } = useTheme();
+  const prefersReducedMotion = useReducedMotion();
+
   useEffect(() => {
     return scrollY.onChange((latest) => {
       const isScrollingDown = latest > scrollY.getPrevious();
@@ -45,46 +56,70 @@ export function Header() {
       setIsScrolled(latest > 50);
     });
   }, [scrollY]);
+
   const handleMenuToggle = () => setIsMenuOpen(!isMenuOpen);
+
   const navVariants = {
     visible: { opacity: 1, y: 0 },
-    hidden: { opacity: 0, y: -25 },
+    hidden: { opacity: prefersReducedMotion ? 1 : 0, y: prefersReducedMotion ? 0 : -25 },
   };
+
   const mobileMenuVariants = {
     open: { opacity: 1, x: 0 },
-    closed: { opacity: 0, x: "100%" },
+    closed: { opacity: prefersReducedMotion ? 0 : 0, x: prefersReducedMotion ? 0 : "100%" },
   };
-  const navLinkClass = "relative text-sm font-mono text-lightest-slate hover:text-green transition-colors duration-300";
+
+  // Theme-aware classes - using semantic tokens
+  const navLinkClass = "relative text-sm font-mono text-foreground hover:text-primary transition-colors duration-300";
+  const headerBgClass = isScrolled
+    ? 'h-20 bg-background/80 shadow-md backdrop-blur-sm'
+    : 'h-24';
+
   return (
     <motion.header
       variants={navVariants}
       animate={hidden ? 'hidden' : 'visible'}
-      transition={{ ease: [0.1, 0.25, 0.3, 1], duration: 0.6 }}
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'h-20 bg-dark-navy/80 shadow-md backdrop-blur-sm' : 'h-24'}`}
+      transition={{ ease: [0.1, 0.25, 0.3, 1], duration: prefersReducedMotion ? 0 : 0.6 }}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${headerBgClass}`}
     >
       <nav className="max-w-7xl mx-auto h-full flex items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link to="/" className="text-green text-2xl font-mono font-bold z-50">AKS</Link>
+        <Link to="/" className="text-primary text-2xl font-mono font-bold z-50">AKS</Link>
+
         {isMobile ? (
           <>
-            <Button variant="ghost" size="icon" onClick={handleMenuToggle} className="z-50 text-green">
-              {isMenuOpen ? <X /> : <Menu />}
-            </Button>
+            <div className="flex items-center gap-2 z-50">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+                className="text-muted-foreground hover:text-primary hover:bg-primary/10"
+                aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {isDark ? <Sun size={18} /> : <Moon size={18} />}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={handleMenuToggle} className="text-primary">
+                {isMenuOpen ? <X /> : <Menu />}
+              </Button>
+            </div>
             <motion.div
               initial="closed"
               animate={isMenuOpen ? "open" : "closed"}
               variants={mobileMenuVariants}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="fixed top-0 right-0 h-screen w-3/4 bg-light-navy p-8 shadow-xl"
+              transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 30 }}
+              className="fixed top-0 right-0 h-screen w-3/4 bg-card p-8 shadow-xl"
             >
               <div className="flex flex-col items-center justify-center h-full space-y-8">
                 {NAV_LINKS.map((link, i) => (
                   <NavLink key={link.href} href={link.href} onClick={() => setIsMenuOpen(false)}>
                     <span className={navLinkClass}>
-                      <span className="text-green mr-2">0{i + 1}.</span>{link.name}
+                      <span className="text-primary mr-2">0{i + 1}.</span>{link.name}
                     </span>
                   </NavLink>
                 ))}
-                <a href={`mailto:${PERSONAL_INFO.email}`} className="font-mono text-sm border border-green text-green rounded-md px-6 py-3 hover:bg-green-tint transition-colors duration-300">
+                <a
+                  href={`mailto:${PERSONAL_INFO.email}`}
+                  className="font-mono text-sm border border-primary text-primary rounded-md px-6 py-3 hover:bg-primary/10 transition-colors duration-300"
+                >
                   Contact
                 </a>
               </div>
@@ -95,11 +130,23 @@ export function Header() {
             {NAV_LINKS.map((link, i) => (
               <NavLink key={link.href} href={link.href}>
                  <span className={navLinkClass}>
-                    <span className="text-green mr-2">0{i + 1}.</span>{link.name}
+                    <span className="text-primary mr-2">0{i + 1}.</span>{link.name}
                  </span>
               </NavLink>
             ))}
-            <a href={`mailto:${PERSONAL_INFO.email}`} className="font-mono text-sm border border-green text-green rounded-md px-4 py-2 hover:bg-green-tint transition-colors duration-300">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="text-muted-foreground hover:text-primary hover:bg-primary/10"
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            </Button>
+            <a
+              href={`mailto:${PERSONAL_INFO.email}`}
+              className="font-mono text-sm border border-primary text-primary rounded-md px-4 py-2 hover:bg-primary/10 transition-colors duration-300"
+            >
               Contact
             </a>
           </div>

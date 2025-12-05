@@ -3,19 +3,80 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
 @layer base {
+  /* ===== LIGHT MODE (Blueprint / Professional) ===== */
   :root {
+    /*
+     * BLUEPRINT LIGHT THEME
+     * Clean, minimal, professional with subtle warmth
+     * Inspired by technical documentation and Cloudflare's design
+     */
+
+    /* Background layers - pure whites, no blue tint */
+    --color-dark-navy: 255 255 255;      /* #FFFFFF - Main background */
+    --color-navy: 250 250 250;           /* #FAFAFA - Subtle sections */
+    --color-light-navy: 255 255 255;     /* #FFFFFF - Cards */
+    --color-lightest-navy: 234 234 234;  /* #EAEAEA - Borders (neutral) */
+
+    /* Text colors - warm neutrals, not cool grays */
+    --color-slate: 82 82 82;             /* #525252 - Secondary text */
+    --color-light-slate: 115 115 115;    /* #737373 - Muted text */
+    --color-lightest-slate: 23 23 23;    /* #171717 - Primary text (near black) */
+
+    /* Accent - Sophisticated burnt orange (less saturated, more premium) */
+    --color-accent: 234 88 12;           /* #EA580C - Tailwind orange-600 */
+    --color-accent-tint: 234 88 12;
+    --color-accent-tint-full: rgba(234, 88, 12, 0.08);
+
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
+    --primary: 24 95% 48%;
+    --primary-foreground: 0 0% 100%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --border: 0 0% 88%;
+    --ring: 24 95% 48%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 9%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
+    --accent: 24 95% 48%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --input: 0 0% 92%;
+    --radius: 0.5rem;
+  }
+
+  /* ===== DARK MODE (Original Cyan Theme) ===== */
+  .dark {
+    --color-dark-navy: 10 25 47;
+    --color-navy: 10 25 47;
+    --color-light-navy: 17 34 64;
+    --color-lightest-navy: 35 53 84;
+
+    --color-slate: 136 146 176;
+    --color-light-slate: 168 178 209;
+    --color-lightest-slate: 204 214 246;
+
+    --color-accent: 100 255 218;
+    --color-accent-tint: 100 255 218;
+    --color-accent-tint-full: rgba(100, 255, 218, 0.1);
+
     --background: 222 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
+    --foreground: 210 20% 80.4%;
+    --primary: 166 100% 70%;
     --primary-foreground: 222.2 47.4% 11.2%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
     --border: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
-    --card: 222.2 84% 4.9%;
+    --card: 218 58% 16%;
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --popover: 218 58% 16%;
     --popover-foreground: 210 40% 98%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -24,37 +85,48 @@
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
     --input: 217.2 32.6% 17.5%;
-    --radius: 0.5rem;
   }
-  .dark {
-    --background: 222 84% 4.9%; /* dark-navy */
-    --foreground: 210 20% 80.4%; /* slate */
-  }
+
   * {
     @apply border-border;
   }
+
   html {
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
   body {
-    @apply bg-dark-navy text-slate font-sans;
+    @apply bg-dark-navy text-slate font-sans transition-colors duration-300;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     text-rendering: optimizeLegibility;
   }
+
+  /* Light mode selection */
   ::selection {
+    background: rgba(234, 88, 12, 0.15);
+    color: #171717;
+  }
+
+  /* Dark mode selection */
+  .dark ::selection {
     @apply bg-lightest-navy text-lightest-slate;
   }
 }
+
 @layer components {
+  /* Section headings - theme aware */
   .section-heading {
     @apply flex items-center w-full text-2xl md:text-3xl font-semibold text-lightest-slate whitespace-nowrap;
   }
   .section-heading::after {
     content: '';
-    @apply block w-full md:w-64 h-[1px] bg-lightest-navy ml-4;
+    @apply block w-full md:w-64 h-[1px] ml-4;
+    background-color: rgb(var(--color-lightest-navy));
   }
+
+  /* Prose styles - theme aware */
   .prose-styles {
     @apply text-light-slate leading-relaxed;
   }
@@ -65,12 +137,49 @@
   .prose-styles h2 { @apply text-3xl; }
   .prose-styles h3 { @apply text-2xl; }
   .prose-styles p { @apply mb-4; }
-  .prose-styles a { @apply text-green hover:underline; }
+  .prose-styles a { @apply text-accent hover:underline; }
   .prose-styles ul { @apply list-disc list-inside mb-4 space-y-2; }
   .prose-styles ol { @apply list-decimal list-inside mb-4 space-y-2; }
   .prose-styles li { @apply ml-4; }
-  .prose-styles blockquote { @apply border-l-4 border-green pl-4 italic text-slate my-6; }
-  .prose-styles code { @apply bg-light-navy text-green-tint font-mono text-sm px-1 py-0.5 rounded; }
-  .prose-styles pre { @apply bg-light-navy p-4 rounded-md overflow-x-auto my-6; }
+  .prose-styles blockquote {
+    @apply border-l-4 pl-4 italic my-6;
+    border-color: rgb(var(--color-accent));
+    color: rgb(var(--color-slate));
+  }
+  .prose-styles code {
+    @apply font-mono text-sm px-1.5 py-0.5 rounded;
+    background-color: rgb(var(--color-lightest-navy) / 0.5);
+    color: rgb(var(--color-accent));
+  }
+  .prose-styles pre {
+    @apply p-4 rounded-lg overflow-x-auto my-6;
+    background-color: rgb(var(--color-navy));
+  }
   .prose-styles pre code { @apply bg-transparent p-0; }
+}
+
+/* Custom scrollbar - Light mode */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #fafafa;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4d4d4;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a3a3a3;
+}
+
+/* Custom scrollbar - Dark mode */
+.dark ::-webkit-scrollbar-track {
+  background: rgb(10, 25, 47);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgb(35, 53, 84);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgb(100, 255, 218);
 }

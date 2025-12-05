@@ -1,15 +1,27 @@
 import React from "react";
 import { cn } from "@/lib/utils";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { useTheme } from "@/hooks/use-theme";
+
 interface AuroraBackgroundProps extends React.HTMLProps<HTMLDivElement> {
   children?: React.ReactNode;
   showRadialGradient?: boolean;
 }
+
 export const AuroraBackground = ({
   className,
   children,
   showRadialGradient = true,
   ...props
 }: AuroraBackgroundProps) => {
+  const prefersReducedMotion = useReducedMotion();
+  const { isDark } = useTheme();
+
+  // Theme-aware CSS variables
+  const auroraGradient = isDark
+    ? "repeating-linear-gradient(100deg,#6366f1_10%,#818cf8_15%,#a5b4fc_20%,#c4b5fd_25%,#8b5cf6_30%)"
+    : "repeating-linear-gradient(100deg,#EA580C_10%,#F97316_15%,#FDBA74_20%,#FED7AA_25%,#EA580C_30%)";
+
   return (
     <div
       className={cn(
@@ -21,53 +33,64 @@ export const AuroraBackground = ({
       <div className="absolute inset-0 overflow-hidden -z-10">
         <div
           className={cn(
-            `
-            [--white-gradient:repeating-linear-gradient(100deg,var(--white)_0%,var(--white)_7%,var(--transparent)_10%,var(--transparent)_12%,var(--white)_16%)]
-            [--dark-gradient:repeating-linear-gradient(100deg,var(--black)_0%,var(--black)_7%,var(--transparent)_10%,var(--transparent)_12%,var(--black)_16%)]
-            [--aurora:repeating-linear-gradient(100deg,var(--blue-500)_10%,var(--indigo-300)_15%,var(--blue-300)_20%,var(--violet-200)_25%,var(--blue-400)_30%)]
-            [background-image:var(--dark-gradient),var(--aurora)]
-            [background-size:300%,_200%]
-            [background-position:50%_50%,50%_50%]
-            filter blur-[10px] invert-0
-            after:content-[""] after:absolute after:inset-0 after:[background-image:var(--dark-gradient),var(--aurora)]
-            after:[background-size:200%,_100%]
-            after:animate-aurora after:[background-attachment:fixed] after:mix-blend-difference
-            pointer-events-none
-            absolute -inset-[10px] opacity-50 will-change-transform`,
-            showRadialGradient &&
-              `[mask-image:radial-gradient(ellipse_at_100%_0%,black_10%,var(--transparent)_70%)]`
+            `pointer-events-none absolute -inset-[10px] will-change-transform`,
+            isDark ? "opacity-50" : "opacity-30",
+            !prefersReducedMotion && "after:animate-aurora"
           )}
-        ></div>
+          style={{
+            backgroundImage: `repeating-linear-gradient(100deg,${isDark ? '#000' : '#fff'}_0%,${isDark ? '#000' : '#fff'}_7%,transparent_10%,transparent_12%,${isDark ? '#000' : '#fff'}_16%), ${auroraGradient}`,
+            backgroundSize: '300%, 200%',
+            backgroundPosition: '50% 50%, 50% 50%',
+            filter: 'blur(10px)',
+            ...(showRadialGradient && {
+              maskImage: 'radial-gradient(ellipse at 100% 0%, black 10%, transparent 70%)',
+              WebkitMaskImage: 'radial-gradient(ellipse at 100% 0%, black 10%, transparent 70%)',
+            }),
+          }}
+        >
+          <div
+            className={cn(
+              "absolute inset-0 mix-blend-difference",
+              !prefersReducedMotion && "animate-aurora"
+            )}
+            style={{
+              backgroundImage: `repeating-linear-gradient(100deg,${isDark ? '#000' : '#fff'}_0%,${isDark ? '#000' : '#fff'}_7%,transparent_10%,transparent_12%,${isDark ? '#000' : '#fff'}_16%), ${auroraGradient}`,
+              backgroundSize: '200%, 100%',
+              backgroundAttachment: 'fixed',
+            }}
+          />
+        </div>
       </div>
       {children}
     </div>
   );
 };
-// We need to add the keyframes to tailwind.config.js for this to work.
-// For now, this component won't animate correctly until that's done.
-// Let's create a temporary style tag to inject the animation for now.
-// This is a workaround as we can't modify tailwind.config.js in this context.
+
 export function AuroraBackgroundWrapper() {
-    return (
-        <>
-            <style>
-                {`
-                @keyframes aurora {
-                    from {
-                        background-position: 50% 50%, 50% 50%;
-                    }
-                    to {
-                        background-position: 350% 50%, 350% 50%;
-                    }
-                }
-                .animate-aurora {
-                    animation: aurora 60s linear infinite;
-                }
-                `}
-            </style>
-            <div className="fixed inset-0 w-full h-full -z-10 overflow-hidden">
-                <AuroraBackground />
-            </div>
-        </>
-    )
+  const prefersReducedMotion = useReducedMotion();
+
+  return (
+    <>
+      {!prefersReducedMotion && (
+        <style>
+          {`
+          @keyframes aurora {
+            from {
+              background-position: 50% 50%, 50% 50%;
+            }
+            to {
+              background-position: 350% 50%, 350% 50%;
+            }
+          }
+          .animate-aurora {
+            animation: aurora 60s linear infinite;
+          }
+          `}
+        </style>
+      )}
+      <div className="fixed inset-0 w-full h-full -z-10 overflow-hidden">
+        <AuroraBackground />
+      </div>
+    </>
+  );
 }

@@ -8,22 +8,6 @@ import type { User, Chat, ChatMessage, BlogPost, AuthUser, SiteConfig, Experienc
 
 // BLOG POST ENTITY
 const SEED_BLOG_POSTS: BlogPost[] = [
-    {
-        id: "hello-world",
-        slug: "hello-world",
-        title: "Hello, World!",
-        content: "This is the first blog post. Welcome to the blog! This is a longer piece of content to demonstrate how a full post would look. We can include **markdown** here if we add a parser on the frontend. For now, it's just plain text. More content will be added later.",
-        author: "Ashish Kumar Singh",
-        createdAt: Date.now() - 86400000, // 1 day ago
-    },
-    {
-        id: "building-with-durable-objects",
-        slug: "building-with-durable-objects",
-        title: "Building with Cloudflare Durable Objects",
-        content: "Durable Objects provide a powerful way to manage state in a serverless environment. This blog is powered by them! This post explores the architecture and benefits of using Durable Objects for applications like this portfolio.",
-        author: "Ashish Kumar Singh",
-        createdAt: Date.now(),
-    },
 ];
 export class BlogEntity extends IndexedEntity<BlogPost> {
     static readonly entityName = "blogPost";
@@ -40,7 +24,7 @@ const SEED_EXPERIENCE: Experience[] = [
     role: "Software Engineer Intern",
     duration: "Jun 2025 - Present · 4 mos",
     location: "Maryland, United States · Remote",
-    description: "Working in the Emerging Technology and Incubation team, focusing on advanced machine learning and AI infrastructure development and exploring multi agentic orchestration frameworks and their applications.",
+    description: "Building and leading development of Vibesdk - OSS Reference vibe coding platform for building full-stack apps, slides from prompts, purely on Cloudflare developer platform - Workers, Durable Objects etc. Also helping multiple startups and enterprises build their own vibe-coding platforms",
     skills: ["Generative AI", "Distributed Systems", "Cloudflare Workers"],
   },
   {

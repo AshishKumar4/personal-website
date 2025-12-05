@@ -9,6 +9,7 @@ import {
   RouterProvider,
 } from "react-router-dom";
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import '@/index.css'
 import { HomePage } from '@/pages/HomePage'
 import { BlogPage } from '@/pages/BlogPage';
@@ -57,6 +58,8 @@ const router = createBrowserRouter([
 ]);
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <ThemeProvider>
+      <RouterProvider router={router} />
+    </ThemeProvider>
   </StrictMode>,
 )
