@@ -10,12 +10,7 @@ import { ArrowLeft, Calendar, User, Clock } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
-
-function getReadingTime(content: string): number {
-  const wordsPerMinute = 200;
-  const words = content.trim().split(/\s+/).length;
-  return Math.max(1, Math.ceil(words / wordsPerMinute));
-}
+import { getReadingTime } from '@/lib/text-utils';
 
 export function BlogPostPage() {
   const { slug } = useParams<{ slug: string }>();

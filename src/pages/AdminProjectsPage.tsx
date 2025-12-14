@@ -54,7 +54,7 @@ export function AdminProjectsPage() {
   };
 
   const handleCreateNew = () => {
-    setCurrentProject({ name: '', description: '', repo: '', url: '' });
+    setCurrentProject({ name: '', description: '', repo: '', url: '', imageUrl: '' });
     setDialogOpen(true);
   };
 
@@ -272,6 +272,18 @@ export function AdminProjectsPage() {
                   className="bg-background border-border"
                   rows={4}
                   placeholder="Describe what this project does..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="imageUrl" className="text-muted-foreground">
+                  Screenshot URL (optional)
+                </Label>
+                <Input
+                  id="imageUrl"
+                  value={currentProject.imageUrl || ''}
+                  onChange={(e) => setCurrentProject({ ...currentProject, imageUrl: e.target.value })}
+                  className="bg-background border-border"
+                  placeholder="https://example.com/screenshot.png"
                 />
               </div>
               <DialogFooter className="pt-4 border-t border-border">

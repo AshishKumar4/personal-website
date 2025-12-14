@@ -39,7 +39,7 @@ export function AdminLayout() {
   };
 
   return (
-    <div className="flex min-h-screen bg-background text-muted-foreground">
+    <div className="admin-panel flex min-h-screen bg-background text-muted-foreground">
       <AdminSidebar />
       <div className="flex-1 flex flex-col">
         <header className="h-16 border-b border-border flex items-center justify-end px-6 gap-2">

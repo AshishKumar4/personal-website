@@ -7,6 +7,7 @@
 	"name": "personal-website",
 	"main": "worker/index.ts",
 	"compatibility_date": "2025-04-24",
+	"compatibility_flags": ["nodejs_compat"],
 	"assets": {
 		"not_found_handling": "single-page-application",
 		"run_worker_first": ["/api/*", "!/api/docs/*"]
@@ -34,6 +35,31 @@
       {
         "binding": "IMAGES_BUCKET",
         "bucket_name": "blog-images"
+      },
+      {
+        "binding": "EMAIL_BUCKET",
+        "bucket_name": "email-storage"
+      },
+      {
+        "binding": "FILES_BUCKET",
+        "bucket_name": "general-hosting"
+      }
+    ],
+    "send_email": [
+      {
+        "name": "EMAIL_SENDER"
+      }
+    ],
+    "vars": {
+    },
+    "routes": [
+      {
+        "pattern": "ashishkumarsingh.com",
+        "custom_domain": true
+      },
+      {
+        "pattern": "mail.ashishkumarsingh.com",
+        "custom_domain": true
       }
     ]
 }

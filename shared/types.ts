@@ -36,6 +36,7 @@ export interface Project {
   description: string;
   repo: string;
   url: string;
+  imageUrl?: string;
 }
 export interface GitHubRepo {
   stars: number;
@@ -73,4 +74,116 @@ export interface SiteConfig {
 export interface ChangePasswordPayload {
   currentPassword: string;
   newPassword: string;
+}
+// Contact Message type
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  createdAt: number;
+}
+// Email System types
+export interface EmailAttachment {
+  id: string;
+  filename: string;
+  contentType: string;
+  size: number;
+  r2Key: string;
+}
+
+export interface AttachmentFile {
+  file: File;
+  id: string;
+}
+export interface Email {
+  id: string;
+  account: string;
+  threadId: string;
+  messageId?: string;
+  from: string;
+  fromName?: string;
+  to: string[];
+  cc?: string[];
+  bcc?: string[];
+  replyTo?: string;
+  subject: string;
+  snippet: string;
+  htmlBody?: string;
+  textBody?: string;
+  rawKey: string;
+  attachments: EmailAttachment[];
+  labels: string[];
+  read: boolean;
+  starred: boolean;
+  createdAt: number;
+  inReplyTo?: string;
+  references?: string[];
+}
+export interface EmailThread {
+  id: string;
+  account: string;
+  subject: string;
+  participants: string[];
+  snippet: string;
+  emailCount: number;
+  lastEmailAt: number;
+  labels: string[];
+  read: boolean;
+  starred: boolean;
+}
+export interface EmailLabel {
+  id: string;
+  name: string;
+  color?: string;
+  type: 'system' | 'user';
+}
+export interface EmailAccount {
+  address: string;
+  name: string;
+}
+export interface EmailDraft {
+  id: string;
+  account: string;
+  from: string;
+  to: string;
+  cc?: string;
+  bcc?: string;
+  subject: string;
+  body: string;
+  attachments: EmailAttachment[];
+  inReplyTo?: string;
+  threadId?: string;
+  updatedAt: number;
+  createdAt: number;
+}
+export const SYSTEM_LABELS = ['inbox', 'sent', 'drafts', 'starred', 'trash', 'spam'] as const;
+export type SystemLabel = typeof SYSTEM_LABELS[number];
+export const EMAIL_ACCOUNT_IDS = ['me', 'contact'] as const;
+export type EmailAccountId = typeof EMAIL_ACCOUNT_IDS[number];
+export const EMAIL_ACCOUNTS_CONFIG: EmailAccount[] = [
+  { address: 'me@ashishkumarsingh.com', name: 'Ashish Kumar Singh' },
+  { address: 'contact@ashishkumarsingh.com', name: 'Contact' },
+];
+export interface R2FileItem {
+  key: string;
+  name: string;
+  size: number;
+  lastModified: number;
+  type: 'file' | 'folder';
+  contentType?: string;
+}
+export interface R2ListResponse {
+  items: R2FileItem[];
+  prefix: string;
+  cursor?: string;
+  truncated: boolean;
+}
+export interface MultipartUploadInit {
+  uploadId: string;
+  key: string;
+}
+export interface MultipartUploadPart {
+  partNumber: number;
+  etag: string;
 }

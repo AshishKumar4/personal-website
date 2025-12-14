@@ -32,7 +32,7 @@ export default defineConfig({
       // This is still crucial for reducing the time from when `bun run dev`
       // is executed to when the server is actually ready.
       include: ["react", "react-dom", "react-router-dom"],
-      exclude: ["agents"], // Exclude agents package from pre-bundling due to Node.js dependencies
+      exclude: ["agents"],
       force: true,
     },
     define: {

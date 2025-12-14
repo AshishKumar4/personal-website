@@ -7,7 +7,7 @@ import { api } from '@/lib/api-client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
-const ProjectCard = ({ name, description, repo, url, prefersReducedMotion }: Project & { prefersReducedMotion: boolean }) => {
+const ProjectCard = ({ name, description, repo, url, imageUrl, prefersReducedMotion }: Project & { prefersReducedMotion: boolean }) => {
   const [repoData, setRepoData] = useState<GitHubRepo | null>(null);
   const [error, setError] = useState(false);
 
@@ -22,7 +22,6 @@ const ProjectCard = ({ name, description, repo, url, prefersReducedMotion }: Pro
             forks: data.forks_count,
           });
         } else if (response.status === 403) {
-          // Rate limited - fail gracefully
           console.warn("GitHub API rate limited");
           setError(true);
         }
@@ -42,9 +41,19 @@ const ProjectCard = ({ name, description, repo, url, prefersReducedMotion }: Pro
       transition={{ type: 'spring', stiffness: 300 }}
       className="h-full"
     >
-      <Card className="h-full flex flex-col justify-between transition-all duration-300 hover:border-primary/50 hover:shadow-lg">
-        <div>
-          <CardHeader>
+      <Card className="h-full flex flex-col justify-between transition-all duration-300 hover:border-primary/50 hover:shadow-lg overflow-hidden">
+        {imageUrl && (
+          <div className="relative aspect-video overflow-hidden">
+            <img
+              src={imageUrl}
+              alt={name}
+              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+              loading="lazy"
+            />
+          </div>
+        )}
+        <div className="flex-1 flex flex-col">
+          <CardHeader className={imageUrl ? 'pt-4' : ''}>
             <div className="flex justify-between items-center">
               <CardTitle className="text-xl font-bold text-foreground group-hover:text-primary transition-colors duration-300">{name}</CardTitle>
               <a
@@ -58,7 +67,7 @@ const ProjectCard = ({ name, description, repo, url, prefersReducedMotion }: Pro
               </a>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1">
             <CardDescription>{description}</CardDescription>
           </CardContent>
         </div>
@@ -115,7 +124,7 @@ export function ProjectsSection() {
     >
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="section-heading">
-          <span className="font-mono text-accent text-xl md:text-2xl mr-3">03.</span> Things I've Built
+          <span className="font-mono text-accent text-xl md:text-2xl mr-3">04.</span> Things I've Built
         </h2>
         <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {loading ? (
