@@ -15,7 +15,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       if (savedTheme) return savedTheme === 'dark';
       return window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
-    return true;
+    return false;
   });
 
   useEffect(() => {

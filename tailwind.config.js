@@ -223,6 +223,10 @@ export default {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
         },
+        'blink': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0' },
+        },
   		},
   		animation: {
   			'fade-in': 'fade-in 0.5s ease-out',
@@ -231,6 +235,7 @@ export default {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out',
         'shimmer': 'shimmer 2s linear infinite',
+        'blink': 'blink 1s step-end infinite',
   		},
   	}
   },

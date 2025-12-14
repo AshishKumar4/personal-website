@@ -36,7 +36,7 @@ export function ExperienceSection() {
     >
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="section-heading">
-          <span className="font-mono text-accent text-xl md:text-2xl mr-3">02.</span> Where I've Worked
+          <span className="font-mono text-accent text-xl md:text-2xl mr-3">03.</span> Where I've Worked
         </h2>
         <div className="mt-12 space-y-8">
           {loading ? (

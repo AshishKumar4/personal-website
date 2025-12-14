@@ -1,13 +1,49 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { PERSONAL_INFO } from '@/components/config/constants';
 import { useSiteConfig } from '@/contexts/SiteConfigContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
+function useTypewriter(text: string, speed: number = 50, delay: number = 800, enabled: boolean = true) {
+  const [displayText, setDisplayText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+
+  useEffect(() => {
+    if (!enabled || !text) {
+      setDisplayText(text);
+      return;
+    }
+
+    setDisplayText('');
+    setIsTyping(true);
+    let index = 0;
+
+    const startTimeout = setTimeout(() => {
+      const interval = setInterval(() => {
+        if (index < text.length) {
+          setDisplayText(text.slice(0, index + 1));
+          index++;
+        } else {
+          setIsTyping(false);
+          clearInterval(interval);
+        }
+      }, speed);
+
+      return () => clearInterval(interval);
+    }, delay);
+
+    return () => clearTimeout(startTimeout);
+  }, [text, speed, delay, enabled]);
+
+  return { displayText, isTyping };
+}
+
 export function HeroSection() {
   const { config, loading } = useSiteConfig();
   const prefersReducedMotion = useReducedMotion();
+  const subtitle = config?.subtitle || "I build things for the web.";
+  const { displayText, isTyping } = useTypewriter(subtitle, 40, 1000, !prefersReducedMotion && !loading);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -51,7 +87,10 @@ export function HeroSection() {
             <Skeleton className="h-12 w-3/4" />
           ) : (
             <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-muted-foreground font-display">
-              {config?.subtitle || "I build things for the web."}
+              {prefersReducedMotion ? subtitle : displayText}
+              {!prefersReducedMotion && (
+                <span className={`inline-block w-[3px] h-[0.9em] ml-1 align-middle bg-primary ${isTyping ? 'animate-pulse' : 'animate-blink'}`} />
+              )}
             </h2>
           )}
         </motion.div>

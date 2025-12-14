@@ -2,7 +2,7 @@
  * Minimal real-world demo: One Durable Object instance per entity (User, ChatBoard), with Indexes for listing.
  */
 import { Entity, IndexedEntity } from "./core-utils";
-import type { User, Chat, ChatMessage, BlogPost, AuthUser, SiteConfig, Experience, Project } from "@shared/types";
+import type { User, Chat, ChatMessage, BlogPost, AuthUser, SiteConfig, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft } from "@shared/types";
 
 
 
@@ -175,4 +175,82 @@ export class SiteConfigEntity extends Entity<SiteConfig> {
             console.log("Default site configuration created.");
         }
     }
+}
+// CONTACT MESSAGE ENTITY
+export class ContactEntity extends IndexedEntity<ContactMessage> {
+    static readonly entityName = "contact";
+    static readonly indexName = "contacts";
+    static readonly initialState: ContactMessage = { id: "", name: "", email: "", message: "", createdAt: 0 };
+    static seedData: ContactMessage[] = [];
+}
+// EMAIL ENTITY
+export class EmailEntity extends IndexedEntity<Email> {
+    static readonly entityName = "email";
+    static readonly indexName = "emails";
+    static readonly initialState: Email = {
+        id: "",
+        account: "",
+        threadId: "",
+        from: "",
+        to: [],
+        subject: "",
+        snippet: "",
+        rawKey: "",
+        attachments: [],
+        labels: [],
+        read: false,
+        starred: false,
+        createdAt: 0,
+    };
+    static seedData: Email[] = [];
+}
+// EMAIL THREAD ENTITY
+export class EmailThreadEntity extends IndexedEntity<EmailThread> {
+    static readonly entityName = "emailThread";
+    static readonly indexName = "emailThreads";
+    static readonly initialState: EmailThread = {
+        id: "",
+        account: "",
+        subject: "",
+        participants: [],
+        snippet: "",
+        emailCount: 0,
+        lastEmailAt: 0,
+        labels: [],
+        read: false,
+        starred: false,
+    };
+    static seedData: EmailThread[] = [];
+}
+// EMAIL LABEL ENTITY
+const SEED_EMAIL_LABELS: EmailLabel[] = [
+    { id: "inbox", name: "Inbox", type: "system" },
+    { id: "sent", name: "Sent", type: "system" },
+    { id: "drafts", name: "Drafts", type: "system" },
+    { id: "starred", name: "Starred", type: "system" },
+    { id: "important", name: "Important", type: "system" },
+    { id: "trash", name: "Trash", type: "system" },
+    { id: "spam", name: "Spam", type: "system" },
+];
+export class EmailLabelEntity extends IndexedEntity<EmailLabel> {
+    static readonly entityName = "emailLabel";
+    static readonly indexName = "emailLabels";
+    static readonly initialState: EmailLabel = { id: "", name: "", type: "user" };
+    static seedData = SEED_EMAIL_LABELS;
+}
+export class EmailDraftEntity extends IndexedEntity<EmailDraft> {
+    static readonly entityName = "emailDraft";
+    static readonly indexName = "emailDrafts";
+    static readonly initialState: EmailDraft = {
+        id: "",
+        account: "",
+        from: "",
+        to: "",
+        subject: "",
+        body: "",
+        attachments: [],
+        updatedAt: 0,
+        createdAt: 0,
+    };
+    static seedData: EmailDraft[] = [];
 }

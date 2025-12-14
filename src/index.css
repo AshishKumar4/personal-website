@@ -183,3 +183,36 @@
 .dark ::-webkit-scrollbar-thumb:hover {
   background: rgb(100, 255, 218);
 }
+
+/* ===== ADMIN PANEL DARK MODE OVERRIDES ===== */
+.dark .admin-panel {
+  --background: 222 47% 11%;
+  --foreground: 214 32% 91%;
+  --primary: 199 89% 48%;
+  --primary-foreground: 0 0% 100%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+  --border: 217 33% 22%;
+  --ring: 199 89% 48%;
+  --card: 222 47% 13%;
+  --card-foreground: 214 32% 91%;
+  --popover: 222 47% 13%;
+  --popover-foreground: 214 32% 91%;
+  --secondary: 217 33% 20%;
+  --secondary-foreground: 214 32% 91%;
+  --accent: 217 33% 22%;
+  --accent-foreground: 214 32% 91%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 214 32% 91%;
+  --input: 217 33% 20%;
+}
+
+.dark .admin-panel ::-webkit-scrollbar-track {
+  background: hsl(222 47% 11%);
+}
+.dark .admin-panel ::-webkit-scrollbar-thumb {
+  background: hsl(217 33% 25%);
+}
+.dark .admin-panel ::-webkit-scrollbar-thumb:hover {
+  background: hsl(199 89% 48%);
+}

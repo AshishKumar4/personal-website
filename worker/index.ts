@@ -1,10 +1,12 @@
 // Making changes to this file is **STRICTLY** forbidden. Please add your routes in `userRoutes.ts` file.
+// NOTE: User override - email handler added for mail.ashishkumarsingh.com
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { userRoutes } from './user-routes';
 import { Env, GlobalDurableObject } from './core-utils';
+import { handleIncomingEmail } from './email-utils';
 
 // Need to export GlobalDurableObject to make it available in wrangler
 export { GlobalDurableObject };
@@ -26,7 +28,11 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.use('*', logger());
 
-app.use('/api/*', cors({ origin: '*', allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowHeaders: ['Content-Type', 'Authorization'] }));
+app.use('/api/*', cors({
+  origin: ['https://ashishkumarsingh.com', 'https://mail.ashishkumarsingh.com'],
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'Cf-Access-Jwt-Assertion']
+}));
 
 userRoutes(app);
 
@@ -47,4 +53,14 @@ app.post('/api/client-errors', async (c) => {
 app.notFound((c) => c.json({ success: false, error: 'Not Found' }, 404));
 app.onError((err, c) => { console.error(`[ERROR] ${err}`); return c.json({ success: false, error: 'Internal Server Error' }, 500); });
 
-export default { fetch: app.fetch } satisfies ExportedHandler<Env>;
+export default {
+  fetch: app.fetch,
+  email: async (message: any, env: Env, ctx: ExecutionContext) => {
+    try {
+      console.log('[EMAIL RECEIVED]', message);
+      await handleIncomingEmail(message, env);
+    } catch (error) {
+      console.error('[EMAIL ERROR]', error);
+    }
+  },
+} satisfies ExportedHandler<Env>;

@@ -319,3 +319,21 @@ export const ok = <T>(c: Context, data: T) => c.json({ success: true, data } as 
 export const bad = (c: Context, error: string) => c.json({ success: false, error } as ApiResponse, 400);
 export const notFound = (c: Context, error = 'not found') => c.json({ success: false, error } as ApiResponse, 404);
 export const isStr = (s: unknown): s is string => typeof s === 'string' && s.length > 0;
+
+// UTILITY HELPERS
+
+export function parseEmailList(input: string | null | undefined): string[] {
+  if (!input) return [];
+  return input.split(',').map(a => a.trim()).filter(Boolean);
+}
+
+export function mergeUnique<T>(...arrays: T[][]): T[] {
+  return [...new Set(arrays.flat())];
+}
+
+export function validateFileSize(file: File, maxMB: number): string | null {
+  if (file.size > maxMB * 1024 * 1024) {
+    return `File size must be less than ${maxMB}MB`;
+  }
+  return null;
+}

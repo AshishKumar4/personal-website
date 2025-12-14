@@ -8,12 +8,7 @@ import { Toaster, toast } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar, User, Clock, ArrowRight, Sparkles } from 'lucide-react';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
-
-function getReadingTime(content: string): number {
-  const wordsPerMinute = 200;
-  const words = content.trim().split(/\s+/).length;
-  return Math.max(1, Math.ceil(words / wordsPerMinute));
-}
+import { getReadingTime } from '@/lib/text-utils';
 
 export function BlogPage() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
