@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import type { Email, EmailThread, EmailAccount } from '@shared/types';
 import {
   Reply, ReplyAll, Forward, MoreVertical, Star, Trash2,
-  Paperclip, Download, ArrowLeft
+  Paperclip, Download, ArrowLeft, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -19,6 +19,7 @@ import { InlineCompose } from './InlineCompose';
 import { formatRelativeTime, formatFullDate, formatFileSize } from '@/lib/date-utils';
 import { getInitials } from '@/lib/text-utils';
 import { getSenderName, extractNewContent, extractNewHtmlContent } from '@/lib/email-utils';
+import { DOMPURIFY_CONFIG } from '@/lib/mail-constants';
 
 interface EmailReaderProps {
   thread: EmailThread;
@@ -33,46 +34,147 @@ interface EmailReaderProps {
 
 type ComposeMode = 'reply' | 'replyAll' | 'forward' | null;
 
-function EmailMessage({
-  email,
-  isLast,
-  totalCount,
-  index,
-  onReply,
-  onReplyAll,
-  onForward,
-}: {
+// Minimal CSS injected into the iframe so text is readable without clobbering email styles.
+// Deliberately light — only sets defaults that emails commonly omit.
+const IFRAME_BASE_CSS = `
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #1a1a1a;
+    background: transparent;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  img { max-width: 100%; height: auto; display: block; }
+  a { color: #1a73e8; }
+  table { border-spacing: 0; }
+  blockquote { border-left: 3px solid #ccc; margin: 8px 0; padding: 4px 12px; color: #555; }
+  pre, code { font-family: 'Fira Code', 'Roboto Mono', monospace; }
+`;
+
+function resolveCidUrls(html: string, email: Email): string {
+  if (!html.includes('cid:')) return html;
+  return html.replace(/src="cid:([^"]+)"/gi, (_, cid) => {
+    const normalizedCid = cid.replace(/^<|>$/g, '');
+    const attachment = email.attachments.find(
+      (a) => a.contentId === normalizedCid || a.contentId === `<${normalizedCid}>`
+    );
+    if (!attachment) return 'src=""';
+    return `src="/api/mail/attachments/${email.id}/${attachment.id}"`;
+  });
+}
+
+function buildIframeSrcdoc(html: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${IFRAME_BASE_CSS}</style></head><body>${html}</body></html>`;
+}
+
+interface IframeEmailBodyProps {
+  html: string;
+}
+
+function IframeEmailBody({ html }: IframeEmailBodyProps) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [height, setHeight] = useState(200);
+
+  const updateHeight = useCallback(() => {
+    const frame = iframeRef.current;
+    if (!frame?.contentDocument?.body) return;
+    const newHeight = frame.contentDocument.documentElement.scrollHeight;
+    if (newHeight > 0) setHeight(newHeight);
+  }, []);
+
+  useEffect(() => {
+    const frame = iframeRef.current;
+    if (!frame) return;
+
+    const handleLoad = () => {
+      updateHeight();
+      // Watch for any dynamic height changes (images loading, etc.)
+      if (!frame.contentDocument) return;
+      const ro = new ResizeObserver(updateHeight);
+      ro.observe(frame.contentDocument.body);
+      return () => ro.disconnect();
+    };
+
+    frame.addEventListener('load', handleLoad);
+    return () => frame.removeEventListener('load', handleLoad);
+  }, [html, updateHeight]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      srcDoc={buildIframeSrcdoc(html)}
+      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      referrerPolicy="no-referrer"
+      title="Email content"
+      className="w-full border-0 block"
+      style={{ height, minHeight: 40 }}
+      scrolling="no"
+    />
+  );
+}
+
+interface EmailMessageProps {
   email: Email;
   isLast: boolean;
-  totalCount: number;
   index: number;
+  defaultExpanded: boolean;
   onReply?: () => void;
   onReplyAll?: () => void;
   onForward?: () => void;
-}) {
+}
+
+function EmailMessage({
+  email,
+  isLast,
+  index,
+  defaultExpanded,
+  onReply,
+  onReplyAll,
+  onForward,
+}: EmailMessageProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const senderName = getSenderName(email);
-  const isFirst = index === 0;
+  const isReply = Boolean(email.inReplyTo);
 
-  const newTextContent = extractNewContent(email.textBody);
-  const newHtmlContent = email.htmlBody ? extractNewHtmlContent(email.htmlBody) : null;
+  const htmlContent = (() => {
+    if (!email.htmlBody) return null;
+    // Only strip reply-quote boilerplate from actual reply emails
+    const extracted = isReply ? extractNewHtmlContent(email.htmlBody) : email.htmlBody;
+    const withCids = resolveCidUrls(extracted, email);
+    return DOMPurify.sanitize(withCids, {
+      ALLOWED_TAGS: [...DOMPURIFY_CONFIG.ALLOWED_TAGS],
+      ALLOWED_ATTR: [...DOMPURIFY_CONFIG.ALLOWED_ATTR],
+      FORCE_BODY: DOMPURIFY_CONFIG.FORCE_BODY,
+    });
+  })();
 
-  const sanitizedHtml = newHtmlContent
-    ? DOMPurify.sanitize(newHtmlContent, {
-        ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'strong', 'em', 'a', 'ul', 'ol', 'li', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'code', 'img', 'table', 'tr', 'td', 'th', 'thead', 'tbody'],
-        ALLOWED_ATTR: ['href', 'src', 'alt', 'class'],
-      })
-    : null;
+  const textContent = (() => {
+    if (email.htmlBody) return null;
+    return isReply ? extractNewContent(email.textBody) : (email.textBody || '');
+  })();
 
-  const displayHtml = sanitizedHtml && sanitizedHtml.trim().length > 10;
+  const hasContent = Boolean(htmlContent && htmlContent.trim().length > 10) || Boolean(textContent);
+
+  const collapsedPreview = email.snippet || (email.textBody?.slice(0, 80) ?? '');
 
   return (
-    <div className="mb-4">
+    <div className="mb-3">
       <div className={cn(
         'rounded-xl border bg-card shadow-sm overflow-hidden',
-        isLast && 'ring-1 ring-primary/20'
+        isLast && 'ring-1 ring-primary/20',
       )}>
-        <div className="flex items-start gap-3 p-4 pb-2">
-          <Avatar className="h-10 w-10 shrink-0">
+        {/* Header — always visible, click to toggle */}
+        <button
+          type="button"
+          className="w-full text-left flex items-start gap-3 p-4 pb-3 hover:bg-muted/30 transition-colors"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+        >
+          <Avatar className="h-10 w-10 shrink-0 mt-0.5">
             <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
               {getInitials(senderName)}
             </AvatarFallback>
@@ -80,12 +182,8 @@ function EmailMessage({
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-foreground">
-                {senderName}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                &lt;{email.from}&gt;
-              </span>
+              <span className="font-semibold text-foreground">{senderName}</span>
+              <span className="text-xs text-muted-foreground">&lt;{email.from}&gt;</span>
               <span
                 className="ml-auto text-xs text-muted-foreground shrink-0"
                 title={formatFullDate(email.createdAt)}
@@ -94,72 +192,85 @@ function EmailMessage({
               </span>
             </div>
 
-            <div className="text-xs text-muted-foreground mt-0.5">
-              <span>To: {email.to.join(', ')}</span>
-              {email.cc && email.cc.length > 0 && (
-                <span className="ml-2">Cc: {email.cc.join(', ')}</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="px-4 pb-4 pt-2">
-          <div className="pl-[52px]">
-            {displayHtml ? (
-              <div
-                className="prose prose-sm dark:prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: sanitizedHtml! }}
-              />
-            ) : (
-              <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                {newTextContent || email.textBody || '(No content)'}
+            {expanded ? (
+              <div className="text-xs text-muted-foreground mt-0.5">
+                <span>To: {email.to.join(', ')}</span>
+                {email.cc && email.cc.length > 0 && (
+                  <span className="ml-2">Cc: {email.cc.join(', ')}</span>
+                )}
               </div>
+            ) : (
+              <p className="text-sm text-muted-foreground truncate mt-0.5">{collapsedPreview}</p>
             )}
           </div>
 
-          {email.attachments.length > 0 && (
-            <div className="mt-4 pl-[52px]">
-              <Separator className="mb-3" />
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                <Paperclip className="h-4 w-4" />
-                {email.attachments.length} attachment{email.attachments.length > 1 ? 's' : ''}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {email.attachments.map((attachment) => (
-                  <a
-                    key={attachment.id}
-                    href={`/api/mail/attachments/${email.id}/${attachment.id}`}
-                    className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg hover:bg-muted/80 transition-colors text-sm"
-                    download={attachment.filename}
-                  >
-                    <Download className="h-4 w-4" />
-                    <span>{attachment.filename}</span>
-                    <span className="text-xs text-muted-foreground">
-                      ({formatFileSize(attachment.size)})
-                    </span>
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
+          <span className="shrink-0 text-muted-foreground mt-1">
+            {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </span>
+        </button>
 
-          {isLast && (
-            <div className="mt-4 pl-[52px] flex gap-2">
-              <Button variant="outline" size="sm" onClick={onReply}>
-                <Reply className="h-4 w-4 mr-1" />
-                Reply
-              </Button>
-              <Button variant="outline" size="sm" onClick={onReplyAll}>
-                <ReplyAll className="h-4 w-4 mr-1" />
-                Reply All
-              </Button>
-              <Button variant="outline" size="sm" onClick={onForward}>
-                <Forward className="h-4 w-4 mr-1" />
-                Forward
-              </Button>
-            </div>
-          )}
-        </div>
+        {/* Body — only rendered when expanded */}
+        {expanded && (
+          <div className="px-4 pb-4 pt-1 pl-[64px]">
+            {hasContent ? (
+              htmlContent && htmlContent.trim().length > 10 ? (
+                <IframeEmailBody html={htmlContent} />
+              ) : (
+                <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                  {textContent || '(No content)'}
+                </div>
+              )
+            ) : (
+              <div className="text-sm text-muted-foreground italic">(No content)</div>
+            )}
+
+            {email.attachments.filter((a) => a.disposition !== 'inline').length > 0 && (
+              <div className="mt-4">
+                <Separator className="mb-3" />
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                  <Paperclip className="h-4 w-4" />
+                  {email.attachments.filter((a) => a.disposition !== 'inline').length} attachment
+                  {email.attachments.filter((a) => a.disposition !== 'inline').length > 1 ? 's' : ''}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {email.attachments
+                    .filter((a) => a.disposition !== 'inline')
+                    .map((attachment) => (
+                      <a
+                        key={attachment.id}
+                        href={`/api/mail/attachments/${email.id}/${attachment.id}`}
+                        className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg hover:bg-muted/80 transition-colors text-sm"
+                        download={attachment.filename}
+                      >
+                        <Download className="h-4 w-4" />
+                        <span>{attachment.filename}</span>
+                        <span className="text-xs text-muted-foreground">
+                          ({formatFileSize(attachment.size)})
+                        </span>
+                      </a>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {isLast && (
+              <div className="mt-4 flex gap-2">
+                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onReply?.(); }}>
+                  <Reply className="h-4 w-4 mr-1" />
+                  Reply
+                </Button>
+                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onReplyAll?.(); }}>
+                  <ReplyAll className="h-4 w-4 mr-1" />
+                  Reply All
+                </Button>
+                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onForward?.(); }}>
+                  <Forward className="h-4 w-4 mr-1" />
+                  Forward
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -185,8 +296,6 @@ export function EmailReader({
       </div>
     );
   }
-
-  const lastEmail = emails[emails.length - 1];
 
   const handleReply = (email: Email) => {
     setComposeEmail(email);
@@ -265,8 +374,8 @@ export function EmailReader({
             key={email.id}
             email={email}
             isLast={index === emails.length - 1}
-            totalCount={emails.length}
             index={index}
+            defaultExpanded={index === emails.length - 1}
             onReply={() => handleReply(email)}
             onReplyAll={() => handleReplyAll(email)}
             onForward={() => handleForward(email)}

@@ -90,6 +90,8 @@ export interface EmailAttachment {
   contentType: string;
   size: number;
   r2Key: string;
+  contentId?: string;
+  disposition?: 'inline' | 'attachment';
 }
 
 export interface AttachmentFile {

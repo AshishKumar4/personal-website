@@ -99,6 +99,10 @@ export async function handleIncomingEmail(
         contentType: att.mimeType || 'application/octet-stream',
         size: contentSize,
         r2Key: attKey,
+        contentId: att.contentId || undefined,
+        disposition: (att.disposition === 'inline' || att.disposition === 'attachment')
+          ? att.disposition
+          : undefined,
       });
     }
   }
