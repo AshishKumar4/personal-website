@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [react(), cloudflare()],
   build: {
     minify: true,
-    sourcemap: "inline", // Use inline source maps for better error reporting
+    sourcemap: "hidden", // Separate .map files; wrangler does not support inline data URL source maps
     rollupOptions: {
       output: {
         sourcemapExcludeSources: false, // Include original source in source maps
