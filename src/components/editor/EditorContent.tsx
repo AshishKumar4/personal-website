@@ -24,6 +24,9 @@ export function EditorContent({
       attributes: {
         class: 'prose-styles max-w-none focus:outline-none min-h-full',
       },
+      handlePaste: (_view, event) => {
+        return processClipboardPaste(event.clipboardData);
+      },
     },
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
@@ -62,32 +65,32 @@ export function EditorContent({
     }
   }, [editor]);
 
-  const handlePaste = useCallback((e: React.ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-    if (!items || !editor) return;
+  const processClipboardPaste = useCallback((clipboardData: DataTransfer | null): boolean => {
+    if (!clipboardData || !editor) return false;
+
+    const items = clipboardData?.items;
+    if (!items) return false;
 
     for (const item of items) {
       if (item.type.startsWith('image/') && onImageUpload) {
-        e.preventDefault();
         onImageUpload();
-        return;
+        return true;
       }
     }
 
-    const markdownText = e.clipboardData?.getData('text/markdown');
+    const markdownText = clipboardData.getData('text/markdown');
     if (markdownText && looksLikeMarkdown(markdownText)) {
-      e.preventDefault();
       editor.chain().focus().insertContent(markdownToHtml(markdownText)).run();
-      return;
+      return true;
     }
 
-    const plainText = e.clipboardData?.getData('text/plain');
-    if (!plainText) return;
+    const plainText = clipboardData.getData('text/plain');
+    if (!plainText) return false;
 
-    if (looksLikeMarkdown(plainText)) {
-      e.preventDefault();
-      editor.chain().focus().insertContent(markdownToHtml(plainText)).run();
-    }
+    if (!looksLikeMarkdown(plainText)) return false;
+
+    editor.chain().focus().insertContent(markdownToHtml(plainText)).run();
+    return true;
   }, [editor, onImageUpload]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -109,7 +112,6 @@ export function EditorContent({
       <div
         className="flex-1 overflow-auto p-4 md:p-6"
         onKeyDown={handleKeyDown}
-        onPaste={handlePaste}
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
       >
