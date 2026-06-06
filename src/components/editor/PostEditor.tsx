@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ResizablePanelGroup,
@@ -53,6 +53,7 @@ export function PostEditor({ initialPost, slug }: PostEditorProps) {
 
   const [mobileView, setMobileView] = useState<'write' | 'preview'>('write');
   const [isMobile, setIsMobile] = useState(false);
+  const editorTextAreaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
@@ -169,8 +170,37 @@ export function PostEditor({ initialPost, slug }: PostEditorProps) {
   }, [handleSave, handlePublish]);
 
   const handleImageInsert = (url: string) => {
-    const imageMarkdown = `![Image](${url})\n`;
-    setContent((prev) => prev + imageMarkdown);
+    const imageMarkdown = `![Image](${url})`;
+    const textarea = editorTextAreaRef.current;
+
+    if (!textarea || textarea.offsetParent === null) {
+      setContent((prev) => {
+        const needsLeadingNewline = prev.length > 0 && !prev.endsWith('\n');
+        return `${prev}${needsLeadingNewline ? '\n' : ''}${imageMarkdown}\n`;
+      });
+      setShowImageDialog(false);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+
+    const needsLeadingNewline = start > 0 && !content.substring(0, start).endsWith('\n');
+
+    setContent((prev) => {
+      const before = prev.slice(0, start);
+      const after = prev.slice(end);
+      const prefix = needsLeadingNewline ? '\n' : '';
+      return `${before}${prefix}${imageMarkdown}\n${after}`;
+    });
+
+    requestAnimationFrame(() => {
+      const newlinePrefix = needsLeadingNewline ? 1 : 0;
+      const newPosition = start + newlinePrefix + imageMarkdown.length + 1;
+      textarea.focus();
+      textarea.setSelectionRange(newPosition, newPosition);
+    });
+
     setShowImageDialog(false);
   };
 
@@ -212,6 +242,7 @@ export function PostEditor({ initialPost, slug }: PostEditorProps) {
                 content={content}
                 onContentChange={setContent}
                 onImageUpload={() => setShowImageDialog(true)}
+                textAreaRef={editorTextAreaRef}
               />
             ) : (
               <MarkdownPreview content={content} title={title} />
@@ -228,6 +259,7 @@ export function PostEditor({ initialPost, slug }: PostEditorProps) {
               content={content}
               onContentChange={setContent}
               onImageUpload={() => setShowImageDialog(true)}
+              textAreaRef={editorTextAreaRef}
             />
           </ResizablePanel>
           <ResizableHandle withHandle />
