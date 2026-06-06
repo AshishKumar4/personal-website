@@ -1,4 +1,5 @@
 import TurndownService from 'turndown';
+import { marked } from 'marked';
 
 const turndownService = new TurndownService({
   headingStyle: 'atx',
@@ -38,65 +39,33 @@ export function htmlToMarkdown(html: string): string {
 
 export function markdownToHtml(markdown: string): string {
   if (!markdown) return '<p></p>';
+  const output = marked.parse(markdown);
+  return typeof output === 'string' ? output : '<p></p>';
+}
 
-  let html = markdown
-    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/~~(.+?)~~/g, '<s>$1</s>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />')
-    .replace(/^> (.*)$/gim, '<blockquote>$1</blockquote>')
-    .replace(/^- (.*)$/gim, '<li>$1</li>')
-    .replace(/^(\d+)\. (.*)$/gim, '<li>$2</li>');
+export function looksLikeMarkdown(text: string): boolean {
+  const value = text.trim();
+  if (!value) return false;
 
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
-    return `<pre><code class="language-${lang || 'plaintext'}">${escapeHtml(code.trim())}</code></pre>`;
-  });
+  const patterns: RegExp[] = [
+    /^#{1,6}\s+/m,
+    /^```/m,
+    /^>\s+/m,
+    /\[[^\]]+\]\([^)]+\)/,
+    /!\[[^\]]*\]\([^)]+\)/,
+    /^\s*[-*+]\s+\[[ xX]\]\s+/m,
+    /^\s*[-*+]\s+/m,
+    /^\s*\d+\.\s+/m,
+    /^```[a-zA-Z0-9_-]+\n/m,
+    /^\|.*\|\s*$/m,
+  ];
 
-  const lines = html.split('\n');
-  const result: string[] = [];
-  let inList = false;
-  let listType = '';
-
-  for (const line of lines) {
-    if (line.startsWith('<li>')) {
-      if (!inList) {
-        listType = 'ul';
-        result.push('<ul>');
-        inList = true;
-      }
-      result.push(line);
-    } else {
-      if (inList) {
-        result.push(`</${listType}>`);
-        inList = false;
-      }
-      if (line.trim() && !line.startsWith('<')) {
-        result.push(`<p>${line}</p>`);
-      } else if (line.trim()) {
-        result.push(line);
-      }
+  let matchCount = 0;
+  for (const pattern of patterns) {
+    if (pattern.test(value)) {
+      matchCount += 1;
     }
   }
 
-  if (inList) {
-    result.push(`</${listType}>`);
-  }
-
-  return result.join('\n') || '<p></p>';
-}
-
-function escapeHtml(text: string): string {
-  const map: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;',
-  };
-  return text.replace(/[&<>"']/g, (m) => map[m]);
+  return matchCount >= 2 || (matchCount === 1 && (/`{3,}/.test(value) || value.includes('|') && value.includes('\n')));
 }

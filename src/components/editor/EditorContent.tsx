@@ -2,7 +2,7 @@ import { useEditor, EditorContent as TiptapEditorContent } from '@tiptap/react';
 import { useEffect, useCallback, useRef } from 'react';
 import { getEditorExtensions } from './editorExtensions';
 import { EditorToolbar } from './EditorToolbar';
-import { htmlToMarkdown, markdownToHtml } from './markdownUtils';
+import { htmlToMarkdown, markdownToHtml, looksLikeMarkdown } from './markdownUtils';
 
 interface EditorContentProps {
   content: string;
@@ -64,14 +64,29 @@ export function EditorContent({
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
-    if (!items || !editor || !onImageUpload) return;
+    if (!items || !editor) return;
 
     for (const item of items) {
-      if (item.type.startsWith('image/')) {
+      if (item.type.startsWith('image/') && onImageUpload) {
         e.preventDefault();
         onImageUpload();
         return;
       }
+    }
+
+    const markdownText = e.clipboardData?.getData('text/markdown');
+    if (markdownText && looksLikeMarkdown(markdownText)) {
+      e.preventDefault();
+      editor.chain().focus().insertContent(markdownToHtml(markdownText)).run();
+      return;
+    }
+
+    const plainText = e.clipboardData?.getData('text/plain');
+    if (!plainText) return;
+
+    if (looksLikeMarkdown(plainText)) {
+      e.preventDefault();
+      editor.chain().focus().insertContent(markdownToHtml(plainText)).run();
     }
   }, [editor, onImageUpload]);
 
