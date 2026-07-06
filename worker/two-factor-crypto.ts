@@ -61,9 +61,9 @@ function normalizeCode(code: string): string {
 export function generateBackupCodes(count = 10): string[] {
   const codes: string[] = [];
   for (let i = 0; i < count; i++) {
-    const bytes = crypto.getRandomValues(new Uint8Array(4));
+    const bytes = crypto.getRandomValues(new Uint8Array(8));
     const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
-    codes.push(`${hex.slice(0, 4)}-${hex.slice(4, 8)}`);
+    codes.push(hex.replace(/(.{4})(?=.)/g, '$1-'));
   }
   return codes;
 }

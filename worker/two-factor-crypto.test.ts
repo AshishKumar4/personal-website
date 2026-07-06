@@ -47,7 +47,7 @@ describe('backup codes', () => {
   test('generate → hash → match → not reusable after removal', async () => {
     const codes = generateBackupCodes(10);
     expect(codes).toHaveLength(10);
-    expect(codes[0]).toMatch(/^[0-9a-f]{4}-[0-9a-f]{4}$/);
+    expect(codes[0]).toMatch(/^[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}$/);
     const hashes = await hashBackupCodes(codes);
     const idx = await matchBackupCode(hashes, codes[3]);
     expect(idx).toBe(3);

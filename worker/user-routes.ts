@@ -188,7 +188,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       await twoFactor.recordFailure(c.env);
       return c.json({ success: false, error: 'Invalid credentials' }, 401);
     }
-    await twoFactor.clearFailures(c.env);
     return ok(c, await twoFactor.beginAfterPassword(c.env));
   });
 

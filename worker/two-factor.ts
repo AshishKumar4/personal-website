@@ -136,9 +136,8 @@ export async function recordFailure(env: Env): Promise<void> {
   });
 }
 
-export async function clearFailures(env: Env): Promise<void> {
-  const entity = await loadAdmin(env);
-  await entity.mutate((u) => ({ ...u, failedAttempts: 0, lockedUntil: 0 }));
+async function assertNotLocked(env: Env): Promise<void> {
+  if (await isLocked(env)) throw new TwoFactorError(429, 'Too many attempts. Try again later.');
 }
 
 // ---------- session + enrollment completion ----------
@@ -262,6 +261,7 @@ export async function passkeyRegister(env: Env, origin: string | undefined, flow
 // ---------- login second factor ----------
 
 export async function loginTotp(env: TwoFactorEnv, challengeToken: string, code: string): Promise<SessionGrant> {
+  await assertNotLocked(env);
   const key = requireKey(env);
   const flow = await loadPending(env, challengeToken, ['login']);
   const admin = await loadAdmin(env);
@@ -273,6 +273,7 @@ export async function loginTotp(env: TwoFactorEnv, challengeToken: string, code:
 }
 
 export async function loginBackup(env: Env, challengeToken: string, code: string): Promise<SessionGrant> {
+  await assertNotLocked(env);
   const flow = await loadPending(env, challengeToken, ['login']);
   const admin = await loadAdmin(env);
   const hashes = (await admin.getState()).twoFactor?.backupCodeHashes ?? [];
@@ -301,6 +302,7 @@ export async function loginPasskeyOptions(env: Env, origin: string | undefined, 
 }
 
 export async function loginPasskey(env: Env, origin: string | undefined, challengeToken: string, response: AuthenticationResponseJSON): Promise<SessionGrant> {
+  await assertNotLocked(env);
   const { rpID, origin: expectedOrigin } = deriveRp(origin);
   const flow = await loadPending(env, challengeToken, ['login']);
   if (!flow.state.challenge) throw new TwoFactorError(400, 'No pending passkey challenge');
