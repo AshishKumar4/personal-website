@@ -5,6 +5,7 @@ import { ok, bad, notFound, isStr, mergeUnique } from './core-utils';
 import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, R2FileItem, MultipartUploadPart } from "@shared/types";
 import { EMAIL_DOMAIN } from "@shared/types";
 import { getEmailRaw, getAttachment, generateThreadId } from './email-utils';
+import { arrayBufferToBase64, isSafeMessageIdHeader } from './mail-encoding';
 import { generateThrowawayLocalPart, getActiveFromAddress } from './address-utils';
 import { normalizeLocalPart, validateLocalPart } from '@shared/address-validation';
 import { createMimeMessage } from 'mimetext';
@@ -809,8 +810,9 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       }
       msg.setSubject(subject);
       msg.setHeader('Message-ID', messageId);
-      if (inReplyTo) {
+      if (inReplyTo && isSafeMessageIdHeader(inReplyTo)) {
         msg.setHeader('In-Reply-To', inReplyTo);
+        msg.setHeader('References', inReplyTo);
       }
       if (body) {
         msg.addMessage({ contentType: 'text/plain', data: body });
@@ -827,7 +829,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
         msg.addAttachment({
           filename: file.name,
           contentType: file.type || 'application/octet-stream',
-          data: btoa(String.fromCharCode(...new Uint8Array(content))),
+          data: arrayBufferToBase64(content),
         });
       }
 
@@ -878,8 +880,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 
       if (!threadId) {
         threadId = inReplyTo
-          ? generateThreadId(subject, undefined, inReplyTo)
-          : generateThreadId(subject, undefined, messageId);
+          ? await generateThreadId(account, subject, undefined, inReplyTo)
+          : await generateThreadId(account, subject, undefined, messageId);
         const existingThreadBySubject = new EmailThreadEntity(c.env, threadId);
         if (await existingThreadBySubject.exists()) {
           await existingThreadBySubject.mutate(t => ({

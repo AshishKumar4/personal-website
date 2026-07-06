@@ -2,7 +2,14 @@ import PostalMime from 'postal-mime';
 import type { Email, EmailThread, EmailAttachment } from '@shared/types';
 import { EmailEntity, EmailThreadEntity, BlockedSenderEntity } from './entities';
 import { resolveAddress } from './address-utils';
+import { htmlToSnippet, generateThreadId } from './mail-encoding';
 import type { Env } from './core-utils';
+
+export { generateThreadId };
+
+const MAX_INBOUND_BYTES = 25 * 1024 * 1024;
+const MAX_INBOUND_ATTACHMENTS = 50;
+const MAX_INBOUND_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 
 interface ExtendedEnv extends Env {
   EMAIL_BUCKET?: R2Bucket;
@@ -23,30 +30,9 @@ async function isBlockedSender(env: Env, envelopeFrom: string, headerFrom: strin
   return false;
 }
 
-export function generateThreadId(subject: string, references?: string[], inReplyTo?: string): string {
-  if (inReplyTo) {
-    const match = inReplyTo.match(/<([^>]+)>/);
-    if (match) {
-      return match[1].split('@')[0].replace(/[^a-zA-Z0-9-]/g, '_').slice(0, 64);
-    }
-  }
-  if (references && references.length > 0) {
-    const firstRef = references[0];
-    const match = firstRef.match(/<([^>]+)>/);
-    if (match) {
-      return match[1].split('@')[0].replace(/[^a-zA-Z0-9-]/g, '_').slice(0, 64);
-    }
-  }
-  const normalizedSubject = subject
-    .replace(/^(re|fwd|fw):\s*/gi, '')
-    .toLowerCase()
-    .trim();
-  return btoa(normalizedSubject).replace(/[^a-zA-Z0-9]/g, '').slice(0, 32);
-}
-
-export function createSnippet(text: string | undefined, maxLength: number = 100): string {
-  if (!text) return '';
-  return text.replace(/\s+/g, ' ').trim().slice(0, maxLength);
+export function createSnippet(text: string | undefined, html?: string | undefined, maxLength = 100): string {
+  if (text) return text.replace(/\s+/g, ' ').trim().slice(0, maxLength);
+  return htmlToSnippet(html, maxLength);
 }
 
 export async function handleIncomingEmail(
@@ -65,6 +51,12 @@ export async function handleIncomingEmail(
   }
   const account = addr.id;
 
+  if (message.rawSize > MAX_INBOUND_BYTES) {
+    console.log(`Rejecting oversize email (${message.rawSize} bytes) to ${message.to}`);
+    message.setReject('Message too large');
+    return;
+  }
+
   const rawBytes = await streamToArrayBuffer(message.raw);
   const parser = new PostalMime();
   const parsed = await parser.parse(rawBytes);
@@ -77,7 +69,7 @@ export async function handleIncomingEmail(
   const subject = parsed.subject || '(No Subject)';
   const inReplyTo = parsed.inReplyTo;
   const references = parsed.references ? parsed.references.split(/\s+/) : [];
-  const threadId = generateThreadId(subject, references, inReplyTo);
+  const threadId = await generateThreadId(account, subject, references, inReplyTo);
   const emailId = crypto.randomUUID();
   const now = Date.now();
 
@@ -90,7 +82,14 @@ export async function handleIncomingEmail(
 
   const attachments: EmailAttachment[] = [];
   if (parsed.attachments && parsed.attachments.length > 0) {
-    for (const att of parsed.attachments) {
+    for (const att of parsed.attachments.slice(0, MAX_INBOUND_ATTACHMENTS)) {
+      const contentSize = att.content
+        ? (typeof att.content === 'string' ? att.content.length : (att.content as ArrayBuffer).byteLength)
+        : 0;
+      if (contentSize > MAX_INBOUND_ATTACHMENT_BYTES) {
+        console.log(`Skipping oversize attachment (${contentSize} bytes) on email to ${message.to}`);
+        continue;
+      }
       const attId = crypto.randomUUID();
       const attKey = `emails/${account}/${emailId}/attachments/${attId}`;
       if (env.EMAIL_BUCKET && att.content) {
@@ -98,9 +97,6 @@ export async function handleIncomingEmail(
           httpMetadata: { contentType: att.mimeType || 'application/octet-stream' },
         });
       }
-      const contentSize = att.content
-        ? (typeof att.content === 'string' ? att.content.length : (att.content as ArrayBuffer).byteLength)
-        : 0;
       attachments.push({
         id: attId,
         filename: att.filename || 'attachment',
@@ -125,18 +121,24 @@ export async function handleIncomingEmail(
     return undefined;
   })();
 
+  const parsedDate = (() => {
+    if (!parsed.date) return now;
+    const ts = new Date(parsed.date).getTime();
+    return Number.isNaN(ts) ? now : ts;
+  })();
+
   const email: Email = {
     id: emailId,
     account,
     threadId,
     messageId,
-    from: parsed.from?.address || message.from,
+    from: (parsed.from?.address || message.from).toLowerCase(),
     fromName: parsed.from?.name || undefined,
-    to: parsed.to?.map(t => t.address || t.name || '') || [message.to],
-    cc: parsed.cc?.map(c => c.address || c.name || ''),
+    to: parsed.to?.map(t => (t.address || t.name || '').toLowerCase()).filter(Boolean) || [message.to.toLowerCase()],
+    cc: parsed.cc?.map(c => (c.address || c.name || '').toLowerCase()).filter(Boolean),
     replyTo: replyToAddr,
     subject,
-    snippet: createSnippet(parsed.text),
+    snippet: createSnippet(parsed.text, parsed.html),
     htmlBody: parsed.html,
     textBody: parsed.text,
     rawKey,
@@ -144,7 +146,7 @@ export async function handleIncomingEmail(
     labels: blocked ? ['spam'] : ['inbox'],
     read: false,
     starred: false,
-    createdAt: parsed.date ? new Date(parsed.date).getTime() : now,
+    createdAt: parsedDate,
     inReplyTo,
     references,
   };
