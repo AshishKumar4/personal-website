@@ -311,16 +311,18 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/config', async (c) => {
     await SiteConfigEntity.seedData(c.env);
     const config = new SiteConfigEntity(c.env, "main");
-    return ok(c, await config.getState());
+    // Configs saved before aboutStory existed lack the field; normalize here.
+    return ok(c, { ...SiteConfigEntity.initialState, ...(await config.getState()) });
   });
   app.put('/api/config', adminAuthMiddleware, async (c) => {
-    const { subtitle, bio, about, backgroundEffect } = await c.req.json() as Partial<SiteConfig>;
+    const { subtitle, bio, about, aboutStory, backgroundEffect } = await c.req.json() as Partial<SiteConfig>;
     if (!isStr(subtitle) || !isStr(bio) || !isStr(about)) return bad(c, 'subtitle, bio, and about are required');
     if (!isStr(backgroundEffect) || !['grid', 'particles', 'aurora', 'vortex', 'matrix', 'neural'].includes(backgroundEffect)) {
       return bad(c, 'A valid background effect is required.');
     }
     const config = new SiteConfigEntity(c.env, "main");
-    await config.save({ subtitle, bio, about, backgroundEffect });
+    const current = await config.getState();
+    await config.save({ subtitle, bio, about, aboutStory: isStr(aboutStory) ? aboutStory : (current.aboutStory ?? ''), backgroundEffect });
     return ok(c, await config.getState());
   });
   // BLOG POSTS (Public)

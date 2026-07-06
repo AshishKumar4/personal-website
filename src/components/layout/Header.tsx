@@ -9,7 +9,7 @@ import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { Link, useLocation } from 'react-router-dom';
 
 const NAV_LINKS = [
-  { name: "About", href: "#about" },
+  { name: "About", href: "/about" },
   { name: "Experience", href: "#experience" },
   { name: "Projects", href: "#projects" },
   { name: "Blog", href: "/blog" },

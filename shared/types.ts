@@ -136,6 +136,8 @@ export interface SiteConfig {
   subtitle: string;
   bio: string;
   about: string;
+  /** Long-form markdown rendered on the dedicated /about page */
+  aboutStory: string;
   backgroundEffect: 'grid' | 'particles' | 'aurora' | 'matrix' | 'neural';
 }
 // Password Change type

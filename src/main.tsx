@@ -22,6 +22,7 @@ import '@/index.css'
 import { HomePage } from '@/pages/HomePage'
 import { BlogPage } from '@/pages/BlogPage';
 import { BlogPostPage } from '@/pages/BlogPostPage';
+import { AboutPage } from '@/pages/AboutPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { AdminPostsPage } from '@/pages/AdminPostsPage';
@@ -41,6 +42,11 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <HomePage />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/about",
+    element: <AboutPage />,
     errorElement: <RouteErrorBoundary />,
   },
   {

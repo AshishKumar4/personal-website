@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PERSONAL_INFO } from '@/components/config/constants';
 import { useSiteConfig } from '@/contexts/SiteConfigContext';
@@ -33,7 +34,12 @@ export function AboutSection() {
                 <Skeleton className="h-4 w-4/6" />
               </div>
             ) : (
-              <p>{config?.about}</p>
+              <>
+                <p>{config?.about}</p>
+                <Link to="/about" className="inline-block font-mono text-sm text-primary hover:underline">
+                  The longer story &rarr;
+                </Link>
+              </>
             )}
           </div>
           <div className="relative group w-full max-w-xs mx-auto md:mx-0">

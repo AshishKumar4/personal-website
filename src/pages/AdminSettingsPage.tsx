@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2 } from 'lucide-react';
 
 export function AdminSettingsPage() {
-  const [config, setConfig] = useState<SiteConfig>({ subtitle: '', bio: '', about: '', backgroundEffect: 'grid' });
+  const [config, setConfig] = useState<SiteConfig>({ subtitle: '', bio: '', about: '', aboutStory: '', backgroundEffect: 'grid' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -146,6 +146,19 @@ export function AdminSettingsPage() {
                     rows={8}
                     className="bg-background border-border text-foreground"
                     placeholder="Tell visitors about yourself, your background, interests..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="aboutStory" className="text-muted-foreground">
+                    About Page (Markdown)
+                  </Label>
+                  <Textarea
+                    id="aboutStory"
+                    value={config.aboutStory}
+                    onChange={(e) => setConfig({ ...config, aboutStory: e.target.value })}
+                    rows={20}
+                    className="bg-background border-border text-foreground font-mono"
+                    placeholder="Long-form story rendered as markdown on /about..."
                   />
                 </div>
               </>
