@@ -47,10 +47,30 @@ export interface BlogPost {
   id: string; // Should be the same as slug for IndexedEntity
   slug: string;
   title: string;
+  /** Markdown source, or (when format==='notebook') a JSON-encoded NotebookDoc. */
   content: string;
   author: string;
   createdAt: number; // epoch millis
+  /** How `content` should be rendered. Defaults to 'markdown'. */
+  format?: 'markdown' | 'notebook';
+  /** Highlighted on the blog index. */
+  featured?: boolean;
 }
+
+// A normalized Jupyter notebook, stored as JSON in BlogPost.content when format==='notebook'.
+export interface NotebookDoc {
+  colabUrl?: string;
+  cells: NotebookCell[];
+}
+export type NotebookCell =
+  | { kind: 'markdown'; source: string }
+  | { kind: 'code'; source: string; lang: string; executionCount: number | null; outputs: NotebookOutput[] };
+export type NotebookOutput =
+  | { kind: 'stream'; text: string }
+  | { kind: 'text'; text: string }
+  | { kind: 'markdown'; source: string }
+  | { kind: 'html'; html: string }
+  | { kind: 'image'; url: string; alt: string };
 // Auth types
 export interface StoredPasskey {
     id: string;

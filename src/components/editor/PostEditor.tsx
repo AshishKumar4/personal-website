@@ -13,8 +13,6 @@ import { useEditorAutoSave } from '@/hooks/use-editor-autosave';
 import { loadDraft, deleteDraft, BlogPostDraft } from '@/lib/draft-storage';
 import { api } from '@/lib/api-client';
 import { getToken } from '@/lib/auth';
-import { notebookToMarkdown } from '@/lib/notebook-convert';
-import { uploadImageFile, dataUriToFile } from '@/lib/upload-image';
 import { toast } from 'sonner';
 import { BlogPost } from '@shared/types';
 import { Button } from '@/components/ui/button';
@@ -125,40 +123,12 @@ export function PostEditor({ initialPost, slug }: PostEditorProps) {
     setIsImporting(true);
     try {
       const text = await file.text();
-      const isNotebook = file.name.endsWith('.ipynb');
-
-      if (!isNotebook) {
-        setContent((prev) => (prev.trim() ? `${prev}\n\n${text}` : text));
-        if (!title.trim()) {
-          const heading = text.match(/^#\s+(.+)$/m);
-          if (heading) setTitle(heading[1].trim());
-        }
-        toast.success('Markdown imported');
-        return;
-      }
-
-      const { markdown, images, colabUrl } = notebookToMarkdown(text);
-      let out = colabUrl ? `<!-- colab: ${colabUrl} -->\n\n${markdown}` : markdown;
-
-      if (images.length) {
-        toast.info(`Uploading ${images.length} notebook image${images.length > 1 ? 's' : ''}...`);
-        for (const img of images) {
-          try {
-            const url = await uploadImageFile(dataUriToFile(img.dataUri, `${img.placeholder}.${img.ext}`));
-            out = out.split(`(${img.placeholder})`).join(`(${url})`);
-          } catch {
-            // Leave the placeholder in place; the author can re-upload that one image.
-            toast.error(`Failed to upload ${img.placeholder}; left a placeholder.`);
-          }
-        }
-      }
-
-      setContent((prev) => (prev.trim() ? `${prev}\n\n${out}` : out));
+      setContent((prev) => (prev.trim() ? `${prev}\n\n${text}` : text));
       if (!title.trim()) {
-        const heading = out.match(/^#\s+(.+)$/m);
+        const heading = text.match(/^#\s+(.+)$/m);
         if (heading) setTitle(heading[1].trim());
       }
-      toast.success('Notebook imported');
+      toast.success('Markdown imported');
     } catch (err: any) {
       toast.error(err?.message || 'Failed to import file');
     } finally {

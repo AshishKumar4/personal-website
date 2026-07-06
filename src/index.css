@@ -129,17 +129,22 @@
   /* Prose styles - theme aware */
   .prose-styles {
     @apply text-slate;
-    font-size: 1.05rem;
-    line-height: 1.75;
+    font-size: 1.075rem;
+    line-height: 1.8;
+    letter-spacing: 0.003em;
   }
+  /* Long-form reading pages get a larger, more comfortable measure (Medium-like). */
+  .reading .prose-styles { font-size: 1.2rem; line-height: 1.85; }
   .prose-styles h1, .prose-styles h2, .prose-styles h3, .prose-styles h4, .prose-styles h5, .prose-styles h6 {
-    @apply font-bold text-lightest-slate mb-4 mt-10;
+    @apply font-bold text-lightest-slate mb-4 mt-12;
+    letter-spacing: -0.01em;
     scroll-margin-top: 6rem;
   }
   .prose-styles h1 { @apply text-3xl; }
   .prose-styles h2 { @apply text-2xl; }
   .prose-styles h3 { @apply text-xl; }
-  .prose-styles p { @apply mb-5; }
+  .prose-styles p { @apply mb-6; }
+  .prose-styles strong { color: rgb(var(--color-lightest-slate)); font-weight: 650; }
   .prose-styles a { @apply text-accent hover:underline; }
   .prose-styles ul { @apply list-disc list-inside mb-4 space-y-2; }
   .prose-styles ol { @apply list-decimal list-inside mb-4 space-y-2; }
@@ -159,7 +164,20 @@
     background-color: rgb(var(--color-navy));
   }
   .prose-styles pre code { @apply bg-transparent p-0; color: rgb(var(--color-lightest-slate)); }
-  .prose-styles img { @apply max-w-full rounded-lg my-6 mx-auto; }
+  /* Figures: centered on a light matte so transparent line-art diagrams read in
+     both themes, framed, with a sensible height cap. */
+  .prose-styles img {
+    display: block;
+    margin: 2rem auto;
+    max-width: 100%;
+    max-height: 32rem;
+    width: auto;
+    border-radius: 0.5rem;
+    background: #ffffff;
+    padding: 0.75rem;
+    border: 1px solid rgb(var(--color-lightest-navy));
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
+  }
   .prose-styles table { @apply w-full my-6 text-sm border-collapse; }
   .prose-styles th {
     @apply text-left font-bold px-3 py-2 border-b-2;
@@ -186,6 +204,38 @@
   .prose-styles .hljs-meta, .prose-styles .hljs-deletion { color: #e06c75; }
   .prose-styles .hljs-emphasis { font-style: italic; }
   .prose-styles .hljs-strong { font-weight: bold; }
+
+  /* Notebook rendering (nbviewer-style) */
+  .nb-code pre { @apply my-0; }
+  .nb-code.prose-styles { font-size: 0.9rem; }
+  .nb-output-text {
+    background-color: rgb(var(--color-navy));
+    border: 1px solid rgb(var(--color-lightest-navy) / 0.6);
+    color: rgb(var(--color-slate));
+    font-family: theme('fontFamily.mono');
+    max-height: 22rem;
+    overflow: auto;
+  }
+  /* Cap tall code inputs too, keeping cells compact like Jupyter. */
+  .nb-code pre { max-height: 30rem; overflow: auto; }
+  .nb-out-img {
+    display: block;
+    max-width: 100%;
+    max-height: 30rem;
+    width: auto;
+    margin: 0.5rem 0;
+    border-radius: 0.5rem;
+    background: #ffffff;
+    padding: 0.5rem;
+    border: 1px solid rgb(var(--color-lightest-navy));
+  }
+  .nb-html-output table { @apply w-full text-sm border-collapse my-2; }
+  .nb-html-output th, .nb-html-output td {
+    @apply px-3 py-1.5 text-left;
+    border: 1px solid rgb(var(--color-lightest-navy));
+  }
+  .nb-html-output th { @apply font-semibold; color: rgb(var(--color-lightest-slate)); }
+  .nb-html-output td { color: rgb(var(--color-slate)); }
 
   /* Mail compose editor (TipTap) - theme aware, lightweight */
   .mail-editor {

@@ -9,10 +9,18 @@ import { Toaster, toast } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Calendar, User, Clock } from 'lucide-react';
 import { MarkdownContent } from '@/components/MarkdownContent';
+import { NotebookFromJson } from '@/components/NotebookRenderer';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { getReadingTime } from '@/lib/text-utils';
+import type { NotebookDoc } from '@shared/types';
 
-const COLAB_MARKER = /<!--\s*colab:\s*(\S+?)\s*-->/;
+function notebookColab(content: string): string | undefined {
+  try {
+    return (JSON.parse(content) as NotebookDoc).colabUrl;
+  } catch {
+    return undefined;
+  }
+}
 
 const ColabIcon = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
@@ -42,13 +50,14 @@ export function BlogPostPage() {
     fetchPost();
   }, [slug]);
 
-  const colabUrl = post?.content.match(COLAB_MARKER)?.[1];
-  const body = post ? post.content.replace(COLAB_MARKER, '').trim() : '';
+  const isNotebook = post?.format === 'notebook';
+  const colabUrl = post && isNotebook ? notebookColab(post.content) : undefined;
+  const body = post && !isNotebook ? post.content : '';
 
   return (
     <PortfolioLayout variant="reading">
       <div className="relative z-10 px-4 pt-8">
-        <div className="mx-auto w-full max-w-3xl">
+        <div className="mx-auto w-full max-w-4xl">
           <Link to="/blog" className="inline-flex items-center text-primary font-mono text-sm hover:underline">
             <ArrowLeft size={16} className="mr-2" />
             All Posts
@@ -83,10 +92,18 @@ export function BlogPostPage() {
                   <User size={14} className="mr-2 text-primary" />
                   {post.author}
                 </span>
-                <span className="flex items-center">
-                  <Clock size={14} className="mr-2 text-primary" />
-                  {getReadingTime(body)} min read
-                </span>
+                {!isNotebook && (
+                  <span className="flex items-center">
+                    <Clock size={14} className="mr-2 text-primary" />
+                    {getReadingTime(body)} min read
+                  </span>
+                )}
+                {isNotebook && (
+                  <span className="flex items-center">
+                    <Clock size={14} className="mr-2 text-primary" />
+                    Notebook
+                  </span>
+                )}
               </div>
               {colabUrl && (
                 <a
@@ -100,7 +117,11 @@ export function BlogPostPage() {
                 </a>
               )}
               <hr className="my-8 border-border" />
-              <MarkdownContent>{body}</MarkdownContent>
+              {isNotebook ? (
+                <NotebookFromJson json={post.content} />
+              ) : (
+                <MarkdownContent>{body}</MarkdownContent>
+              )}
             </>
           ) : (
             <div className="text-center py-10">

@@ -8,7 +8,7 @@ import React from 'react';
 export function ReadingSurface({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative z-10 px-4 py-12 sm:py-16 md:py-20">
-      <article className="mx-auto w-full max-w-3xl rounded-2xl border border-border bg-background shadow-xl shadow-black/5 dark:shadow-black/30 px-6 sm:px-10 md:px-14 py-10 md:py-14">
+      <article className="reading mx-auto w-full max-w-5xl rounded-2xl border border-border bg-background shadow-xl shadow-black/5 dark:shadow-black/30 px-6 sm:px-12 md:px-20 py-10 md:py-16">
         {children}
       </article>
     </div>

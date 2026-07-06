@@ -106,7 +106,7 @@ export function EditorHeader({
           <input
             ref={importInputRef}
             type="file"
-            accept=".ipynb,.md,.markdown,application/x-ipynb+json"
+            accept=".md,.markdown,text/markdown"
             className="hidden"
             onChange={async (e) => {
               const file = e.target.files?.[0];
@@ -119,7 +119,7 @@ export function EditorHeader({
             size="sm"
             onClick={() => importInputRef.current?.click()}
             disabled={isImporting || isPublishing}
-            title="Import a Jupyter notebook (.ipynb) or markdown file"
+            title="Import a markdown file into the editor"
           >
             {isImporting ? (
               <Loader2 className="h-4 w-4 animate-spin mr-1.5" />

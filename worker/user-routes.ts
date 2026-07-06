@@ -340,10 +340,15 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
   // BLOG POSTS (Protected Admin Routes)
   app.post('/api/posts', adminAuthMiddleware, async (c) => {
-    const { title, content, author } = await c.req.json() as Partial<BlogPost>;
+    const { title, content, author, format, featured, createdAt } = await c.req.json() as Partial<BlogPost>;
     if (!isStr(title) || !isStr(content) || !isStr(author)) return bad(c, 'title, content, and author required');
     const slug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
-    const newPost: BlogPost = { id: slug, slug, title, content, author, createdAt: Date.now() };
+    const newPost: BlogPost = {
+      id: slug, slug, title, content, author,
+      createdAt: typeof createdAt === 'number' ? createdAt : Date.now(),
+      format: format === 'notebook' ? 'notebook' : 'markdown',
+      featured: featured === true,
+    };
     const postEntity = new BlogEntity(c.env, slug);
     if (await postEntity.exists()) return bad(c, 'a post with this slug already exists');
     const created = await BlogEntity.create(c.env, newPost);
@@ -351,11 +356,16 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
   app.put('/api/posts/:slug', adminAuthMiddleware, async (c) => {
     const slug = c.req.param('slug');
-    const { title, content } = await c.req.json() as Partial<BlogPost>;
-    if (!isStr(title) || !isStr(content)) return bad(c, 'title and content required');
+    const { title, content, featured, createdAt } = await c.req.json() as Partial<BlogPost>;
     const post = new BlogEntity(c.env, slug);
     if (!await post.exists()) return notFound(c, 'post not found');
-    const updated = await post.mutate(s => ({ ...s, title, content }));
+    const updated = await post.mutate(s => ({
+      ...s,
+      ...(isStr(title) ? { title } : {}),
+      ...(isStr(content) ? { content } : {}),
+      ...(typeof featured === 'boolean' ? { featured } : {}),
+      ...(typeof createdAt === 'number' ? { createdAt } : {}),
+    }));
     return ok(c, updated);
   });
   app.delete('/api/posts/:slug', adminAuthMiddleware, async (c) => {

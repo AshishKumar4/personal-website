@@ -3,6 +3,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
+import rehypeRaw from 'rehype-raw';
 import 'katex/dist/katex.min.css';
 
 interface MarkdownContentProps {
@@ -16,7 +17,7 @@ export function MarkdownContent({ children, className }: MarkdownContentProps) {
     <div className={`prose-styles max-w-none ${className ?? ''}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex, [rehypeHighlight, { detect: false, ignoreMissing: true }]]}
+        rehypePlugins={[rehypeRaw, rehypeKatex, [rehypeHighlight, { detect: false, ignoreMissing: true }]]}
       >
         {children}
       </ReactMarkdown>

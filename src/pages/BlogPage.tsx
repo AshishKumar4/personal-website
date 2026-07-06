@@ -6,9 +6,18 @@ import { BlogPost } from '@shared/types';
 import { api } from '@/lib/api-client';
 import { Toaster, toast } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar, User, Clock, ArrowRight, Sparkles } from 'lucide-react';
+import { Calendar, User, Clock, ArrowRight, Sparkles, BookOpen } from 'lucide-react';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
-import { getReadingTime } from '@/lib/text-utils';
+import { postExcerpt, postReadingTime } from '@/lib/post-preview';
+
+function PostMeta({ post }: { post: BlogPost }) {
+  return (
+    <span className="flex items-center text-sm font-mono text-muted-foreground">
+      <Clock size={14} className="mr-1.5" />
+      {postReadingTime(post)} min read
+    </span>
+  );
+}
 
 export function BlogPage() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -19,7 +28,7 @@ export function BlogPage() {
     const fetchPosts = async () => {
       try {
         const response = await api<{ items: BlogPost[] }>('/api/posts');
-        setPosts(response.items);
+        setPosts([...response.items].sort((a, b) => b.createdAt - a.createdAt));
       } catch (error) {
         console.error("Failed to fetch posts:", error);
         toast.error('Failed to load blog posts.');
@@ -42,6 +51,9 @@ export function BlogPage() {
     hidden: { opacity: prefersReducedMotion ? 1 : 0, y: prefersReducedMotion ? 0 : 20 },
     visible: { opacity: 1, y: 0 },
   };
+
+  const featured = posts.find((p) => p.featured);
+  const rest = featured ? posts.filter((p) => p.slug !== featured.slug) : posts;
 
   return (
     <PortfolioLayout>
@@ -96,78 +108,79 @@ export function BlogPage() {
                 initial="hidden"
                 animate="visible"
               >
-                {/* Featured Post - Latest */}
-                <motion.div variants={itemVariants} className="mb-12">
-                  <div className="flex items-center gap-2 mb-6">
-                    <Sparkles size={16} className="text-primary" />
-                    <span className="text-sm font-mono text-primary">Featured Post</span>
-                  </div>
-                  <Link to={`/blog/${posts[0].slug}`} className="group block">
-                    <div className="relative p-[1px] rounded-2xl bg-gradient-to-r from-primary via-primary/50 to-transparent group-hover:from-primary group-hover:via-primary group-hover:to-primary/50 transition-all duration-500">
-                      <div className="relative bg-card rounded-2xl p-8 md:p-10">
-                        <div className="flex flex-wrap items-center gap-4 mb-4">
-                          <span className="px-3 py-1 text-xs font-mono bg-primary/10 text-primary rounded-full">
-                            Article
-                          </span>
-                          <span className="flex items-center text-sm font-mono text-muted-foreground">
-                            <Clock size={14} className="mr-1.5" />
-                            {getReadingTime(posts[0].content)} min read
-                          </span>
-                        </div>
-                        <h2 className="text-2xl md:text-3xl font-bold text-foreground group-hover:text-primary transition-colors duration-300 mb-4">
-                          {posts[0].title}
-                        </h2>
-                        <p className="text-muted-foreground leading-relaxed mb-6 line-clamp-3">
-                          {posts[0].content.substring(0, 200)}...
-                        </p>
-                        <div className="flex flex-wrap items-center justify-between gap-4">
-                          <div className="flex flex-wrap items-center gap-4 text-sm font-mono text-muted-foreground">
-                            <span className="flex items-center">
-                              <Calendar size={14} className="mr-1.5 text-primary" />
-                              {new Date(posts[0].createdAt).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                              })}
+                {/* Featured Post */}
+                {featured && (
+                  <motion.div variants={itemVariants} className="mb-12">
+                    <div className="flex items-center gap-2 mb-6">
+                      <Sparkles size={16} className="text-primary" />
+                      <span className="text-sm font-mono text-primary">Featured Post</span>
+                    </div>
+                    <Link to={`/blog/${featured.slug}`} className="group block">
+                      <div className="relative p-[1px] rounded-2xl bg-gradient-to-r from-primary via-primary/50 to-transparent group-hover:from-primary group-hover:via-primary group-hover:to-primary/50 transition-all duration-500">
+                        <div className="relative bg-card rounded-2xl p-8 md:p-10">
+                          <div className="flex flex-wrap items-center gap-4 mb-4">
+                            <span className="px-3 py-1 text-xs font-mono bg-primary/10 text-primary rounded-full inline-flex items-center gap-1.5">
+                              {featured.format === 'notebook' && <BookOpen size={12} />}
+                              {featured.format === 'notebook' ? 'Notebook' : 'Article'}
                             </span>
-                            <span className="flex items-center">
-                              <User size={14} className="mr-1.5 text-primary" />
-                              {posts[0].author}
+                            <PostMeta post={featured} />
+                          </div>
+                          <h2 className="text-2xl md:text-3xl font-bold text-foreground group-hover:text-primary transition-colors duration-300 mb-4">
+                            {featured.title}
+                          </h2>
+                          <p className="text-muted-foreground leading-relaxed mb-6 line-clamp-3">
+                            {postExcerpt(featured, 220)}
+                          </p>
+                          <div className="flex flex-wrap items-center justify-between gap-4">
+                            <div className="flex flex-wrap items-center gap-4 text-sm font-mono text-muted-foreground">
+                              <span className="flex items-center">
+                                <Calendar size={14} className="mr-1.5 text-primary" />
+                                {new Date(featured.createdAt).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </span>
+                              <span className="flex items-center">
+                                <User size={14} className="mr-1.5 text-primary" />
+                                {featured.author}
+                              </span>
+                            </div>
+                            <span className="flex items-center text-primary font-mono text-sm group-hover:gap-3 gap-1 transition-all duration-300">
+                              Read more <ArrowRight size={16} />
                             </span>
                           </div>
-                          <span className="flex items-center text-primary font-mono text-sm group-hover:gap-3 gap-1 transition-all duration-300">
-                            Read more <ArrowRight size={16} />
-                          </span>
                         </div>
                       </div>
-                    </div>
-                  </Link>
-                </motion.div>
+                    </Link>
+                  </motion.div>
+                )}
 
-                {/* Post Grid - Remaining Posts */}
-                {posts.length > 1 && (
+                {/* Post Grid */}
+                {rest.length > 0 && (
                   <div>
-                    <h3 className="text-lg font-mono text-muted-foreground mb-8">More Articles</h3>
+                    {featured && <h3 className="text-lg font-mono text-muted-foreground mb-8">More Articles</h3>}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {posts.slice(1).map((post) => (
+                      {rest.map((post) => (
                         <motion.div key={post.slug} variants={itemVariants}>
                           <Link to={`/blog/${post.slug}`} className="group block h-full">
                             <div className="relative h-full p-[1px] rounded-xl bg-border group-hover:bg-gradient-to-r group-hover:from-primary group-hover:to-primary/50 transition-all duration-300">
                               <div className="h-full bg-card rounded-xl p-6 group-hover:-translate-y-1 transition-transform duration-300">
                                 <div className="flex items-center gap-3 mb-3">
-                                  <span className="px-2 py-0.5 text-xs font-mono bg-primary/10 text-primary rounded">
-                                    Article
+                                  <span className="px-2 py-0.5 text-xs font-mono bg-primary/10 text-primary rounded inline-flex items-center gap-1">
+                                    {post.format === 'notebook' && <BookOpen size={11} />}
+                                    {post.format === 'notebook' ? 'Notebook' : 'Article'}
                                   </span>
                                   <span className="flex items-center text-xs font-mono text-muted-foreground">
                                     <Clock size={12} className="mr-1" />
-                                    {getReadingTime(post.content)} min
+                                    {postReadingTime(post)} min
                                   </span>
                                 </div>
                                 <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors duration-300 mb-2 line-clamp-2">
                                   {post.title}
                                 </h3>
                                 <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                                  {post.content.substring(0, 100)}...
+                                  {postExcerpt(post, 140)}
                                 </p>
                                 <div className="flex items-center justify-between mt-auto">
                                   <span className="text-xs font-mono text-muted-foreground">

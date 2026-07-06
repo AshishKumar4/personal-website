@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api-client';
 import { getToken } from '@/lib/auth';
+import { createNotebookPost } from '@/lib/notebook-upload';
 import { BlogPost } from '@shared/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { PlusCircle, Edit, Trash2, Search, Loader2, ExternalLink } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Loader2, ExternalLink, FileUp, Star } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 export function AdminPostsPage() {
@@ -16,6 +17,22 @@ export function AdminPostsPage() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const notebookInputRef = useRef<HTMLInputElement>(null);
+
+  const handleNotebookUpload = async (file: File) => {
+    setUploading(true);
+    const toastId = toast.loading('Parsing notebook...');
+    try {
+      const slug = await createNotebookPost(file, (msg) => toast.loading(msg, { id: toastId }));
+      toast.success('Notebook published!', { id: toastId });
+      navigate(`/blog/${slug}`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to upload notebook', { id: toastId });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -43,6 +60,20 @@ export function AdminPostsPage() {
     );
   }, [posts, search]);
 
+  const toggleFeatured = async (post: BlogPost) => {
+    const token = getToken();
+    try {
+      await api(`/api/posts/${post.slug}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ featured: !post.featured }),
+      });
+      setPosts((prev) => prev.map((p) => (p.slug === post.slug ? { ...p, featured: !p.featured } : p)));
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update post.');
+    }
+  };
+
   const handleDelete = async (slug: string) => {
     const token = getToken();
     try {
@@ -61,12 +92,34 @@ export function AdminPostsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-3xl font-bold text-foreground font-display">Manage Posts</h1>
-        <Button
-          onClick={() => navigate('/admin/posts/new')}
-          className="bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          <PlusCircle className="mr-2 h-4 w-4" /> Create New Post
-        </Button>
+        <div className="flex items-center gap-2">
+          <input
+            ref={notebookInputRef}
+            type="file"
+            accept=".ipynb,application/x-ipynb+json"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) await handleNotebookUpload(file);
+            }}
+          />
+          <Button
+            variant="outline"
+            onClick={() => notebookInputRef.current?.click()}
+            disabled={uploading}
+            title="Upload a Jupyter notebook (.ipynb) as a blog post"
+          >
+            {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
+            Upload Notebook
+          </Button>
+          <Button
+            onClick={() => navigate('/admin/posts/new')}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <PlusCircle className="mr-2 h-4 w-4" /> Create New Post
+          </Button>
+        </div>
       </div>
 
       <Card className="bg-card border-border">
@@ -122,6 +175,15 @@ export function AdminPostsPage() {
                         {new Date(post.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-right space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => toggleFeatured(post)}
+                          title={post.featured ? 'Unfeature' : 'Feature on blog index'}
+                          className={post.featured ? 'text-primary' : 'text-muted-foreground hover:text-primary'}
+                        >
+                          <Star className="h-4 w-4" fill={post.featured ? 'currentColor' : 'none'} />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
