@@ -149,6 +149,10 @@ async function grantSession(entity: AuthEntity): Promise<string> {
   return token;
 }
 
+export async function issueSession(env: Env): Promise<string> {
+  return grantSession(await loadAdmin(env));
+}
+
 async function completeFlow(
   env: Env,
   flow: { entity: PendingAuthEntity; state: PendingAuth },
