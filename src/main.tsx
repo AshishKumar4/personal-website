@@ -36,6 +36,7 @@ import { MailLayout } from '@/components/mail/MailLayout';
 import { MailInboxPage } from '@/pages/MailInboxPage';
 import { MailThreadPage } from '@/pages/MailThreadPage';
 import { MailComposePage } from '@/pages/MailComposePage';
+import { MailSettingsPage } from '@/pages/MailSettingsPage';
 const router = createBrowserRouter([
   {
     path: "/",
@@ -80,6 +81,16 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/mail/inbox" replace /> },
       { path: "compose", element: <MailComposePage /> },
+      { path: "settings", element: <Navigate to="/mail/settings/addresses" replace /> },
+      { path: "settings/:tab", element: <MailSettingsPage /> },
+      { path: "feeds", element: <Navigate to="/mail/inbox" replace /> },
+      {
+        path: "feeds/:feedId",
+        element: <MailInboxPage />,
+        children: [
+          { path: ":threadId", element: <MailThreadPage /> },
+        ],
+      },
       {
         path: ":label",
         element: <MailInboxPage />,

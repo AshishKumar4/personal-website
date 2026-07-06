@@ -5,7 +5,8 @@ import { ok, bad, notFound, isStr, mergeUnique } from './core-utils';
 import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, R2FileItem, MultipartUploadPart } from "@shared/types";
 import { EMAIL_DOMAIN } from "@shared/types";
 import { getEmailRaw, getAttachment, generateThreadId } from './email-utils';
-import { normalizeLocalPart, validateLocalPart, generateThrowawayLocalPart, getActiveFromAddress } from './address-utils';
+import { generateThrowawayLocalPart, getActiveFromAddress } from './address-utils';
+import { normalizeLocalPart, validateLocalPart } from '@shared/address-validation';
 import { createMimeMessage } from 'mimetext';
 import { accessMiddleware } from './access-middleware';
 

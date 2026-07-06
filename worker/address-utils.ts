@@ -1,13 +1,7 @@
 import type { Env } from './core-utils';
 import type { EmailAddress } from '@shared/types';
+import { normalizeLocalPart } from '@shared/address-validation';
 import { EmailAddressEntity } from './entities';
-
-export const LOCAL_PART_REGEX = /^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$/;
-
-const RESERVED_LOCAL_PARTS = new Set([
-  'postmaster', 'abuse', 'admin', 'administrator', 'hostmaster',
-  'webmaster', 'root', 'noreply', 'no-reply', 'mailer-daemon', 'mail',
-]);
 
 const THROWAWAY_ADJECTIVES = [
   'amber', 'brisk', 'cedar', 'civic', 'coral', 'crisp', 'dusty', 'eager',
@@ -37,21 +31,6 @@ function randomHex(bytes: number): string {
   const buf = new Uint8Array(bytes);
   crypto.getRandomValues(buf);
   return Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-export function normalizeLocalPart(input: string): string {
-  return input.trim().toLowerCase();
-}
-
-export function validateLocalPart(localPart: string): string | null {
-  if (localPart.length === 0) return 'Address is required';
-  if (localPart.length > 64) return 'Address must be at most 64 characters';
-  if (!LOCAL_PART_REGEX.test(localPart)) {
-    return 'Use lowercase letters, digits, dots, hyphens, or underscores; must start and end with a letter or digit';
-  }
-  if (localPart.includes('..')) return 'Address cannot contain consecutive dots';
-  if (RESERVED_LOCAL_PARTS.has(localPart)) return 'This address is reserved';
-  return null;
 }
 
 export async function generateThrowawayLocalPart(env: Env): Promise<string> {
