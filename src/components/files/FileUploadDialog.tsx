@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { getToken } from '@/lib/auth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -52,7 +53,7 @@ export function FileUploadDialog({ open, onOpenChange, currentPrefix, onUploaded
   }, []);
 
   const uploadSimple = async (uploadFile: UploadFile) => {
-    const token = localStorage.getItem('admin_token');
+    const token = getToken();
     const key = currentPrefix + uploadFile.file.name;
 
     const formData = new FormData();
@@ -71,7 +72,7 @@ export function FileUploadDialog({ open, onOpenChange, currentPrefix, onUploaded
   };
 
   const uploadMultipart = async (uploadFile: UploadFile) => {
-    const token = localStorage.getItem('admin_token');
+    const token = getToken();
     const key = currentPrefix + uploadFile.file.name;
     const file = uploadFile.file;
 

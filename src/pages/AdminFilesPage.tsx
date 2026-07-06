@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getToken } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -45,7 +46,7 @@ export function AdminFilesPage() {
   const fetchFiles = useCallback(async (newPrefix?: string, loadMore?: boolean) => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('admin_token');
+      const token = getToken();
       const params = new URLSearchParams();
       params.set('prefix', newPrefix ?? prefix);
       if (loadMore && cursor) {
@@ -112,7 +113,7 @@ export function AdminFilesPage() {
 
     setDeleting(true);
     try {
-      const token = localStorage.getItem('admin_token');
+      const token = getToken();
       const isFolder = deleteTarget.type === 'folder';
       const endpoint = isFolder
         ? `/api/files/folder/${encodeURIComponent(deleteTarget.key)}`
