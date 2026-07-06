@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/mail-constants';
 import { useCompose, type ComposeMode } from '@/hooks/useCompose';
-import type { Email, EmailAddress } from '@shared/types';
+import type { Email, EmailAddress, EmailDraft } from '@shared/types';
 import { AccountSelector } from './AccountSelector';
 import { EmailFieldRow, FieldToggleButton } from './EmailFieldRow';
 import { AttachmentList } from './AttachmentList';
@@ -26,6 +26,7 @@ interface ComposeDialogProps {
   replyTo?: Email;
   replyAll?: boolean;
   forward?: Email;
+  draft?: EmailDraft;
 }
 
 export function ComposeDialog({
@@ -36,6 +37,7 @@ export function ComposeDialog({
   replyTo,
   replyAll,
   forward,
+  draft,
 }: ComposeDialogProps) {
   const [minimized, setMinimized] = useState(false);
 
@@ -51,6 +53,7 @@ export function ComposeDialog({
     addresses,
     defaultFromAccount,
     replyTo: forward || replyTo,
+    draft,
     mode,
     onSuccess: () => onOpenChange(false),
   });
@@ -60,12 +63,16 @@ export function ComposeDialog({
       await api(API_ENDPOINTS.DRAFTS, {
         method: 'POST',
         body: JSON.stringify({
+          id: draft?.id,
           from: compose.fromAccount,
           to: compose.to,
           cc: compose.cc,
           bcc: compose.bcc,
           subject: compose.subject,
           body: compose.body,
+          inReplyTo: draft?.inReplyTo,
+          threadId: draft?.threadId,
+          createdAt: draft?.createdAt,
         }),
       });
       toast.success('Draft saved');
@@ -108,7 +115,7 @@ export function ComposeDialog({
     );
   }
 
-  const dialogTitle = replyTo ? 'Reply' : forward ? 'Forward' : 'New Message';
+  const dialogTitle = draft ? 'Draft' : replyTo ? 'Reply' : forward ? 'Forward' : 'New Message';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

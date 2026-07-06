@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import type { Email, EmailAddress, AttachmentFile } from '@shared/types';
+import type { Email, EmailAddress, EmailDraft, AttachmentFile } from '@shared/types';
+import { api } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/mail-constants';
 import { getErrorMessage } from '@/lib/error-utils';
 import {
@@ -11,6 +12,7 @@ import {
   getNewEmailInitialValues,
   getReplyInitialValues,
   getForwardInitialValues,
+  getDraftInitialValues,
 } from '@/lib/compose-utils';
 
 export type ComposeMode = 'new' | 'reply' | 'replyAll' | 'forward';
@@ -19,6 +21,7 @@ export interface UseComposeOptions {
   addresses: EmailAddress[];
   defaultFromAccount?: string;
   replyTo?: Email;
+  draft?: EmailDraft;
   mode?: ComposeMode;
   onSuccess?: () => void;
 }
@@ -56,10 +59,14 @@ export function useCompose({
   addresses,
   defaultFromAccount,
   replyTo,
+  draft,
   mode = 'new',
   onSuccess,
 }: UseComposeOptions): UseComposeReturn {
   const initial = (() => {
+    if (draft) {
+      return getDraftInitialValues(draft, addresses);
+    }
     if (mode === 'forward' && replyTo) {
       return getForwardInitialValues(replyTo, addresses, defaultFromAccount);
     }
@@ -72,12 +79,12 @@ export function useCompose({
   const [fromAccount, setFromAccount] = useState(initial.fromAccount);
   const [to, setTo] = useState(initial.to);
   const [cc, setCc] = useState(initial.cc);
-  const [bcc, setBcc] = useState('');
+  const [bcc, setBcc] = useState(initial.bcc);
   const [subject, setSubject] = useState(initial.subject);
   const [body, setBody] = useState(initial.body);
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [showCc, setShowCc] = useState(initial.showCc);
-  const [showBcc, setShowBcc] = useState(false);
+  const [showBcc, setShowBcc] = useState(initial.showBcc);
   const [sending, setSending] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -143,11 +150,13 @@ export function useCompose({
       formData.append('subject', subject);
       formData.append('body', body);
 
-      if (replyTo?.messageId) {
-        formData.append('inReplyTo', replyTo.messageId);
+      const inReplyTo = replyTo?.messageId ?? draft?.inReplyTo;
+      const threadId = replyTo?.threadId ?? draft?.threadId;
+      if (inReplyTo) {
+        formData.append('inReplyTo', inReplyTo);
       }
-      if (replyTo?.threadId) {
-        formData.append('threadId', replyTo.threadId);
+      if (threadId) {
+        formData.append('threadId', threadId);
       }
 
       attachments.forEach((a) => {
@@ -164,6 +173,12 @@ export function useCompose({
         throw new Error(errorData.error || 'Failed to send');
       }
 
+      if (draft) {
+        await api(API_ENDPOINTS.DRAFT(draft.id), { method: 'DELETE' }).catch((err) =>
+          console.error('Failed to delete sent draft:', err)
+        );
+      }
+
       toast.success('Email sent');
       onSuccess?.();
     } catch (error) {
@@ -172,7 +187,7 @@ export function useCompose({
     } finally {
       setSending(false);
     }
-  }, [fromAccount, to, cc, bcc, subject, body, attachments, replyTo, mode, onSuccess]);
+  }, [fromAccount, to, cc, bcc, subject, body, attachments, replyTo, draft, mode, onSuccess]);
 
   return {
     fromAccount,

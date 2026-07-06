@@ -1,4 +1,4 @@
-import type { Email, EmailAddress } from '@shared/types';
+import type { Email, EmailAddress, EmailDraft } from '@shared/types';
 import {
   resolveFromAddress,
   getLocalPart,
@@ -10,9 +10,27 @@ export interface ComposeInitialValues {
   fromAccount: string;
   to: string;
   cc: string;
+  bcc: string;
   subject: string;
   body: string;
   showCc: boolean;
+  showBcc: boolean;
+}
+
+export function getDraftInitialValues(
+  draft: EmailDraft,
+  addresses: EmailAddress[]
+): ComposeInitialValues {
+  return {
+    fromAccount: draft.from || resolveFromAddress(addresses, undefined),
+    to: draft.to,
+    cc: draft.cc ?? '',
+    bcc: draft.bcc ?? '',
+    subject: draft.subject,
+    body: draft.body,
+    showCc: Boolean(draft.cc),
+    showBcc: Boolean(draft.bcc),
+  };
 }
 
 export function getNewEmailInitialValues(
@@ -23,9 +41,11 @@ export function getNewEmailInitialValues(
     fromAccount: resolveFromAddress(addresses, defaultFrom),
     to: '',
     cc: '',
+    bcc: '',
     subject: '',
     body: '',
     showCc: false,
+    showBcc: false,
   };
 }
 
@@ -58,9 +78,11 @@ export function getReplyInitialValues(
     fromAccount,
     to,
     cc,
+    bcc: '',
     subject: createReplySubject(email.subject),
     body,
     showCc: mode === 'replyAll',
+    showBcc: false,
   };
 }
 
@@ -81,8 +103,10 @@ export function getForwardInitialValues(
     fromAccount,
     to: '',
     cc: '',
+    bcc: '',
     subject: createForwardSubject(email.subject),
     body,
     showCc: false,
+    showBcc: false,
   };
 }
