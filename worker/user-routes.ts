@@ -616,7 +616,10 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     } else if (account) {
       threads = threads.filter(t => t.account === account);
     }
-    if (label !== 'all') {
+    if (label === 'all' && !feedId) {
+      // "All Mail" — everything except trash and spam.
+      threads = threads.filter(t => !t.labels.includes('trash') && !t.labels.includes('spam'));
+    } else if (label !== 'all') {
       threads = threads.filter(t => t.labels.includes(label));
     }
     threads.sort((a, b) => b.lastEmailAt - a.lastEmailAt);

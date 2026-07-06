@@ -14,7 +14,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import type { ThreadListSync } from '@/hooks/useThreadListSync';
 import { ThreadList } from '@/components/mail/ThreadList';
+import { ListSkeleton } from '@/components/mail/MailSkeleton';
 import { DraftList } from '@/components/mail/DraftList';
 import { ComposeDialog } from '@/components/mail/ComposeDialog';
 import { api } from '@/lib/api-client';
@@ -32,6 +34,7 @@ const LABEL_EMPTY_COPY: Record<string, string> = {
   important: 'Nothing marked important',
   trash: 'Trash is empty',
   spam: 'Nothing in spam',
+  all: 'No mail yet',
 };
 
 export function MailInboxPage() {
@@ -143,9 +146,15 @@ export function MailInboxPage() {
     if (searchActive) fetchThreads();
   };
 
-  const removeThreadFromList = (id: string) => {
+  const removeThreadFromList = useCallback((id: string) => {
     setThreads((prev) => prev.filter((t) => t.id !== id));
-  };
+  }, []);
+
+  const patchThread = useCallback((id: string, partial: Partial<EmailThread>) => {
+    setThreads((prev) => prev.map((t) => (t.id === id ? { ...t, ...partial } : t)));
+  }, []);
+
+  const outletSync: ThreadListSync = { patchThread, removeThread: removeThreadFromList };
 
   const handleToggleStar = async (id: string, starred: boolean) => {
     const previous = threads;
@@ -416,7 +425,7 @@ export function MailInboxPage() {
 
         {isDraftsView ? (
           contextLoading || loading ? (
-            <div className="flex-1" />
+            <ListSkeleton />
           ) : (
             <DraftList drafts={drafts} onOpen={setEditingDraft} onDelete={handleDeleteDraft} />
           )
@@ -453,7 +462,7 @@ export function MailInboxPage() {
 
       {hasThreadView && (
         <div className="flex-1 flex flex-col overflow-hidden">
-          <Outlet />
+          <Outlet context={outletSync} />
         </div>
       )}
 

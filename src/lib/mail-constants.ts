@@ -7,6 +7,7 @@ import {
   Trash2,
   AlertCircle,
   Mail,
+  Mails,
   AtSign,
   Ghost,
   type LucideIcon,
@@ -68,6 +69,7 @@ export const LABEL_ICONS: Record<string, LucideIcon> = {
   important: AlertTriangle,
   trash: Trash2,
   spam: AlertCircle,
+  all: Mails,
 };
 
 export const DOMPURIFY_CONFIG = {
