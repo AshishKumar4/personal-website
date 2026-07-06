@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import type { Env } from './core-utils';
-import { BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEntity, ContactEntity, EmailEntity, EmailThreadEntity, EmailLabelEntity, EmailDraftEntity, EmailAddressEntity, BlockedSenderEntity, EmailFeedEntity, hashPasswordPBKDF2, hashPasswordLegacySHA256, generateSalt, generateSessionToken } from "./entities";
+import { BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEntity, ContactEntity, EmailEntity, EmailThreadEntity, EmailLabelEntity, EmailDraftEntity, EmailAddressEntity, BlockedSenderEntity, EmailFeedEntity, ApiTokenEntity, hashPasswordPBKDF2, hashPasswordLegacySHA256, generateSalt, generateSessionToken } from "./entities";
+import { generateApiToken, parseApiToken, isApiTokenString, hashSecret, timingSafeEqualHex } from './api-token';
 import { ok, bad, notFound, isStr, mergeUnique } from './core-utils';
-import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, R2FileItem, MultipartUploadPart } from "@shared/types";
-import { EMAIL_DOMAIN } from "@shared/types";
+import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, ApiTokenPublic, ApiTokenCreated, R2FileItem, MultipartUploadPart } from "@shared/types";
+import { EMAIL_DOMAIN, clampTtlMinutes } from "@shared/types";
 import { getEmailRaw, getAttachment, generateThreadId } from './email-utils';
 import { arrayBufferToBase64, isSafeMessageIdHeader, contentDispositionHeader } from './mail-encoding';
 import { generateThrowawayLocalPart, getActiveFromAddress } from './address-utils';
@@ -94,23 +95,49 @@ function matchesSearch(e: Email, q: SearchQuery): boolean {
 
 const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
-const authMiddleware = async (c: any, next: any) => {
+function getBearer(c: any): string | null {
   const authHeader = c.req.header('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return c.json({ success: false, error: 'Unauthorized' }, 401);
-  }
-  const token = authHeader.substring(7);
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+  return authHeader.substring(7);
+}
+
+async function isValidSessionToken(c: any, token: string): Promise<boolean> {
   const adminUser = new AuthEntity(c.env, "admin");
-  if (!(await adminUser.exists())) {
+  if (!(await adminUser.exists())) return false;
+  const storedUser = await adminUser.getState();
+  if (!storedUser.sessionToken || storedUser.sessionToken !== token) return false;
+  if (!storedUser.tokenExpiry || Date.now() > storedUser.tokenExpiry) return false;
+  return true;
+}
+
+async function isValidApiToken(c: any, token: string): Promise<boolean> {
+  const parsed = parseApiToken(token);
+  if (!parsed) return false;
+  const entity = new ApiTokenEntity(c.env, parsed.keyId);
+  if (!(await entity.exists())) return false;
+  const record = await entity.getState();
+  if (record.revoked || Date.now() > record.expiresAt) return false;
+  const presentedHash = await hashSecret(parsed.secret);
+  if (!timingSafeEqualHex(presentedHash, record.secretHash)) return false;
+  await entity.mutate(r => ({ ...r, lastUsedAt: Date.now() })).catch(() => {});
+  return true;
+}
+
+const sessionAuthMiddleware = async (c: any, next: any) => {
+  const token = getBearer(c);
+  if (!token || !(await isValidSessionToken(c, token))) {
     return c.json({ success: false, error: 'Unauthorized' }, 401);
   }
-  const storedUser = await adminUser.getState();
-  if (!storedUser.sessionToken || storedUser.sessionToken !== token) {
-    return c.json({ success: false, error: 'Invalid or expired token' }, 401);
-  }
-  if (!storedUser.tokenExpiry || Date.now() > storedUser.tokenExpiry) {
-    return c.json({ success: false, error: 'Token expired' }, 401);
-  }
+  await next();
+};
+
+const adminAuthMiddleware = async (c: any, next: any) => {
+  const token = getBearer(c);
+  if (!token) return c.json({ success: false, error: 'Unauthorized' }, 401);
+  const ok = isApiTokenString(token)
+    ? await isValidApiToken(c, token)
+    : await isValidSessionToken(c, token);
+  if (!ok) return c.json({ success: false, error: 'Unauthorized' }, 401);
   await next();
 };
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
@@ -150,12 +177,12 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     }
   });
 
-  app.post('/api/logout', authMiddleware, async (c) => {
+  app.post('/api/logout', sessionAuthMiddleware, async (c) => {
     const adminUser = new AuthEntity(c.env, "admin");
     await adminUser.mutate(s => ({ ...s, sessionToken: "", tokenExpiry: 0 }));
     return ok(c, { message: 'Logged out successfully' });
   });
-  app.post('/api/admin/change-password', authMiddleware, async (c) => {
+  app.post('/api/admin/change-password', sessionAuthMiddleware, async (c) => {
     const { currentPassword, newPassword } = await c.req.json() as Partial<ChangePasswordPayload>;
     if (!isStr(currentPassword) || !isStr(newPassword)) {
       return bad(c, 'Current and new passwords are required');
@@ -197,13 +224,56 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 
     return ok(c, { message: 'Password updated successfully', token: newSessionToken });
   });
+  const toPublicToken = (r: ApiTokenPublic): ApiTokenPublic => ({
+    id: r.id, name: r.name, createdAt: r.createdAt, expiresAt: r.expiresAt, lastUsedAt: r.lastUsedAt, revoked: r.revoked,
+  });
+
+  app.get('/api/admin/api-tokens', sessionAuthMiddleware, async (c) => {
+    const all = await listAll(cursor => ApiTokenEntity.list(c.env, cursor));
+    const now = Date.now();
+    const expired = all.filter(t => t.expiresAt <= now);
+    if (expired.length > 0) {
+      await ApiTokenEntity.deleteMany(c.env, expired.map(t => t.id));
+    }
+    const active = all
+      .filter(t => t.expiresAt > now)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map(toPublicToken);
+    return ok(c, { items: active });
+  });
+
+  app.post('/api/admin/api-tokens', sessionAuthMiddleware, async (c) => {
+    const { name, ttlMinutes } = await c.req.json() as { name?: string; ttlMinutes?: number };
+    const minutes = clampTtlMinutes(Number(ttlMinutes));
+    const now = Date.now();
+    const { keyId, secret, token } = generateApiToken();
+    const record = {
+      id: keyId,
+      name: isStr(name) ? name.trim().slice(0, 80) : 'Untitled token',
+      secretHash: await hashSecret(secret),
+      createdAt: now,
+      expiresAt: now + minutes * 60 * 1000,
+      lastUsedAt: 0,
+      revoked: false,
+    };
+    await ApiTokenEntity.create(c.env, record);
+    const created: ApiTokenCreated = { ...toPublicToken(record), token };
+    return ok(c, created);
+  });
+
+  app.delete('/api/admin/api-tokens/:id', sessionAuthMiddleware, async (c) => {
+    const id = c.req.param('id');
+    if (!await new ApiTokenEntity(c.env, id).exists()) return notFound(c, 'Token not found');
+    const deleted = await ApiTokenEntity.delete(c.env, id);
+    return ok(c, { id, deleted });
+  });
   // SITE CONFIG
   app.get('/api/config', async (c) => {
     await SiteConfigEntity.seedData(c.env);
     const config = new SiteConfigEntity(c.env, "main");
     return ok(c, await config.getState());
   });
-  app.put('/api/config', authMiddleware, async (c) => {
+  app.put('/api/config', adminAuthMiddleware, async (c) => {
     const { subtitle, bio, about, backgroundEffect } = await c.req.json() as Partial<SiteConfig>;
     if (!isStr(subtitle) || !isStr(bio) || !isStr(about)) return bad(c, 'subtitle, bio, and about are required');
     if (!isStr(backgroundEffect) || !['grid', 'particles', 'aurora', 'vortex', 'matrix', 'neural'].includes(backgroundEffect)) {
@@ -227,7 +297,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     return ok(c, await post.getState());
   });
   // BLOG POSTS (Protected Admin Routes)
-  app.post('/api/posts', authMiddleware, async (c) => {
+  app.post('/api/posts', adminAuthMiddleware, async (c) => {
     const { title, content, author } = await c.req.json() as Partial<BlogPost>;
     if (!isStr(title) || !isStr(content) || !isStr(author)) return bad(c, 'title, content, and author required');
     const slug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
@@ -237,7 +307,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const created = await BlogEntity.create(c.env, newPost);
     return ok(c, created);
   });
-  app.put('/api/posts/:slug', authMiddleware, async (c) => {
+  app.put('/api/posts/:slug', adminAuthMiddleware, async (c) => {
     const slug = c.req.param('slug');
     const { title, content } = await c.req.json() as Partial<BlogPost>;
     if (!isStr(title) || !isStr(content)) return bad(c, 'title and content required');
@@ -246,7 +316,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const updated = await post.mutate(s => ({ ...s, title, content }));
     return ok(c, updated);
   });
-  app.delete('/api/posts/:slug', authMiddleware, async (c) => {
+  app.delete('/api/posts/:slug', adminAuthMiddleware, async (c) => {
     const slug = c.req.param('slug');
     const deleted = await BlogEntity.delete(c.env, slug);
     return ok(c, { slug, deleted });
@@ -258,7 +328,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     return ok(c, page);
   });
   // EXPERIENCE (Protected Admin Routes)
-  app.post('/api/experiences', authMiddleware, async (c) => {
+  app.post('/api/experiences', adminAuthMiddleware, async (c) => {
     const body = await c.req.json() as Partial<Experience>;
     const newExperience: Experience = {
       id: crypto.randomUUID(),
@@ -273,7 +343,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const created = await ExperienceEntity.create(c.env, newExperience);
     return ok(c, created);
   });
-  app.put('/api/experiences/:id', authMiddleware, async (c) => {
+  app.put('/api/experiences/:id', adminAuthMiddleware, async (c) => {
     const id = c.req.param('id');
     const body = await c.req.json() as Partial<Experience>;
     const exp = new ExperienceEntity(c.env, id);
@@ -281,7 +351,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const updated = await exp.mutate(s => ({ ...s, ...body, id: s.id }));
     return ok(c, updated);
   });
-  app.delete('/api/experiences/:id', authMiddleware, async (c) => {
+  app.delete('/api/experiences/:id', adminAuthMiddleware, async (c) => {
     const id = c.req.param('id');
     const deleted = await ExperienceEntity.delete(c.env, id);
     return ok(c, { id, deleted });
@@ -293,7 +363,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     return ok(c, page);
   });
   // PROJECTS (Protected Admin Routes)
-  app.post('/api/projects', authMiddleware, async (c) => {
+  app.post('/api/projects', adminAuthMiddleware, async (c) => {
     const body = await c.req.json() as Partial<Project>;
     const newProject: Project = {
       id: body.name?.toLowerCase().replace(/\s+/g, '-') || crypto.randomUUID(),
@@ -305,7 +375,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const created = await ProjectEntity.create(c.env, newProject);
     return ok(c, created);
   });
-  app.put('/api/projects/:id', authMiddleware, async (c) => {
+  app.put('/api/projects/:id', adminAuthMiddleware, async (c) => {
     const id = c.req.param('id');
     const body = await c.req.json() as Partial<Project>;
     const proj = new ProjectEntity(c.env, id);
@@ -313,14 +383,14 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const updated = await proj.mutate(s => ({ ...s, ...body, id: s.id }));
     return ok(c, updated);
   });
-  app.delete('/api/projects/:id', authMiddleware, async (c) => {
+  app.delete('/api/projects/:id', adminAuthMiddleware, async (c) => {
     const id = c.req.param('id');
     const deleted = await ProjectEntity.delete(c.env, id);
     return ok(c, { id, deleted });
   });
 
   // IMAGE UPLOAD
-  app.post('/api/upload', authMiddleware, async (c) => {
+  app.post('/api/upload', adminAuthMiddleware, async (c) => {
     const env = c.env as ExtendedEnv;
     if (!env.IMAGES_BUCKET) {
       return bad(c, 'Image upload not configured. Please set up R2 bucket.');
@@ -404,13 +474,13 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   // CONTACT MESSAGES (Admin only)
-  app.get('/api/contacts', authMiddleware, async (c) => {
+  app.get('/api/contacts', adminAuthMiddleware, async (c) => {
     const page = await ContactEntity.list(c.env);
     page.items.sort((a, b) => b.createdAt - a.createdAt);
     return ok(c, page);
   });
 
-  app.delete('/api/contacts/:id', authMiddleware, async (c) => {
+  app.delete('/api/contacts/:id', adminAuthMiddleware, async (c) => {
     const id = c.req.param('id');
     const deleted = await ContactEntity.delete(c.env, id);
     return ok(c, { id, deleted });
@@ -1202,7 +1272,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // ============ FILE MANAGER ROUTES ============
 
   // List files with prefix/delimiter
-  app.get('/api/files', authMiddleware, async (c) => {
+  app.get('/api/files', adminAuthMiddleware, async (c) => {
     const env = c.env as ExtendedEnv;
     if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
 
@@ -1260,7 +1330,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   // Simple upload for small files
-  app.post('/api/files/upload', authMiddleware, async (c) => {
+  app.post('/api/files/upload', adminAuthMiddleware, async (c) => {
     const env = c.env as ExtendedEnv;
     if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
 
@@ -1283,7 +1353,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   // Initiate multipart upload
-  app.post('/api/files/upload/initiate', authMiddleware, async (c) => {
+  app.post('/api/files/upload/initiate', adminAuthMiddleware, async (c) => {
     const env = c.env as ExtendedEnv;
     if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
 
@@ -1301,7 +1371,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   // Upload part
-  app.put('/api/files/upload/part', authMiddleware, async (c) => {
+  app.put('/api/files/upload/part', adminAuthMiddleware, async (c) => {
     const env = c.env as ExtendedEnv;
     if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
 
@@ -1324,7 +1394,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   // Complete multipart upload
-  app.post('/api/files/upload/complete', authMiddleware, async (c) => {
+  app.post('/api/files/upload/complete', adminAuthMiddleware, async (c) => {
     const env = c.env as ExtendedEnv;
     if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
 
@@ -1350,7 +1420,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   // Abort multipart upload
-  app.post('/api/files/upload/abort', authMiddleware, async (c) => {
+  app.post('/api/files/upload/abort', adminAuthMiddleware, async (c) => {
     const env = c.env as ExtendedEnv;
     if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
 
@@ -1364,7 +1434,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   // Delete file
-  app.delete('/api/files/*', authMiddleware, async (c) => {
+  app.delete('/api/files/*', adminAuthMiddleware, async (c) => {
     const env = c.env as ExtendedEnv;
     if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
 
@@ -1377,7 +1447,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   // Create folder (PUT empty object with trailing /)
-  app.post('/api/files/folder', authMiddleware, async (c) => {
+  app.post('/api/files/folder', adminAuthMiddleware, async (c) => {
     const env = c.env as ExtendedEnv;
     if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
 
@@ -1391,7 +1461,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   // Delete folder recursively
-  app.delete('/api/files/folder/*', authMiddleware, async (c) => {
+  app.delete('/api/files/folder/*', adminAuthMiddleware, async (c) => {
     const env = c.env as ExtendedEnv;
     if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
 
