@@ -19,7 +19,11 @@ export interface NotebookImage {
 export interface NotebookConversion {
   markdown: string;
   images: NotebookImage[];
+  /** "Open in Colab" URL, if the notebook carried a Colab badge. */
+  colabUrl?: string;
 }
+
+const COLAB_URL_RE = /https?:\/\/colab\.research\.google\.com\/[^\s")'>]+/;
 
 interface RawCell {
   cell_type: string;
@@ -69,6 +73,7 @@ export function notebookToMarkdown(notebook: RawNotebook | string): NotebookConv
 
   const images: NotebookImage[] = [];
   const blocks: string[] = [];
+  let colabUrl: string | undefined;
 
   const pushImage = (mime: string, b64: string): string => {
     const clean = (Array.isArray(b64) ? b64.join('') : b64).replace(/\s+/g, '');
@@ -80,7 +85,17 @@ export function notebookToMarkdown(notebook: RawNotebook | string): NotebookConv
 
   for (const cell of nb.cells ?? []) {
     if (cell.cell_type === 'markdown') {
-      const md = joinSource(cell.source).trim();
+      let md = joinSource(cell.source).trim();
+      // Pull out the Colab badge: capture its URL, then drop the badge markup
+      // (an <a> wrapping a colab-badge <img>) so it doesn't render as a broken image.
+      if (!colabUrl) {
+        const found = md.match(COLAB_URL_RE);
+        if (found) colabUrl = found[0];
+      }
+      md = md
+        .replace(/<a[^>]*colab\.research\.google\.com[\s\S]*?<\/a>/gi, '')
+        .replace(/\[!\[[^\]]*\]\([^)]*colab[^)]*\)\]\([^)]*\)/gi, '')
+        .trim();
       if (md) blocks.push(md);
       continue;
     }
@@ -114,5 +129,5 @@ export function notebookToMarkdown(notebook: RawNotebook | string): NotebookConv
     // raw / unknown cell types are dropped
   }
 
-  return { markdown: blocks.join('\n\n') + '\n', images };
+  return { markdown: blocks.join('\n\n') + '\n', images, colabUrl };
 }

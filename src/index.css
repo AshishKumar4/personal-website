@@ -128,15 +128,18 @@
 
   /* Prose styles - theme aware */
   .prose-styles {
-    @apply text-light-slate leading-relaxed;
+    @apply text-slate;
+    font-size: 1.05rem;
+    line-height: 1.75;
   }
   .prose-styles h1, .prose-styles h2, .prose-styles h3, .prose-styles h4, .prose-styles h5, .prose-styles h6 {
-    @apply font-bold text-lightest-slate mb-4 mt-8;
+    @apply font-bold text-lightest-slate mb-4 mt-10;
+    scroll-margin-top: 6rem;
   }
-  .prose-styles h1 { @apply text-4xl; }
-  .prose-styles h2 { @apply text-3xl; }
-  .prose-styles h3 { @apply text-2xl; }
-  .prose-styles p { @apply mb-4; }
+  .prose-styles h1 { @apply text-3xl; }
+  .prose-styles h2 { @apply text-2xl; }
+  .prose-styles h3 { @apply text-xl; }
+  .prose-styles p { @apply mb-5; }
   .prose-styles a { @apply text-accent hover:underline; }
   .prose-styles ul { @apply list-disc list-inside mb-4 space-y-2; }
   .prose-styles ol { @apply list-decimal list-inside mb-4 space-y-2; }

@@ -105,7 +105,27 @@ function CommandPalette() {
 
 type PortfolioLayoutProps = {
   children: React.ReactNode;
+  /** 'reading' calms the background further for long-form pages (blog, about). */
+  variant?: 'default' | 'reading';
 };
+
+/**
+ * A soft scrim between the animated background and the content. It keeps the
+ * center readable while letting the effect breathe in the margins.
+ */
+function ReadabilityScrim({ reading }: { reading: boolean }) {
+  const center = reading ? 0.97 : 0.8;
+  const mid = reading ? 0.92 : 0.6;
+  const edge = reading ? 0.55 : 0.15;
+  return (
+    <div
+      className="fixed inset-0 -z-[5] pointer-events-none"
+      style={{
+        background: `radial-gradient(ellipse 85% 75% at 50% 42%, hsl(var(--background) / ${center}) 0%, hsl(var(--background) / ${mid}) 55%, hsl(var(--background) / ${edge}) 100%)`,
+      }}
+    />
+  );
+}
 
 function BackgroundRenderer() {
   const { config } = useSiteConfig();
@@ -130,13 +150,14 @@ function BackgroundRenderer() {
   }
 }
 
-export function PortfolioLayout({ children }: PortfolioLayoutProps) {
+export function PortfolioLayout({ children, variant = 'default' }: PortfolioLayoutProps) {
   return (
     <SiteConfigProvider>
       <ScrollProgress />
       <CommandPalette />
       <div className="flex flex-col min-h-screen">
         <BackgroundRenderer />
+        <ReadabilityScrim reading={variant === 'reading'} />
         <Header />
         <SocialSidebar />
         <main className="flex-grow">

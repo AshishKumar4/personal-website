@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PortfolioLayout } from '@/components/layout/PortfolioLayout';
+import { ReadingSurface } from '@/components/layout/ReadingSurface';
 import { BlogPost } from '@shared/types';
 import { api } from '@/lib/api-client';
 import { Toaster, toast } from '@/components/ui/sonner';
@@ -10,6 +11,14 @@ import { ArrowLeft, Calendar, User, Clock } from 'lucide-react';
 import { MarkdownContent } from '@/components/MarkdownContent';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { getReadingTime } from '@/lib/text-utils';
+
+const COLAB_MARKER = /<!--\s*colab:\s*(\S+?)\s*-->/;
+
+const ColabIcon = () => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+    <path d="M4.9 6.6a7.6 7.6 0 0 0 0 10.8 7.6 7.6 0 0 0 10 .7l-2.3-2.3a4.3 4.3 0 0 1-5.4-6.6 4.3 4.3 0 0 1 5.4-.5L14.9 6a7.6 7.6 0 0 0-10 .6Zm14.2 0a7.6 7.6 0 0 0-10-.7l2.3 2.3a4.3 4.3 0 0 1 5.4 6.6 4.3 4.3 0 0 1-5.4.5L9.1 18a7.6 7.6 0 0 0 10-.6 7.6 7.6 0 0 0 0-10.8Z" />
+  </svg>
+);
 
 export function BlogPostPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -33,56 +42,74 @@ export function BlogPostPage() {
     fetchPost();
   }, [slug]);
 
-  return (
-    <PortfolioLayout>
-      <main className="relative z-10 py-24 md:py-32">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: prefersReducedMotion ? 0 : 0.5 }}
-          >
-            <Link to="/blog" className="inline-flex items-center text-primary font-mono hover:underline mb-8">
-              <ArrowLeft size={16} className="mr-2" />
-              All Posts
-            </Link>
+  const colabUrl = post?.content.match(COLAB_MARKER)?.[1];
+  const body = post ? post.content.replace(COLAB_MARKER, '').trim() : '';
 
-            {loading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-12 w-3/4" />
-                <Skeleton className="h-6 w-1/2" />
-                <Skeleton className="h-4 w-full mt-8" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-5/6" />
-              </div>
-            ) : post ? (
-              <article>
-                <h1 className="text-4xl sm:text-5xl font-bold text-foreground font-display">{post.title}</h1>
-                <div className="mt-4 flex flex-wrap items-center gap-4 text-sm font-mono text-muted-foreground">
-                  <div className="flex items-center">
-                    <Calendar size={14} className="mr-2 text-primary" />
-                    {new Date(post.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                  </div>
-                  <div className="flex items-center">
-                    <User size={14} className="mr-2 text-primary" />
-                    {post.author}
-                  </div>
-                  <div className="flex items-center">
-                    <Clock size={14} className="mr-2 text-primary" />
-                    {getReadingTime(post.content)} min read
-                  </div>
-                </div>
-                <MarkdownContent className="mt-12">{post.content}</MarkdownContent>
-              </article>
-            ) : (
-              <div className="text-center">
-                <h2 className="text-2xl font-bold text-foreground">Post not found</h2>
-                <p className="mt-4 text-muted-foreground">The post you are looking for does not exist.</p>
-              </div>
-            )}
-          </motion.div>
+  return (
+    <PortfolioLayout variant="reading">
+      <div className="relative z-10 px-4 pt-8">
+        <div className="mx-auto w-full max-w-3xl">
+          <Link to="/blog" className="inline-flex items-center text-primary font-mono text-sm hover:underline">
+            <ArrowLeft size={16} className="mr-2" />
+            All Posts
+          </Link>
         </div>
-      </main>
+      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: prefersReducedMotion ? 0 : 0.5 }}
+      >
+        <ReadingSurface>
+          {loading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-12 w-3/4" />
+              <Skeleton className="h-6 w-1/2" />
+              <Skeleton className="h-4 w-full mt-8" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+            </div>
+          ) : post ? (
+            <>
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground font-display leading-tight">
+                {post.title}
+              </h1>
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-mono text-muted-foreground">
+                <span className="flex items-center">
+                  <Calendar size={14} className="mr-2 text-primary" />
+                  {new Date(post.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </span>
+                <span className="flex items-center">
+                  <User size={14} className="mr-2 text-primary" />
+                  {post.author}
+                </span>
+                <span className="flex items-center">
+                  <Clock size={14} className="mr-2 text-primary" />
+                  {getReadingTime(body)} min read
+                </span>
+              </div>
+              {colabUrl && (
+                <a
+                  href={colabUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-6 inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm font-mono text-foreground hover:border-primary hover:text-primary transition-colors"
+                >
+                  <span className="text-[#e8710a]"><ColabIcon /></span>
+                  Open in Google Colab
+                </a>
+              )}
+              <hr className="my-8 border-border" />
+              <MarkdownContent>{body}</MarkdownContent>
+            </>
+          ) : (
+            <div className="text-center py-10">
+              <h2 className="text-2xl font-bold text-foreground">Post not found</h2>
+              <p className="mt-4 text-muted-foreground">The post you are looking for does not exist.</p>
+            </div>
+          )}
+        </ReadingSurface>
+      </motion.div>
       <Toaster theme="dark" />
     </PortfolioLayout>
   );

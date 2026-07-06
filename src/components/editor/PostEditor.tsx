@@ -137,8 +137,8 @@ export function PostEditor({ initialPost, slug }: PostEditorProps) {
         return;
       }
 
-      const { markdown, images } = notebookToMarkdown(text);
-      let out = markdown;
+      const { markdown, images, colabUrl } = notebookToMarkdown(text);
+      let out = colabUrl ? `<!-- colab: ${colabUrl} -->\n\n${markdown}` : markdown;
 
       if (images.length) {
         toast.info(`Uploading ${images.length} notebook image${images.length > 1 ? 's' : ''}...`);

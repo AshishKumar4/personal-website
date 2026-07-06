@@ -106,6 +106,28 @@ describe('notebookToMarkdown', () => {
     expect(markdown).toContain('````python');
   });
 
+  it('extracts the Colab badge URL and strips the badge markup', () => {
+    const nb = {
+      cells: [
+        {
+          cell_type: 'markdown',
+          source:
+            '<a href="https://colab.research.google.com/github/AshishKumar4/FlaxDiff/blob/main/x.ipynb">\n  <img src="https://colab.research.google.com/assets/colab-badge.svg"/>\n</a>\n\n# Real Title',
+        },
+      ],
+    };
+    const { markdown, colabUrl } = notebookToMarkdown(nb);
+    expect(colabUrl).toBe('https://colab.research.google.com/github/AshishKumar4/FlaxDiff/blob/main/x.ipynb');
+    expect(markdown).toContain('# Real Title');
+    expect(markdown).not.toContain('colab-badge');
+    expect(markdown).not.toContain('<a href');
+  });
+
+  it('leaves colabUrl undefined when there is no badge', () => {
+    const { colabUrl } = notebookToMarkdown({ cells: [{ cell_type: 'markdown', source: '# Hi' }] });
+    expect(colabUrl).toBeUndefined();
+  });
+
   it('drops empty cells and error outputs without crashing', () => {
     const nb = {
       cells: [
