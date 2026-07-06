@@ -1,7 +1,10 @@
 import { Hono } from "hono";
 import type { Env } from './core-utils';
-import { BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEntity, ContactEntity, EmailEntity, EmailThreadEntity, EmailLabelEntity, EmailDraftEntity, EmailAddressEntity, BlockedSenderEntity, EmailFeedEntity, ApiTokenEntity, hashPasswordPBKDF2, hashPasswordLegacySHA256, generateSalt, generateSessionToken } from "./entities";
+import { BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEntity, ContactEntity, EmailEntity, EmailThreadEntity, EmailLabelEntity, EmailDraftEntity, EmailAddressEntity, BlockedSenderEntity, EmailFeedEntity, ApiTokenEntity, hashPasswordPBKDF2, hashPasswordLegacySHA256, generateSalt } from "./entities";
 import { generateApiToken, parseApiToken, isApiTokenString, hashSecret, timingSafeEqualHex } from './api-token';
+import * as twoFactor from './two-factor';
+import { TwoFactorError, type TwoFactorEnv } from './two-factor';
+import type { AuthUser } from '@shared/types';
 import { ok, bad, notFound, isStr, mergeUnique } from './core-utils';
 import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, ApiTokenPublic, ApiTokenCreated, R2FileItem, MultipartUploadPart } from "@shared/types";
 import { EMAIL_DOMAIN, clampTtlMinutes } from "@shared/types";
@@ -93,8 +96,6 @@ function matchesSearch(e: Email, q: SearchQuery): boolean {
   return true;
 }
 
-const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
-
 function getBearer(c: any): string | null {
   const authHeader = c.req.header('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
@@ -140,6 +141,34 @@ const adminAuthMiddleware = async (c: any, next: any) => {
   if (!valid) return c.json({ success: false, error: 'Unauthorized' }, 401);
   await next();
 };
+
+async function hasValidSession(c: any): Promise<boolean> {
+  const token = getBearer(c);
+  return !!token && !isApiTokenString(token) && isValidSessionToken(c, token);
+}
+
+async function verifyAdminPassword(entity: AuthEntity, user: AuthUser, password: string): Promise<boolean> {
+  if (user.salt) {
+    return (await hashPasswordPBKDF2(password, user.salt)) === user.hashedPassword;
+  }
+  if ((await hashPasswordLegacySHA256(password)) === user.hashedPassword) {
+    const salt = generateSalt();
+    const hashedPassword = await hashPasswordPBKDF2(password, salt);
+    await entity.mutate(s => ({ ...s, salt, hashedPassword }));
+    return true;
+  }
+  return false;
+}
+
+async function run2FA(c: any, fn: () => Promise<unknown>) {
+  try {
+    return ok(c, await fn());
+  } catch (err) {
+    if (err instanceof TwoFactorError) return c.json({ success: false, error: err.message }, err.status as any);
+    console.error('2FA error:', err);
+    return c.json({ success: false, error: 'Two-factor operation failed' }, 500);
+  }
+}
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/test', (c) => c.json({ success: true, data: { name: 'CF Workers Demo' }}));
   // AUTH
@@ -147,35 +176,68 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     await AuthEntity.seedData(c.env);
     const { username, password } = await c.req.json();
     if (!isStr(username) || !isStr(password)) return bad(c, 'username and password required');
-    const user = new AuthEntity(c.env, username);
+    if (username !== 'admin') return c.json({ success: false, error: 'Invalid credentials' }, 401);
+    const user = new AuthEntity(c.env, 'admin');
     if (!await user.exists()) return notFound(c, 'user not found');
-    const storedUser = await user.getState();
 
-    let passwordValid = false;
-
-    if (storedUser.salt) {
-      const hashedPassword = await hashPasswordPBKDF2(password, storedUser.salt);
-      passwordValid = hashedPassword === storedUser.hashedPassword;
-    } else {
-      const legacyHash = await hashPasswordLegacySHA256(password);
-      if (legacyHash === storedUser.hashedPassword) {
-        passwordValid = true;
-        const newSalt = generateSalt();
-        const newHashedPassword = await hashPasswordPBKDF2(password, newSalt);
-        await user.mutate(s => ({ ...s, salt: newSalt, hashedPassword: newHashedPassword }));
-        console.log(`Migrated user ${username} to PBKDF2 hashing`);
-      }
+    if (await twoFactor.isLocked(c.env)) {
+      return c.json({ success: false, error: 'Too many attempts. Try again later.' }, 429);
     }
 
-    if (passwordValid) {
-      const sessionToken = generateSessionToken();
-      const tokenExpiry = Date.now() + SESSION_DURATION;
-      await user.mutate(s => ({ ...s, sessionToken, tokenExpiry }));
-      return ok(c, { token: sessionToken, user: { username: storedUser.username } });
-    } else {
+    if (!(await verifyAdminPassword(user, await user.getState(), password))) {
+      await twoFactor.recordFailure(c.env);
       return c.json({ success: false, error: 'Invalid credentials' }, 401);
     }
+    return ok(c, await twoFactor.beginAfterPassword(c.env));
   });
+
+  // ---- 2FA: login second factor (authorized by challengeToken) ----
+  app.post('/api/2fa/login/totp', (c) => run2FA(c, async () => {
+    const { challengeToken, code } = await c.req.json();
+    if (!isStr(challengeToken) || !isStr(code)) throw new TwoFactorError(400, 'challengeToken and code required');
+    return twoFactor.loginTotp(c.env as TwoFactorEnv, challengeToken, code);
+  }));
+  app.post('/api/2fa/login/backup', (c) => run2FA(c, async () => {
+    const { challengeToken, code } = await c.req.json();
+    if (!isStr(challengeToken) || !isStr(code)) throw new TwoFactorError(400, 'challengeToken and code required');
+    return twoFactor.loginBackup(c.env, challengeToken, code);
+  }));
+  app.post('/api/2fa/login/passkey/options', (c) => run2FA(c, async () => {
+    const { challengeToken } = await c.req.json();
+    if (!isStr(challengeToken)) throw new TwoFactorError(400, 'challengeToken required');
+    return twoFactor.loginPasskeyOptions(c.env, c.req.header('Origin'), challengeToken);
+  }));
+  app.post('/api/2fa/login/passkey', (c) => run2FA(c, async () => {
+    const { challengeToken, response } = await c.req.json();
+    if (!isStr(challengeToken) || !response) throw new TwoFactorError(400, 'challengeToken and response required');
+    return twoFactor.loginPasskey(c.env, c.req.header('Origin'), challengeToken, response);
+  }));
+
+  // ---- 2FA: enrollment / management (setupToken OR session) ----
+  app.post('/api/2fa/totp/setup', (c) => run2FA(c, async () => {
+    const { setupToken } = await c.req.json().catch(() => ({}));
+    return twoFactor.totpSetup(c.env as TwoFactorEnv, isStr(setupToken) ? setupToken : undefined, await hasValidSession(c));
+  }));
+  app.post('/api/2fa/totp/confirm', (c) => run2FA(c, async () => {
+    const { flowToken, code } = await c.req.json();
+    if (!isStr(flowToken) || !isStr(code)) throw new TwoFactorError(400, 'flowToken and code required');
+    return twoFactor.totpConfirm(c.env as TwoFactorEnv, flowToken, code);
+  }));
+  app.post('/api/2fa/passkey/register/options', (c) => run2FA(c, async () => {
+    const { setupToken } = await c.req.json().catch(() => ({}));
+    return twoFactor.passkeyRegisterOptions(c.env, c.req.header('Origin'), isStr(setupToken) ? setupToken : undefined, await hasValidSession(c));
+  }));
+  app.post('/api/2fa/passkey/register', (c) => run2FA(c, async () => {
+    const { flowToken, response, name } = await c.req.json();
+    if (!isStr(flowToken) || !response) throw new TwoFactorError(400, 'flowToken and response required');
+    return twoFactor.passkeyRegister(c.env, c.req.header('Origin'), flowToken, response, isStr(name) ? name : 'Passkey');
+  }));
+
+  // ---- 2FA: management (session-only) ----
+  app.get('/api/2fa/status', sessionAuthMiddleware, (c) => run2FA(c, () => twoFactor.getStatus(c.env)));
+  app.delete('/api/2fa/passkey/:id', sessionAuthMiddleware, (c) => run2FA(c, () => twoFactor.removePasskey(c.env, c.req.param('id'))));
+  app.delete('/api/2fa/totp', sessionAuthMiddleware, (c) => run2FA(c, () => twoFactor.disableTotp(c.env)));
+  app.post('/api/2fa/backup-codes', sessionAuthMiddleware, (c) => run2FA(c, async () => ({ codes: await twoFactor.regenerateBackupCodes(c.env) })));
 
   app.post('/api/logout', sessionAuthMiddleware, async (c) => {
     const adminUser = new AuthEntity(c.env, "admin");
@@ -194,35 +256,14 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     if (!(await adminUser.exists())) {
       return notFound(c, 'Admin user not found');
     }
-    const storedUser = await adminUser.getState();
-
-    let currentPasswordValid = false;
-    if (storedUser.salt) {
-      const currentPasswordHashed = await hashPasswordPBKDF2(currentPassword, storedUser.salt);
-      currentPasswordValid = currentPasswordHashed === storedUser.hashedPassword;
-    } else {
-      const legacyHash = await hashPasswordLegacySHA256(currentPassword);
-      currentPasswordValid = legacyHash === storedUser.hashedPassword;
-    }
-
-    if (!currentPasswordValid) {
+    if (!(await verifyAdminPassword(adminUser, await adminUser.getState(), currentPassword))) {
       return c.json({ success: false, error: 'Invalid current password' }, 401);
     }
-
     const newSalt = generateSalt();
     const newPasswordHashed = await hashPasswordPBKDF2(newPassword, newSalt);
-    const newSessionToken = generateSessionToken();
-    const newTokenExpiry = Date.now() + SESSION_DURATION;
-
-    await adminUser.save({
-      username: "admin",
-      hashedPassword: newPasswordHashed,
-      salt: newSalt,
-      sessionToken: newSessionToken,
-      tokenExpiry: newTokenExpiry
-    });
-
-    return ok(c, { message: 'Password updated successfully', token: newSessionToken });
+    await adminUser.mutate(u => ({ ...u, salt: newSalt, hashedPassword: newPasswordHashed }));
+    const token = await twoFactor.issueSession(c.env);
+    return ok(c, { message: 'Password updated successfully', token });
   });
   const toPublicToken = (r: ApiTokenPublic): ApiTokenPublic => ({
     id: r.id, name: r.name, createdAt: r.createdAt, expiresAt: r.expiresAt, lastUsedAt: r.lastUsedAt,
