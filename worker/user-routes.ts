@@ -391,6 +391,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       location: body.location || '',
       description: body.description || '',
       skills: body.skills || [],
+      ...(typeof body.order === 'number' ? { order: body.order } : {}),
     };
     const created = await ExperienceEntity.create(c.env, newExperience);
     return ok(c, created);

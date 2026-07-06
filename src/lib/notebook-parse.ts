@@ -80,9 +80,17 @@ function resolvePath(dir: string, rel: string): string {
   return out.join('/');
 }
 
+/**
+ * Image syntax pointing at an in-notebook anchor (an authoring quirk Jupyter
+ * renders as a broken image) becomes a plain link instead.
+ */
+function anchorImagesToLinks(md: string): string {
+  return md.replace(/!(\[[^\]]*\]\(#[^)]*\))/g, '$1');
+}
+
 /** Rewrite repo-relative image references in a markdown cell to absolute raw-GitHub URLs. */
 function absolutizeImages(md: string, gh: { rawBase: string; dir: string }): string {
-  const isRelative = (src: string) => !/^(https?:|data:|\/)/i.test(src);
+  const isRelative = (src: string) => !/^(https?:|data:|\/|#)/i.test(src);
   const toAbs = (src: string) => (isRelative(src) ? gh.rawBase + encodeURI(resolvePath(gh.dir, src)) : src);
   return md
     .replace(/(!\[[^\]]*\]\()([^)\s]+)(\))/g, (_m, a, src, b) => a + toAbs(src) + b)
@@ -111,7 +119,7 @@ export function parseNotebook(input: RawNotebook | string): ParsedNotebook {
         const found = md.match(COLAB_URL_RE);
         if (found) colabUrl = found[0];
       }
-      md = stripColabBadge(md);
+      md = anchorImagesToLinks(stripColabBadge(md));
       if (md) cells.push({ kind: 'markdown', source: md });
       continue;
     }

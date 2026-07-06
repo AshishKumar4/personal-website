@@ -29,6 +29,8 @@ export interface Experience {
   location: string;
   description: string;
   skills: string[];
+  /** Display position in the timeline (ascending). */
+  order?: number;
 }
 export interface Project {
   id: string;

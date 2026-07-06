@@ -146,6 +146,22 @@ describe('parseNotebook', () => {
     expect(cell.outputs.map((o) => o.kind)).toEqual(['stream', 'image', 'stream']);
   });
 
+  it('turns anchor-target image syntax into a plain link and never absolutizes anchors', () => {
+    const { notebook } = parseNotebook({
+      cells: [
+        { cell_type: 'markdown', source:
+          '<a href="https://colab.research.google.com/github/o/r/blob/main/n.ipynb"></a>' },
+        { cell_type: 'markdown', source:
+          'see our ![Noise Schedulers](#Cosine-Noise-Scheduler-in-terms-of-$%5Cbeta(t)$) sections' },
+      ],
+    });
+    const cell = notebook.cells[0];
+    if (cell.kind !== 'markdown') throw new Error('expected markdown cell');
+    expect(cell.source).toContain('[Noise Schedulers](#Cosine-Noise-Scheduler');
+    expect(cell.source).not.toContain('![Noise Schedulers]');
+    expect(cell.source).not.toContain('raw.githubusercontent');
+  });
+
   it('notebookTitle returns the first H1', () => {
     expect(notebookTitle({ cells: [
       { kind: 'markdown', source: 'intro' },
