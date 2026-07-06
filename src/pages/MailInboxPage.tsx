@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, Outlet } from 'react-router-dom';
+import { useParams, Outlet, useNavigate } from 'react-router-dom';
+import { useHotkeys } from 'react-hotkeys-hook';
 import { toast } from 'sonner';
 import {
   RefreshCw, Search, MoreVertical, Archive, Trash2, ShieldOff, X, SearchX, Inbox,
@@ -35,6 +36,7 @@ const LABEL_EMPTY_COPY: Record<string, string> = {
 
 export function MailInboxPage() {
   const { label = 'inbox', feedId, threadId } = useParams();
+  const navigate = useNavigate();
   const { selectedAccount, addresses, feeds, loading: contextLoading } = useMailContext();
   const { updateThread, trashThread, archiveThread, spamThread, unblockSender } = useThreadActions();
 
@@ -258,6 +260,21 @@ export function MailInboxPage() {
     setSelectedThreads(new Set());
     fetchThreads();
   };
+
+  const moveSelection = (delta: number) => {
+    if (isDraftsView || threads.length === 0) return;
+    const currentIndex = threadId ? threads.findIndex((t) => t.id === threadId) : -1;
+    const nextIndex = Math.max(0, Math.min(threads.length - 1, currentIndex + delta));
+    const target = threads[nextIndex];
+    if (target) navigate(buildThreadPath(target.id));
+  };
+
+  useHotkeys('j', () => moveSelection(1), { preventDefault: true }, [threads, threadId, isDraftsView]);
+  useHotkeys('k', () => moveSelection(-1), { preventDefault: true }, [threads, threadId, isDraftsView]);
+  useHotkeys('e', () => {
+    const current = threads.find((t) => t.id === threadId);
+    if (current) handleArchive(current);
+  }, { enabled: !!threadId }, [threads, threadId]);
 
   const emptyState = (() => {
     if (searchActive) {

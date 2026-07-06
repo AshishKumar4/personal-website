@@ -6,10 +6,12 @@ import { Toaster } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { MailProvider } from '@/contexts/MailContext';
+import { useMailHotkeys } from '@/hooks/useMailHotkeys';
 
 export function MailLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  useMailHotkeys();
 
   useEffect(() => {
     setSidebarOpen(false);

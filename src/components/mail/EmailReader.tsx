@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import type { Email, EmailThread, EmailAddress } from '@shared/types';
 import {
   Reply, ReplyAll, Forward, MoreVertical, Star, Trash2,
-  Paperclip, Download, ArrowLeft, ChevronDown, ChevronRight,
+  Paperclip, Download, ArrowLeft, ChevronDown, ChevronRight, ShieldOff,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -14,8 +14,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import DOMPurify from 'dompurify';
 import { InlineCompose } from './InlineCompose';
+import { AccountChip } from './AccountChip';
+import { LabelMenu } from './LabelMenu';
 import { formatRelativeTime, formatFullDate, formatFileSize } from '@/lib/date-utils';
 import { getInitials } from '@/lib/text-utils';
 import { getSenderName, extractNewContent, extractNewHtmlContent } from '@/lib/email-utils';
@@ -29,6 +32,8 @@ interface EmailReaderProps {
   onDelete?: (threadId: string) => void;
   onToggleStar?: (threadId: string, starred: boolean) => void;
   onMarkUnread?: (threadId: string) => void;
+  onSpam?: (threadId: string) => void;
+  onToggleLabel?: (labelId: string, checked: boolean) => void;
   onEmailSent?: () => void;
 }
 
@@ -284,6 +289,8 @@ export function EmailReader({
   onDelete,
   onToggleStar,
   onMarkUnread,
+  onSpam,
+  onToggleLabel,
   onEmailSent,
 }: EmailReaderProps) {
   const [composeMode, setComposeMode] = useState<ComposeMode>(null);
@@ -334,29 +341,64 @@ export function EmailReader({
 
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-semibold truncate">{thread.subject}</h1>
-          {emails.length > 1 && (
-            <p className="text-xs text-muted-foreground">
-              {emails.length} messages in conversation
-            </p>
-          )}
+          <div className="flex items-center gap-2">
+            <AccountChip account={thread.account} addresses={addresses} />
+            {emails.length > 1 && (
+              <p className="text-xs text-muted-foreground">
+                {emails.length} messages in conversation
+              </p>
+            )}
+          </div>
         </div>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(thread.starred && 'text-yellow-500')}
-          onClick={() => onToggleStar?.(thread.id, !thread.starred)}
-        >
-          <Star className="h-4 w-4" fill={thread.starred ? 'currentColor' : 'none'} />
-        </Button>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={thread.starred ? 'Unstar' : 'Star'}
+                className={cn(thread.starred && 'text-yellow-500')}
+                onClick={() => onToggleStar?.(thread.id, !thread.starred)}
+              >
+                <Star className="h-4 w-4" fill={thread.starred ? 'currentColor' : 'none'} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{thread.starred ? 'Unstar' : 'Star'}</TooltipContent>
+          </Tooltip>
 
-        <Button variant="ghost" size="icon" onClick={() => onDelete?.(thread.id)}>
-          <Trash2 className="h-4 w-4" />
-        </Button>
+          {onToggleLabel && <LabelMenu activeLabels={thread.labels} onToggle={onToggleLabel} />}
+
+          {onSpam && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Spam & block sender"
+                  className="hover:text-destructive"
+                  onClick={() => onSpam(thread.id)}
+                >
+                  <ShieldOff className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Spam &amp; block sender</TooltipContent>
+            </Tooltip>
+          )}
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Trash" onClick={() => onDelete?.(thread.id)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Trash</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" aria-label="More actions">
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>

@@ -7,11 +7,14 @@ import type { Email, EmailThread } from '@shared/types';
 import { toast } from 'sonner';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useMailContext } from '@/contexts/MailContext';
+import { useThreadActions } from '@/hooks/useThreadActions';
+import { getErrorMessage } from '@/lib/error-utils';
 
 export function MailThreadPage() {
   const { label = 'inbox', feedId, threadId } = useParams();
   const navigate = useNavigate();
   const { addresses, refreshStats } = useMailContext();
+  const { spamThread, unblockSender } = useThreadActions();
   const [thread, setThread] = useState<EmailThread | null>(null);
   const [emails, setEmails] = useState<Email[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,6 +104,48 @@ export function MailThreadPage() {
     }
   };
 
+  const handleSpam = async (id: string) => {
+    try {
+      const result = await spamThread(id);
+      if (result.blockedSenders.length > 0) {
+        toast.success(`Marked as spam — blocked ${result.blockedSenders.join(', ')}`, {
+          action: {
+            label: 'Unblock',
+            onClick: () => {
+              Promise.all(result.blockedSenders.map((s) => unblockSender(s)))
+                .then(() => toast.success('Sender unblocked'))
+                .catch(() => toast.error('Failed to unblock'));
+            },
+          },
+        });
+      } else {
+        toast.success('Marked as spam');
+      }
+      navigate(listPath);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
+
+  const handleToggleLabel = async (labelId: string, checked: boolean) => {
+    if (!thread) return;
+    const nextLabels = checked
+      ? [...new Set([...thread.labels, labelId])]
+      : thread.labels.filter((l) => l !== labelId);
+    const previous = thread;
+    setThread({ ...thread, labels: nextLabels });
+    try {
+      await api(API_ENDPOINTS.THREAD(thread.id), {
+        method: 'PUT',
+        body: JSON.stringify({ labels: nextLabels }),
+      });
+    } catch (error) {
+      console.error('Failed to update labels:', error);
+      setThread(previous);
+      toast.error('Failed to update labels');
+    }
+  };
+
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -122,6 +167,8 @@ export function MailThreadPage() {
       onDelete={handleDelete}
       onToggleStar={handleToggleStar}
       onMarkUnread={handleMarkUnread}
+      onSpam={handleSpam}
+      onToggleLabel={handleToggleLabel}
       onEmailSent={handleEmailSent}
     />
   );
