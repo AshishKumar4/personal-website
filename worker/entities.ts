@@ -2,7 +2,7 @@
  * Minimal real-world demo: One Durable Object instance per entity (User, ChatBoard), with Indexes for listing.
  */
 import { Entity, IndexedEntity } from "./core-utils";
-import type { BlogPost, AuthUser, SiteConfig, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAddress, BlockedSender, EmailFeed, ApiTokenPublic } from "@shared/types";
+import type { BlogPost, AuthUser, PendingAuth, SiteConfig, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAddress, BlockedSender, EmailFeed, ApiTokenPublic } from "@shared/types";
 import { EMAIL_DOMAIN } from "@shared/types";
 
 export type ApiTokenRecord = ApiTokenPublic & { secretHash: string };
@@ -148,6 +148,12 @@ function generateSessionToken(): string {
 
 export { hashPasswordPBKDF2, hashPasswordLegacySHA256, generateSalt, generateSessionToken };
 
+export class PendingAuthEntity extends IndexedEntity<PendingAuth> {
+    static readonly entityName = "pendingAuth";
+    static readonly indexName = "pendingAuths";
+    static readonly initialState: PendingAuth = { id: "", username: "", kind: "login", attempts: 0, expiresAt: 0 };
+    static seedData: PendingAuth[] = [];
+}
 export class AuthEntity extends Entity<AuthUser> {
     static readonly entityName = "auth";
     static readonly initialState: AuthUser = { username: "", hashedPassword: "", salt: "", sessionToken: "", tokenExpiry: 0 };

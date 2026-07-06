@@ -52,16 +52,61 @@ export interface BlogPost {
   createdAt: number; // epoch millis
 }
 // Auth types
+export interface StoredPasskey {
+    id: string;
+    publicKey: string;
+    counter: number;
+    transports?: string[];
+    name: string;
+    createdAt: number;
+}
+export interface StoredTwoFactor {
+    totpSecretEnc?: string;
+    passkeys: StoredPasskey[];
+    backupCodeHashes: string[];
+}
 export interface AuthUser {
     username: string;
     hashedPassword?: string;
     salt?: string;
     sessionToken?: string;
     tokenExpiry?: number;
+    twoFactor?: StoredTwoFactor;
+    failedAttempts?: number;
+    lockedUntil?: number;
+}
+export interface PendingAuth {
+    id: string;
+    username: string;
+    kind: 'enroll' | 'login' | 'manage';
+    challenge?: string;
+    totpSecretEnc?: string;
+    attempts: number;
+    expiresAt: number;
 }
 export interface LoginResponse {
     token: string;
     user: Pick<AuthUser, 'username'>;
+}
+// Two-factor auth
+export interface PasskeyInfo {
+    id: string;
+    name: string;
+    createdAt: number;
+}
+export interface TwoFactorStatus {
+    enabled: boolean;
+    hasTotp: boolean;
+    passkeys: PasskeyInfo[];
+    backupCodesRemaining: number;
+}
+export type LoginStep =
+    | { step: 'setup'; setupToken: string }
+    | { step: '2fa'; challengeToken: string; methods: { totp: boolean; passkey: boolean; backup: boolean } };
+export interface SessionGrant {
+    token: string;
+    user: { username: string };
+    backupCodes?: string[];
 }
 // API token types (short-lived programmatic access to the admin content API)
 export interface ApiTokenPublic {
