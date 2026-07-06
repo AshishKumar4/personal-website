@@ -3,13 +3,14 @@ import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Star, AlertCircle, RefreshCw, Archive, Trash2, MailOpen, Mail, ShieldOff } from 'lucide-react';
 import type { EmailThread } from '@shared/types';
 import { formatThreadDate } from '@/lib/date-utils';
 import { useMailContext } from '@/contexts/MailContext';
 import { AccountChip } from './AccountChip';
+import { ListSkeleton } from './MailSkeleton';
+import { SwipeActions } from './SwipeActions';
 
 interface ThreadListProps {
   threads: EmailThread[];
@@ -27,24 +28,6 @@ interface ThreadListProps {
   onTrash?: (thread: EmailThread) => void;
   onToggleRead?: (thread: EmailThread) => void;
   onSpam?: (thread: EmailThread) => void;
-}
-
-function ThreadListSkeleton() {
-  return (
-    <div className="flex-1 overflow-hidden">
-      {Array.from({ length: 8 }, (_, i) => (
-        <div key={i} className="flex items-center gap-3 px-4 py-3 border-b border-border">
-          <Skeleton className="h-4 w-4 rounded shrink-0" />
-          <Skeleton className="h-4 w-4 rounded-full shrink-0" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-3.5 w-1/3" />
-            <Skeleton className="h-3.5 w-4/5" />
-          </div>
-          <Skeleton className="h-3 w-10 shrink-0" />
-        </div>
-      ))}
-    </div>
-  );
 }
 
 interface HoverActionProps {
@@ -97,7 +80,7 @@ export function ThreadList({
   const { addresses } = useMailContext();
 
   if (loading) {
-    return <ThreadListSkeleton />;
+    return <ListSkeleton />;
   }
 
   if (error) {
@@ -125,8 +108,12 @@ export function ThreadList({
         {threads.map((thread) => {
           const hasHoverActions = Boolean(onArchive || onTrash || onToggleRead || onSpam);
           return (
-            <Link
+            <SwipeActions
               key={thread.id}
+              onArchive={onArchive ? () => onArchive(thread) : undefined}
+              onTrash={onTrash ? () => onTrash(thread) : undefined}
+            >
+            <Link
               to={buildThreadPath(thread.id)}
               className={cn(
                 'group relative flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-muted/50 transition-colors',
@@ -229,6 +216,7 @@ export function ThreadList({
                 </div>
               )}
             </Link>
+            </SwipeActions>
           );
         })}
       </div>

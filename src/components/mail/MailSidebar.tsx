@@ -3,7 +3,7 @@ import { Link, useNavigate, useMatch } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   Inbox, PenSquare, Mail, Moon, Sun, Users, Plus, Pencil,
-  Ghost, Settings2, BellOff, Copy,
+  Ghost, Settings2, BellOff, Copy, Mails,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -186,6 +186,12 @@ export function MailSidebar() {
                 active={activeLabel === l.id && (l.id !== 'inbox' || !selectedAccount)}
               />
             ))}
+            <SidebarNavItem
+              to={MAIL_ROUTES.LABEL('all')}
+              icon={Mails}
+              label="All Mail"
+              active={activeLabel === 'all'}
+            />
             {userLabels.length > 0 && (
               <>
                 <Separator className="my-2" />

@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { ComposeEditor } from './ComposeEditor';
 import {
   Dialog,
   DialogContent,
@@ -193,11 +193,10 @@ export function ComposeDialog({
             />
           </div>
 
-          <Textarea
+          <ComposeEditor
             value={compose.body}
-            onChange={(e) => compose.setBody(e.target.value)}
-            placeholder="Write your message..."
-            className="min-h-[200px] resize-none"
+            onChange={compose.setBody}
+            minHeight="200px"
           />
 
           <AttachmentList

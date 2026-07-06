@@ -5,6 +5,7 @@ import { ok, bad, notFound, isStr, mergeUnique } from './core-utils';
 import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, R2FileItem, MultipartUploadPart } from "@shared/types";
 import { EMAIL_DOMAIN } from "@shared/types";
 import { getEmailRaw, getAttachment, generateThreadId } from './email-utils';
+import { arrayBufferToBase64, isSafeMessageIdHeader, contentDispositionHeader } from './mail-encoding';
 import { generateThrowawayLocalPart, getActiveFromAddress } from './address-utils';
 import { normalizeLocalPart, validateLocalPart } from '@shared/address-validation';
 import { createMimeMessage } from 'mimetext';
@@ -42,6 +43,53 @@ async function listAll<T>(page: (cursor?: string | null) => Promise<{ items: T[]
 
 function getAllEmails(env: Env): Promise<Email[]> {
   return listAll(cursor => EmailEntity.list(env, cursor));
+}
+
+interface SearchQuery {
+  text: string[];
+  from?: string;
+  to?: string;
+  subject?: string;
+  hasAttachment?: boolean;
+  unread?: boolean;
+  starred?: boolean;
+}
+
+function parseSearchQuery(raw: string): SearchQuery {
+  const query: SearchQuery = { text: [] };
+  const tokens = raw.toLowerCase().match(/(\w+:"[^"]*"|\w+:\S+|"[^"]*"|\S+)/g) ?? [];
+  for (const token of tokens) {
+    const opMatch = token.match(/^(\w+):"?([^"]*)"?$/);
+    if (opMatch) {
+      const [, op, value] = opMatch;
+      if (op === 'from') { query.from = value; continue; }
+      if (op === 'to') { query.to = value; continue; }
+      if (op === 'subject') { query.subject = value; continue; }
+      if (op === 'has' && value === 'attachment') { query.hasAttachment = true; continue; }
+      if (op === 'is') {
+        if (value === 'unread') query.unread = true;
+        else if (value === 'read') query.unread = false;
+        else if (value === 'starred') query.starred = true;
+        continue;
+      }
+    }
+    query.text.push(token.replace(/^"|"$/g, ''));
+  }
+  return query;
+}
+
+function matchesSearch(e: Email, q: SearchQuery): boolean {
+  if (q.from && !e.from.toLowerCase().includes(q.from)) return false;
+  if (q.to && !e.to.some(t => t.toLowerCase().includes(q.to!))) return false;
+  if (q.subject && !e.subject.toLowerCase().includes(q.subject)) return false;
+  if (q.hasAttachment && e.attachments.length === 0) return false;
+  if (q.unread !== undefined && e.read !== !q.unread) return false;
+  if (q.starred && !e.starred) return false;
+  if (q.text.length > 0) {
+    const haystack = `${e.subject} ${e.from} ${e.snippet} ${e.textBody ?? ''}`.toLowerCase();
+    if (!q.text.every(term => haystack.includes(term))) return false;
+  }
+  return true;
 }
 
 const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
@@ -615,7 +663,10 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     } else if (account) {
       threads = threads.filter(t => t.account === account);
     }
-    if (label !== 'all') {
+    if (label === 'all' && !feedId) {
+      // "All Mail" — everything except trash and spam.
+      threads = threads.filter(t => !t.labels.includes('trash') && !t.labels.includes('spam'));
+    } else if (label !== 'all') {
       threads = threads.filter(t => t.labels.includes(label));
     }
     threads.sort((a, b) => b.lastEmailAt - a.lastEmailAt);
@@ -717,7 +768,10 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const raw = await getEmailRaw(c.env as ExtendedEnv, state.rawKey);
     if (!raw) return notFound(c, 'Raw email not found');
     return new Response(raw, {
-      headers: { 'Content-Type': 'message/rfc822' },
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'X-Content-Type-Options': 'nosniff',
+      },
     });
   });
 
@@ -746,10 +800,13 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     if (!attachment) return notFound(c, 'Attachment not found');
     const data = await getAttachment(c.env as ExtendedEnv, attachment.r2Key);
     if (!data) return notFound(c, 'Attachment data not found');
+    const disposition = attachment.disposition === 'inline' ? 'inline' : 'attachment';
     return new Response(data.data, {
       headers: {
         'Content-Type': data.contentType,
-        'Content-Disposition': `attachment; filename="${attachment.filename}"`,
+        'Content-Disposition': contentDispositionHeader(disposition, attachment.filename),
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'private, max-age=3600',
       },
     });
   });
@@ -766,6 +823,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const bcc = formData.get('bcc') as string | null;
     const subject = formData.get('subject') as string;
     const body = formData.get('body') as string;
+    const htmlBody = formData.get('html') as string | null;
     const inReplyTo = formData.get('inReplyTo') as string | null;
     const existingThreadId = formData.get('threadId') as string | null;
     const attachmentFiles = formData.getAll('attachments') as File[];
@@ -809,11 +867,15 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       }
       msg.setSubject(subject);
       msg.setHeader('Message-ID', messageId);
-      if (inReplyTo) {
+      if (inReplyTo && isSafeMessageIdHeader(inReplyTo)) {
         msg.setHeader('In-Reply-To', inReplyTo);
+        msg.setHeader('References', inReplyTo);
       }
       if (body) {
         msg.addMessage({ contentType: 'text/plain', data: body });
+      }
+      if (htmlBody) {
+        msg.addMessage({ contentType: 'text/html', data: htmlBody });
       }
 
       const attachmentContents: { file: File; content: ArrayBuffer }[] = [];
@@ -827,7 +889,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
         msg.addAttachment({
           filename: file.name,
           contentType: file.type || 'application/octet-stream',
-          data: btoa(String.fromCharCode(...new Uint8Array(content))),
+          data: arrayBufferToBase64(content),
         });
       }
 
@@ -878,8 +940,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 
       if (!threadId) {
         threadId = inReplyTo
-          ? generateThreadId(subject, undefined, inReplyTo)
-          : generateThreadId(subject, undefined, messageId);
+          ? await generateThreadId(account, subject, undefined, inReplyTo)
+          : await generateThreadId(account, subject, undefined, messageId);
         const existingThreadBySubject = new EmailThreadEntity(c.env, threadId);
         if (await existingThreadBySubject.exists()) {
           await existingThreadBySubject.mutate(t => ({
@@ -919,7 +981,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
         subject,
         snippet: body?.slice(0, 100) || '',
         textBody: body,
-        htmlBody: undefined,
+        htmlBody: htmlBody || undefined,
         rawKey: '',
         attachments,
         labels: ['sent'],
@@ -932,27 +994,28 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       return ok(c, { message: 'Email sent successfully', id: sentEmail.id, threadId });
     } catch (error: any) {
       console.error('Send email error:', error);
-      return bad(c, `Failed to send email: ${error.message}`);
+      return bad(c, 'Failed to send email');
     }
   });
 
   // Search emails
   app.get('/api/mail/search', async (c) => {
-    const q = c.req.query('q')?.toLowerCase();
+    const raw = c.req.query('q');
     const account = c.req.query('account');
-    if (!q) return ok(c, { items: [] });
+    if (!raw) return ok(c, { items: [] });
+
+    const query = parseSearchQuery(raw);
     const allEmails = await getAllEmails(c.env);
-    let results = allEmails.filter(e =>
-      e.subject.toLowerCase().includes(q) ||
-      e.from.toLowerCase().includes(q) ||
-      e.snippet.toLowerCase().includes(q) ||
-      (e.textBody && e.textBody.toLowerCase().includes(q))
-    );
-    if (account) {
-      results = results.filter(e => e.account === account);
+    const matchedThreadIds = new Set<string>();
+    for (const e of allEmails) {
+      if (matchesSearch(e, query)) matchedThreadIds.add(e.threadId);
     }
-    results.sort((a, b) => b.createdAt - a.createdAt);
-    return ok(c, { items: results.slice(0, 50) });
+
+    let threads = (await listAll(cursor => EmailThreadEntity.list(c.env, cursor)))
+      .filter(t => matchedThreadIds.has(t.id));
+    if (account) threads = threads.filter(t => t.account === account);
+    threads.sort((a, b) => b.lastEmailAt - a.lastEmailAt);
+    return ok(c, { items: threads.slice(0, 50) });
   });
 
   // ============ DRAFTS API ============

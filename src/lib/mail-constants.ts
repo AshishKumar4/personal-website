@@ -7,6 +7,7 @@ import {
   Trash2,
   AlertCircle,
   Mail,
+  Mails,
   AtSign,
   Ghost,
   type LucideIcon,
@@ -30,6 +31,7 @@ export const API_ENDPOINTS = {
   THREAD: (id: string) => `/api/mail/threads/${id}`,
   THREAD_SPAM: (id: string) => `/api/mail/threads/${id}/spam`,
   ATTACHMENTS: (emailId: string, attId: string) => `/api/mail/attachments/${emailId}/${attId}`,
+  EMAIL_RAW: (id: string) => `/api/mail/emails/${id}/raw`,
 } as const;
 
 export const MAIL_ROUTES = {
@@ -67,6 +69,7 @@ export const LABEL_ICONS: Record<string, LucideIcon> = {
   important: AlertTriangle,
   trash: Trash2,
   spam: AlertCircle,
+  all: Mails,
 };
 
 export const DOMPURIFY_CONFIG = {

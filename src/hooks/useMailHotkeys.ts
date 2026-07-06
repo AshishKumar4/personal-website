@@ -2,12 +2,14 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { MAIL_ROUTES } from '@/lib/mail-constants';
 
-export function useMailHotkeys() {
+export function useMailHotkeys(onShowShortcuts: () => void) {
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
 
   useHotkeys('c', () => navigate(MAIL_ROUTES.COMPOSE), { preventDefault: true });
+
+  useHotkeys('?', onShowShortcuts, { preventDefault: true, useKey: true }, [onShowShortcuts]);
 
   useHotkeys('/', () => {
     document.getElementById('mail-search')?.focus();

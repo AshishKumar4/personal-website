@@ -5,9 +5,10 @@ import { api } from '@/lib/api-client';
 import { MAIL_ROUTES, API_ENDPOINTS } from '@/lib/mail-constants';
 import type { Email, EmailThread } from '@shared/types';
 import { toast } from 'sonner';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { ReaderSkeleton } from '@/components/mail/MailSkeleton';
 import { useMailContext } from '@/contexts/MailContext';
 import { useThreadActions } from '@/hooks/useThreadActions';
+import { useThreadListSync } from '@/hooks/useThreadListSync';
 import { getErrorMessage } from '@/lib/error-utils';
 
 export function MailThreadPage() {
@@ -15,6 +16,7 @@ export function MailThreadPage() {
   const navigate = useNavigate();
   const { addresses } = useMailContext();
   const { updateThread, trashThread, spamThread, unblockSender } = useThreadActions();
+  const { patchThread, removeThread } = useThreadListSync();
   const [thread, setThread] = useState<EmailThread | null>(null);
   const [emails, setEmails] = useState<Email[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,11 +49,12 @@ export function MailThreadPage() {
       const threadRes = await fetchThread();
       if (!ignore && currentThreadId && threadRes && !threadRes.thread.read) {
         await updateThread(currentThreadId, { read: true });
+        patchThread(currentThreadId, { read: true });
       }
     };
     init();
     return () => { ignore = true; };
-  }, [fetchThread, threadId, updateThread]);
+  }, [fetchThread, threadId, updateThread, patchThread]);
 
   const handleEmailSent = useCallback(() => {
     fetchThread(false);
@@ -65,6 +68,7 @@ export function MailThreadPage() {
     if (!threadId) return;
     try {
       await trashThread(threadId);
+      removeThread(threadId);
       toast.success('Moved to trash');
       navigate(listPath);
     } catch (error) {
@@ -75,11 +79,13 @@ export function MailThreadPage() {
 
   const handleToggleStar = async (id: string, starred: boolean) => {
     setThread((prev) => (prev ? { ...prev, starred } : null));
+    patchThread(id, { starred });
     try {
       await updateThread(id, { starred });
     } catch (error) {
       console.error('Failed to update thread:', error);
       setThread((prev) => (prev ? { ...prev, starred: !starred } : null));
+      patchThread(id, { starred: !starred });
       toast.error('Failed to update');
     }
   };
@@ -87,6 +93,7 @@ export function MailThreadPage() {
   const handleMarkUnread = async (id: string) => {
     try {
       await updateThread(id, { read: false });
+      patchThread(id, { read: false });
       toast.success('Marked as unread');
       navigate(listPath);
     } catch (error) {
@@ -112,6 +119,7 @@ export function MailThreadPage() {
       } else {
         toast.success('Marked as spam');
       }
+      removeThread(id);
       navigate(listPath);
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -125,6 +133,7 @@ export function MailThreadPage() {
       : thread.labels.filter((l) => l !== labelId);
     const previous = thread;
     setThread({ ...thread, labels: nextLabels });
+    patchThread(thread.id, { labels: nextLabels });
     try {
       await updateThread(thread.id, { labels: nextLabels });
     } catch (error) {
@@ -135,7 +144,7 @@ export function MailThreadPage() {
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <ReaderSkeleton />;
   }
 
   if (!thread) {
