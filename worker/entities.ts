@@ -273,7 +273,6 @@ export class ApiTokenEntity extends IndexedEntity<ApiTokenRecord> {
         createdAt: 0,
         expiresAt: 0,
         lastUsedAt: 0,
-        revoked: false,
     };
     static seedData: ApiTokenRecord[] = [];
 }

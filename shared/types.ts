@@ -70,7 +70,6 @@ export interface ApiTokenPublic {
     createdAt: number;
     expiresAt: number;
     lastUsedAt: number;
-    revoked: boolean;
 }
 export interface ApiTokenCreated extends ApiTokenPublic {
     token: string;

@@ -116,7 +116,7 @@ async function isValidApiToken(c: any, token: string): Promise<boolean> {
   const entity = new ApiTokenEntity(c.env, parsed.keyId);
   if (!(await entity.exists())) return false;
   const record = await entity.getState();
-  if (record.revoked || Date.now() > record.expiresAt) return false;
+  if (Date.now() > record.expiresAt) return false;
   const presentedHash = await hashSecret(parsed.secret);
   if (!timingSafeEqualHex(presentedHash, record.secretHash)) return false;
   await entity.mutate(r => ({ ...r, lastUsedAt: Date.now() })).catch(() => {});
@@ -134,10 +134,10 @@ const sessionAuthMiddleware = async (c: any, next: any) => {
 const adminAuthMiddleware = async (c: any, next: any) => {
   const token = getBearer(c);
   if (!token) return c.json({ success: false, error: 'Unauthorized' }, 401);
-  const ok = isApiTokenString(token)
+  const valid = isApiTokenString(token)
     ? await isValidApiToken(c, token)
     : await isValidSessionToken(c, token);
-  if (!ok) return c.json({ success: false, error: 'Unauthorized' }, 401);
+  if (!valid) return c.json({ success: false, error: 'Unauthorized' }, 401);
   await next();
 };
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
@@ -225,7 +225,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     return ok(c, { message: 'Password updated successfully', token: newSessionToken });
   });
   const toPublicToken = (r: ApiTokenPublic): ApiTokenPublic => ({
-    id: r.id, name: r.name, createdAt: r.createdAt, expiresAt: r.expiresAt, lastUsedAt: r.lastUsedAt, revoked: r.revoked,
+    id: r.id, name: r.name, createdAt: r.createdAt, expiresAt: r.expiresAt, lastUsedAt: r.lastUsedAt,
   });
 
   app.get('/api/admin/api-tokens', sessionAuthMiddleware, async (c) => {
@@ -254,7 +254,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       createdAt: now,
       expiresAt: now + minutes * 60 * 1000,
       lastUsedAt: 0,
-      revoked: false,
     };
     await ApiTokenEntity.create(c.env, record);
     const created: ApiTokenCreated = { ...toPublicToken(record), token };
