@@ -7,8 +7,7 @@ import { api } from '@/lib/api-client';
 import { Toaster, toast } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Calendar, User, Clock } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { MarkdownContent } from '@/components/MarkdownContent';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { getReadingTime } from '@/lib/text-utils';
 
@@ -73,11 +72,7 @@ export function BlogPostPage() {
                     {getReadingTime(post.content)} min read
                   </div>
                 </div>
-                <div className="mt-12 prose-styles max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {post.content}
-                  </ReactMarkdown>
-                </div>
+                <MarkdownContent className="mt-12">{post.content}</MarkdownContent>
               </article>
             ) : (
               <div className="text-center">

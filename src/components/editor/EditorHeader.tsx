@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Save, Send, Loader2, Check } from 'lucide-react';
+import { ArrowLeft, Save, Send, Loader2, Check, FileUp } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +24,8 @@ interface EditorHeaderProps {
   hasUnsavedChanges: boolean;
   lastSavedAt?: Date;
   isNewPost: boolean;
+  onImportFile: (file: File) => Promise<void>;
+  isImporting: boolean;
 }
 
 export function EditorHeader({
@@ -36,9 +38,12 @@ export function EditorHeader({
   hasUnsavedChanges,
   lastSavedAt,
   isNewPost,
+  onImportFile,
+  isImporting,
 }: EditorHeaderProps) {
   const navigate = useNavigate();
   const [showExitDialog, setShowExitDialog] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const handleBack = () => {
     if (hasUnsavedChanges) {
@@ -97,6 +102,32 @@ export function EditorHeader({
               Unsaved changes
             </span>
           )}
+
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".ipynb,.md,.markdown,application/x-ipynb+json"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) await onImportFile(file);
+            }}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => importInputRef.current?.click()}
+            disabled={isImporting || isPublishing}
+            title="Import a Jupyter notebook (.ipynb) or markdown file"
+          >
+            {isImporting ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+            ) : (
+              <FileUp className="h-4 w-4 mr-1.5" />
+            )}
+            Import
+          </Button>
 
           <Button
             variant="outline"

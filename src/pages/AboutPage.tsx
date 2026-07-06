@@ -5,8 +5,7 @@ import { useSiteConfig } from '@/contexts/SiteConfigContext';
 import { Toaster } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { MarkdownContent } from '@/components/MarkdownContent';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
 export function AboutPage() {
@@ -36,11 +35,7 @@ export function AboutPage() {
                 <Skeleton className="h-4 w-4/6" />
               </div>
             ) : config?.aboutStory ? (
-              <div className="mt-12 prose-styles max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {config.aboutStory}
-                </ReactMarkdown>
-              </div>
+              <MarkdownContent className="mt-12">{config.aboutStory}</MarkdownContent>
             ) : (
               <p className="mt-12 text-muted-foreground">{config?.about}</p>
             )}

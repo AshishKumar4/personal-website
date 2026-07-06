@@ -1,5 +1,4 @@
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { MarkdownContent } from '@/components/MarkdownContent';
 
 interface MarkdownPreviewProps {
   content: string;
@@ -15,17 +14,13 @@ export function MarkdownPreview({ content, title }: MarkdownPreviewProps) {
             {title}
           </h1>
         )}
-        <div className="prose-styles max-w-none">
-          {content ? (
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {content}
-            </ReactMarkdown>
-          ) : (
-            <p className="text-muted-foreground italic">
-              Start writing to see a preview...
-            </p>
-          )}
-        </div>
+        {content ? (
+          <MarkdownContent>{content}</MarkdownContent>
+        ) : (
+          <p className="text-muted-foreground italic">
+            Start writing to see a preview...
+          </p>
+        )}
       </div>
     </div>
   );

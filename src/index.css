@@ -155,7 +155,34 @@
     @apply p-4 rounded-lg overflow-x-auto my-6;
     background-color: rgb(var(--color-navy));
   }
-  .prose-styles pre code { @apply bg-transparent p-0; }
+  .prose-styles pre code { @apply bg-transparent p-0; color: rgb(var(--color-lightest-slate)); }
+  .prose-styles img { @apply max-w-full rounded-lg my-6 mx-auto; }
+  .prose-styles table { @apply w-full my-6 text-sm border-collapse; }
+  .prose-styles th {
+    @apply text-left font-bold px-3 py-2 border-b-2;
+    color: rgb(var(--color-lightest-slate));
+    border-color: rgb(var(--color-lightest-navy));
+  }
+  .prose-styles td {
+    @apply px-3 py-2 border-b align-top;
+    border-color: rgb(var(--color-lightest-navy) / 0.5);
+  }
+  .prose-styles hr { @apply my-8 border-0 h-px; background-color: rgb(var(--color-lightest-navy)); }
+  .prose-styles .katex-display { @apply overflow-x-auto py-2; }
+
+  /* highlight.js palette - theme aware via existing tokens */
+  .prose-styles .hljs-comment, .prose-styles .hljs-quote { color: rgb(var(--color-slate)); font-style: italic; }
+  .prose-styles .hljs-keyword, .prose-styles .hljs-selector-tag, .prose-styles .hljs-literal,
+  .prose-styles .hljs-type, .prose-styles .hljs-built_in { color: rgb(var(--color-accent)); }
+  .prose-styles .hljs-string, .prose-styles .hljs-regexp, .prose-styles .hljs-addition { color: #98c379; }
+  .prose-styles .hljs-number, .prose-styles .hljs-symbol, .prose-styles .hljs-bullet { color: #d19a66; }
+  .prose-styles .hljs-title, .prose-styles .hljs-function .hljs-title, .prose-styles .hljs-name,
+  .prose-styles .hljs-section { color: #61afef; }
+  .prose-styles .hljs-attr, .prose-styles .hljs-attribute, .prose-styles .hljs-variable,
+  .prose-styles .hljs-template-variable, .prose-styles .hljs-params { color: rgb(var(--color-lightest-slate)); }
+  .prose-styles .hljs-meta, .prose-styles .hljs-deletion { color: #e06c75; }
+  .prose-styles .hljs-emphasis { font-style: italic; }
+  .prose-styles .hljs-strong { font-weight: bold; }
 
   /* Mail compose editor (TipTap) - theme aware, lightweight */
   .mail-editor {
