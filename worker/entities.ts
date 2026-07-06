@@ -2,7 +2,8 @@
  * Minimal real-world demo: One Durable Object instance per entity (User, ChatBoard), with Indexes for listing.
  */
 import { Entity, IndexedEntity } from "./core-utils";
-import type { User, Chat, ChatMessage, BlogPost, AuthUser, SiteConfig, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft } from "@shared/types";
+import type { BlogPost, AuthUser, SiteConfig, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAddress, BlockedSender, EmailFeed } from "@shared/types";
+import { EMAIL_DOMAIN } from "@shared/types";
 
 
 
@@ -169,7 +170,7 @@ export class SiteConfigEntity extends Entity<SiteConfig> {
             await config.save({
                 subtitle: "I love building things.",
                 bio: "I'm an ML engineer and open-source enthusiast with a passion for science and technology. I love building things from scratch and challenging myself. My hobbies are building and flying FPV drones, and playing minecraft and valorant. I don't really like coding tbh (since I wrote an x86 kernel from scratch when I was 15)",
-                about: "Machine Learning Researcher and Software Engineer with 5+ years of expertise in advancing computer vision, NLP, and distributed systems. Currently a Software Engineer Intern at Cloudflare and pursuing an M.S. in Applied Machine Learning at the University of Maryland, College Park, with a focus on generative AI (diffusion models, Transformers) and scalable ML infrastructure. Proven track record of driving innovation in industry and academia.",
+                about: "I've been building things since before I probably should have been. When I was 15 I taught myself C and x86 assembly and wrote a small multicore operating system from scratch, mostly off my phone over remote desktop since I was only allowed an hour of computer a day. That set the pattern for how I learn: if something grabs me, I have to build it myself to actually understand it. These days I'm a software engineer at Cloudflare's Emerging Technologies group, where I created Cloudflare OS, our internal platform for background agents, and VibeSDK, our open-source AI app builder. Before Cloudflare I spent around five years on ML and systems, architecting a distributed WebRTC SFU at Dyte and training computer vision models on TPUs at HyperVerge. On the side I keep tinkering: I wrote FlaxDiff, a diffusion library in JAX, and trained a text-to-image model on 128 TPUs, and lately I've been teaching a reinforcement learning agent to fly a drone from just vision. The thing I care about most is an old question I've never quite let go of, whether intelligence can really be built and not just approximated, and the ideas creeping towards it like diffusion, world models and reinforcement learning. That's where I wanna go next.",
                 backgroundEffect: 'grid'
             });
             console.log("Default site configuration created.");
@@ -237,6 +238,28 @@ export class EmailLabelEntity extends IndexedEntity<EmailLabel> {
     static readonly indexName = "emailLabels";
     static readonly initialState: EmailLabel = { id: "", name: "", type: "user" };
     static seedData = SEED_EMAIL_LABELS;
+}
+const SEED_EMAIL_ADDRESSES: EmailAddress[] = [
+    { id: "me", address: `me@${EMAIL_DOMAIN}`, name: "Ashish Kumar Singh", kind: "primary", status: "active", createdAt: 0 },
+    { id: "contact", address: `contact@${EMAIL_DOMAIN}`, name: "Contact", kind: "primary", status: "active", createdAt: 0 },
+];
+export class EmailAddressEntity extends IndexedEntity<EmailAddress> {
+    static readonly entityName = "emailAddress";
+    static readonly indexName = "emailAddresses";
+    static readonly initialState: EmailAddress = { id: "", address: "", name: "", kind: "custom", status: "active", createdAt: 0 };
+    static seedData = SEED_EMAIL_ADDRESSES;
+}
+export class BlockedSenderEntity extends IndexedEntity<BlockedSender> {
+    static readonly entityName = "blockedSender";
+    static readonly indexName = "blockedSenders";
+    static readonly initialState: BlockedSender = { id: "", address: "", createdAt: 0 };
+    static seedData: BlockedSender[] = [];
+}
+export class EmailFeedEntity extends IndexedEntity<EmailFeed> {
+    static readonly entityName = "emailFeed";
+    static readonly indexName = "emailFeeds";
+    static readonly initialState: EmailFeed = { id: "", name: "", color: "", accountIds: [], senders: [], createdAt: 0 };
+    static seedData: EmailFeed[] = [];
 }
 export class EmailDraftEntity extends IndexedEntity<EmailDraft> {
     static readonly entityName = "emailDraft";

@@ -1,6 +1,6 @@
-import type { Email, EmailAccount } from '@shared/types';
+import type { Email, EmailAddress, EmailDraft } from '@shared/types';
 import {
-  findAccountByLocalPart,
+  resolveFromAddress,
   getLocalPart,
   createReplySubject,
   createForwardSubject,
@@ -10,43 +10,61 @@ export interface ComposeInitialValues {
   fromAccount: string;
   to: string;
   cc: string;
+  bcc: string;
   subject: string;
   body: string;
   showCc: boolean;
+  showBcc: boolean;
+}
+
+export function getDraftInitialValues(
+  draft: EmailDraft,
+  addresses: EmailAddress[]
+): ComposeInitialValues {
+  return {
+    fromAccount: resolveFromAddress(addresses, draft.from ? getLocalPart(draft.from) : undefined),
+    to: draft.to,
+    cc: draft.cc ?? '',
+    bcc: draft.bcc ?? '',
+    subject: draft.subject,
+    body: draft.body,
+    showCc: Boolean(draft.cc),
+    showBcc: Boolean(draft.bcc),
+  };
 }
 
 export function getNewEmailInitialValues(
-  accounts: EmailAccount[],
+  addresses: EmailAddress[],
   defaultFrom?: string
 ): ComposeInitialValues {
-  const matchedAccount = findAccountByLocalPart(accounts, defaultFrom);
   return {
-    fromAccount: matchedAccount?.address || accounts[0]?.address || '',
+    fromAccount: resolveFromAddress(addresses, defaultFrom),
     to: '',
     cc: '',
+    bcc: '',
     subject: '',
     body: '',
     showCc: false,
+    showBcc: false,
   };
 }
 
 export function getReplyInitialValues(
   email: Email,
-  accounts: EmailAccount[],
+  addresses: EmailAddress[],
   mode: 'reply' | 'replyAll',
   defaultFrom?: string
 ): ComposeInitialValues {
-  const matchedAccount = findAccountByLocalPart(accounts, defaultFrom);
-  const fromAccount = matchedAccount?.address || accounts[0]?.address || '';
+  const fromAccount = resolveFromAddress(addresses, defaultFrom);
 
-  const isOwnEmail = accounts.some((a) => a.address === email.from);
+  const isOwnEmail = addresses.some((a) => a.address === email.from);
   const to = isOwnEmail ? email.to[0] || '' : email.from;
 
   let cc = '';
   if (mode === 'replyAll') {
     const allRecipients = [...email.to, ...(email.cc || [])];
     cc = allRecipients
-      .filter((addr) => !accounts.some((a) => a.address === addr) && addr !== email.from)
+      .filter((addr) => !addresses.some((a) => a.address === addr) && addr !== email.from)
       .join(', ');
   }
 
@@ -60,19 +78,20 @@ export function getReplyInitialValues(
     fromAccount,
     to,
     cc,
+    bcc: '',
     subject: createReplySubject(email.subject),
     body,
     showCc: mode === 'replyAll',
+    showBcc: false,
   };
 }
 
 export function getForwardInitialValues(
   email: Email,
-  accounts: EmailAccount[],
+  addresses: EmailAddress[],
   defaultFrom?: string
 ): ComposeInitialValues {
-  const matchedAccount = findAccountByLocalPart(accounts, defaultFrom);
-  const fromAccount = matchedAccount?.address || accounts[0]?.address || '';
+  const fromAccount = resolveFromAddress(addresses, defaultFrom);
 
   const fromDisplay = email.fromName
     ? `${email.fromName} <${email.from}>`
@@ -84,8 +103,10 @@ export function getForwardInitialValues(
     fromAccount,
     to: '',
     cc: '',
+    bcc: '',
     subject: createForwardSubject(email.subject),
     body,
     showCc: false,
+    showBcc: false,
   };
 }

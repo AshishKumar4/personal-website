@@ -1,4 +1,4 @@
-import { Github, Linkedin } from 'lucide-react';
+import { Github, Linkedin, Twitter } from 'lucide-react';
 export const PERSONAL_INFO = {
   name: "Ashish Kumar Singh",
   title: "ML Researcher & Software Engineer",
@@ -15,5 +15,10 @@ export const SOCIAL_LINKS = [
     name: "LinkedIn",
     url: "https://www.linkedin.com/in/aksnip/",
     Icon: Linkedin,
+  },
+  {
+    name: "X",
+    url: "https://x.com/ashishkmr472",
+    Icon: Twitter,
   },
 ];

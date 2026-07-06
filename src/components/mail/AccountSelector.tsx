@@ -5,32 +5,41 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { EmailAccount } from '@shared/types';
+import { KIND_META } from '@/lib/mail-constants';
+import type { EmailAddress } from '@shared/types';
 
 interface AccountSelectorProps {
-  accounts: EmailAccount[];
+  addresses: EmailAddress[];
   value: string;
   onChange: (address: string) => void;
   className?: string;
 }
 
 export function AccountSelector({
-  accounts,
+  addresses,
   value,
   onChange,
   className,
 }: AccountSelectorProps) {
+  const selectable = addresses.filter((a) => a.status === 'active');
+
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger className={className}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {accounts.map((account) => (
-          <SelectItem key={account.address} value={account.address}>
-            {account.address}
-          </SelectItem>
-        ))}
+        {selectable.map((address) => {
+          const Icon = KIND_META[address.kind].icon;
+          return (
+            <SelectItem key={address.address} value={address.address}>
+              <span className="flex items-center gap-2">
+                <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                {address.address}
+              </span>
+            </SelectItem>
+          );
+        })}
       </SelectContent>
     </Select>
   );

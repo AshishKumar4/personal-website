@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/mail-constants';
 import { useCompose, type ComposeMode } from '@/hooks/useCompose';
-import type { Email, EmailAccount } from '@shared/types';
+import type { Email, EmailAddress, EmailDraft } from '@shared/types';
 import { AccountSelector } from './AccountSelector';
 import { EmailFieldRow, FieldToggleButton } from './EmailFieldRow';
 import { AttachmentList } from './AttachmentList';
@@ -21,21 +21,23 @@ import { SendButton } from './SendButton';
 interface ComposeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  accounts: EmailAccount[];
+  addresses: EmailAddress[];
   defaultFromAccount?: string;
   replyTo?: Email;
   replyAll?: boolean;
   forward?: Email;
+  draft?: EmailDraft;
 }
 
 export function ComposeDialog({
   open,
   onOpenChange,
-  accounts,
+  addresses,
   defaultFromAccount,
   replyTo,
   replyAll,
   forward,
+  draft,
 }: ComposeDialogProps) {
   const [minimized, setMinimized] = useState(false);
 
@@ -48,9 +50,10 @@ export function ComposeDialog({
         : 'new';
 
   const compose = useCompose({
-    accounts,
+    addresses,
     defaultFromAccount,
     replyTo: forward || replyTo,
+    draft,
     mode,
     onSuccess: () => onOpenChange(false),
   });
@@ -60,12 +63,17 @@ export function ComposeDialog({
       await api(API_ENDPOINTS.DRAFTS, {
         method: 'POST',
         body: JSON.stringify({
+          id: draft?.id,
           from: compose.fromAccount,
           to: compose.to,
           cc: compose.cc,
           bcc: compose.bcc,
           subject: compose.subject,
           body: compose.body,
+          attachments: draft?.attachments,
+          inReplyTo: draft?.inReplyTo,
+          threadId: draft?.threadId,
+          createdAt: draft?.createdAt,
         }),
       });
       toast.success('Draft saved');
@@ -108,7 +116,7 @@ export function ComposeDialog({
     );
   }
 
-  const dialogTitle = replyTo ? 'Reply' : forward ? 'Forward' : 'New Message';
+  const dialogTitle = draft ? 'Draft' : replyTo ? 'Reply' : forward ? 'Forward' : 'New Message';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -135,7 +143,7 @@ export function ComposeDialog({
                 From
               </span>
               <AccountSelector
-                accounts={accounts}
+                addresses={addresses}
                 value={compose.fromAccount}
                 onChange={compose.setFromAccount}
                 className="flex-1"

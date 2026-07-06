@@ -1,4 +1,4 @@
-import type { Email, EmailAccount } from '@shared/types';
+import type { Email, EmailAddress } from '@shared/types';
 
 export function getSenderName(email: Email): string {
   return email.fromName || email.from.split('@')[0];
@@ -24,15 +24,24 @@ export function createForwardSubject(subject: string): string {
   return `Fwd: ${stripSubjectPrefixes(subject)}`;
 }
 
-export function findAccountByLocalPart(
-  accounts: EmailAccount[],
+export function findAddressByLocalPart(
+  addresses: EmailAddress[],
   localPart: string | undefined
-): EmailAccount | undefined {
+): EmailAddress | undefined {
   if (!localPart) return undefined;
   const normalized = localPart.toLowerCase();
-  return accounts.find(
+  return addresses.find(
     (a) => getLocalPart(a.address) === normalized || a.address.toLowerCase() === normalized
   );
+}
+
+export function resolveFromAddress(
+  addresses: EmailAddress[],
+  preferred: string | undefined
+): string {
+  const active = addresses.filter((a) => a.status === 'active');
+  const matched = findAddressByLocalPart(active, preferred);
+  return (matched ?? active[0])?.address || '';
 }
 
 export function generateAttachmentId(): string {
