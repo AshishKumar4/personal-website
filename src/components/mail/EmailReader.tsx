@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import type { Email, EmailThread, EmailAccount } from '@shared/types';
+import type { Email, EmailThread, EmailAddress } from '@shared/types';
 import {
   Reply, ReplyAll, Forward, MoreVertical, Star, Trash2,
   Paperclip, Download, ArrowLeft, ChevronDown, ChevronRight,
@@ -24,7 +24,7 @@ import { DOMPURIFY_CONFIG } from '@/lib/mail-constants';
 interface EmailReaderProps {
   thread: EmailThread;
   emails: Email[];
-  accounts: EmailAccount[];
+  addresses: EmailAddress[];
   onBack?: () => void;
   onDelete?: (threadId: string) => void;
   onToggleStar?: (threadId: string, starred: boolean) => void;
@@ -279,7 +279,7 @@ function EmailMessage({
 export function EmailReader({
   thread,
   emails,
-  accounts,
+  addresses,
   onBack,
   onDelete,
   onToggleStar,
@@ -388,7 +388,7 @@ export function EmailReader({
               key={`${composeMode}-${composeEmail.id}`}
               mode={composeMode}
               email={composeEmail}
-              accounts={accounts}
+              addresses={addresses}
               defaultFromAccount={thread.account}
               onSend={handleComposeSend}
               onDiscard={handleComposeDiscard}

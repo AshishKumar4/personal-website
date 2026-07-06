@@ -1,10 +1,11 @@
 import { Hono } from "hono";
 import type { Env } from './core-utils';
-import { BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEntity, ContactEntity, EmailEntity, EmailThreadEntity, EmailLabelEntity, EmailDraftEntity, hashPasswordPBKDF2, hashPasswordLegacySHA256, generateSalt, generateSessionToken } from "./entities";
-import { ok, bad, notFound, isStr } from './core-utils';
-import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, R2FileItem, MultipartUploadPart } from "@shared/types";
-import { EMAIL_ACCOUNTS_CONFIG, EMAIL_ACCOUNT_IDS } from "@shared/types";
+import { BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEntity, ContactEntity, EmailEntity, EmailThreadEntity, EmailLabelEntity, EmailDraftEntity, EmailAddressEntity, BlockedSenderEntity, EmailFeedEntity, hashPasswordPBKDF2, hashPasswordLegacySHA256, generateSalt, generateSessionToken } from "./entities";
+import { ok, bad, notFound, isStr, mergeUnique } from './core-utils';
+import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, R2FileItem, MultipartUploadPart } from "@shared/types";
+import { EMAIL_DOMAIN } from "@shared/types";
 import { getEmailRaw, getAttachment, generateThreadId } from './email-utils';
+import { normalizeLocalPart, validateLocalPart, generateThrowawayLocalPart, getActiveFromAddress } from './address-utils';
 import { createMimeMessage } from 'mimetext';
 import { accessMiddleware } from './access-middleware';
 
@@ -15,29 +16,31 @@ interface ExtendedEnv extends Env {
   EMAIL_SENDER?: any;
 }
 
-const EMAIL_ACCOUNTS = EMAIL_ACCOUNTS_CONFIG;
-
-function generateMessageId(domain: string = 'ashishkumarsingh.com'): string {
-  return `<${crypto.randomUUID()}@${domain}>`;
+function generateMessageId(): string {
+  return `<${crypto.randomUUID()}@${EMAIL_DOMAIN}>`;
 }
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function isAllowedFromAddress(from: string): boolean {
-  return EMAIL_ACCOUNTS.some(a => a.address === from);
+function isOwnDomainAddress(address: string): boolean {
+  return address.toLowerCase().endsWith(`@${EMAIL_DOMAIN}`);
 }
 
-async function getAllEmails(env: ExtendedEnv): Promise<Email[]> {
-  const allEmails: Email[] = [];
-  let cursor: string | undefined;
+async function listAll<T>(page: (cursor?: string | null) => Promise<{ items: T[]; next: string | null }>): Promise<T[]> {
+  const items: T[] = [];
+  let cursor: string | null | undefined;
   do {
-    const page = await EmailEntity.list(env, cursor);
-    allEmails.push(...page.items);
-    cursor = page.next;
+    const p = await page(cursor);
+    items.push(...p.items);
+    cursor = p.next;
   } while (cursor);
-  return allEmails;
+  return items;
+}
+
+function getAllEmails(env: Env): Promise<Email[]> {
+  return listAll(cursor => EmailEntity.list(env, cursor));
 }
 
 const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
@@ -368,9 +371,197 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // Protected by Cloudflare Zero Trust Access JWT validation
   app.use('/api/mail/*', accessMiddleware);
 
-  // Get configured email accounts
-  app.get('/api/mail/accounts', (c) => {
-    return ok(c, { accounts: EMAIL_ACCOUNTS });
+  // Email addresses (dynamic handles)
+  app.get('/api/mail/addresses', async (c) => {
+    await EmailAddressEntity.ensureSeed(c.env);
+    const items = await listAll(cursor => EmailAddressEntity.list(c.env, cursor));
+    items.sort((a, b) => {
+      if ((a.kind === 'primary') !== (b.kind === 'primary')) return a.kind === 'primary' ? -1 : 1;
+      return b.createdAt - a.createdAt;
+    });
+    return ok(c, { items });
+  });
+
+  app.post('/api/mail/addresses', async (c) => {
+    await EmailAddressEntity.ensureSeed(c.env);
+    const { kind, localPart, name, note } = await c.req.json() as { kind?: EmailAddressKind; localPart?: string; name?: string; note?: string };
+    if (kind !== 'custom' && kind !== 'throwaway') return bad(c, 'kind must be custom or throwaway');
+
+    let id: string;
+    if (kind === 'throwaway') {
+      if (localPart !== undefined) return bad(c, 'Throwaway addresses are generated automatically');
+      id = await generateThrowawayLocalPart(c.env);
+    } else {
+      if (!isStr(localPart)) return bad(c, 'localPart is required');
+      id = normalizeLocalPart(localPart);
+      const error = validateLocalPart(id);
+      if (error) return bad(c, error);
+      if (await new EmailAddressEntity(c.env, id).exists()) return bad(c, 'Address already exists');
+    }
+
+    const created = await EmailAddressEntity.create(c.env, {
+      id,
+      address: `${id}@${EMAIL_DOMAIN}`,
+      name: name?.trim() || id,
+      kind,
+      status: 'active',
+      note: note?.trim() || undefined,
+      createdAt: Date.now(),
+    });
+    return ok(c, created);
+  });
+
+  app.put('/api/mail/addresses/:id', async (c) => {
+    const id = c.req.param('id');
+    const { name, note, status } = await c.req.json() as Partial<Pick<EmailAddress, 'name' | 'note' | 'status'>>;
+    const entity = new EmailAddressEntity(c.env, id);
+    if (!await entity.exists()) return notFound(c, 'Address not found');
+    if (status !== undefined && status !== 'active' && status !== 'suppressed') {
+      return bad(c, 'status must be active or suppressed');
+    }
+    const state = await entity.getState();
+    if (status === 'suppressed' && state.kind === 'primary') {
+      return bad(c, 'Primary addresses cannot be suppressed');
+    }
+    const updated = await entity.mutate(a => ({
+      ...a,
+      name: name !== undefined && isStr(name) ? name.trim() : a.name,
+      note: note !== undefined ? (note.trim() || undefined) : a.note,
+      status: status ?? a.status,
+    }));
+    return ok(c, updated);
+  });
+
+  app.delete('/api/mail/addresses/:id', async (c) => {
+    const id = c.req.param('id');
+    const entity = new EmailAddressEntity(c.env, id);
+    if (!await entity.exists()) return notFound(c, 'Address not found');
+    const state = await entity.getState();
+    if (state.kind === 'primary') return bad(c, 'Primary addresses cannot be deleted');
+    const deleted = await EmailAddressEntity.delete(c.env, id);
+    const feeds = await listAll(cursor => EmailFeedEntity.list(c.env, cursor));
+    for (const feed of feeds) {
+      if (feed.accountIds.includes(id)) {
+        await new EmailFeedEntity(c.env, feed.id).mutate(f => ({
+          ...f,
+          accountIds: f.accountIds.filter(a => a !== id),
+        }));
+      }
+    }
+    return ok(c, { id, deleted });
+  });
+
+  // Blocked senders
+  app.get('/api/mail/blocked-senders', async (c) => {
+    const items = await listAll(cursor => BlockedSenderEntity.list(c.env, cursor));
+    items.sort((a, b) => b.createdAt - a.createdAt);
+    return ok(c, { items });
+  });
+
+  app.post('/api/mail/blocked-senders', async (c) => {
+    const { address, reason } = await c.req.json() as { address?: string; reason?: string };
+    if (!isStr(address)) return bad(c, 'address is required');
+    const id = address.trim().toLowerCase();
+    if (!isValidEmail(id)) return bad(c, 'Invalid email address');
+    if (isOwnDomainAddress(id)) return bad(c, 'Cannot block your own domain; suppress the address instead');
+    if (await new BlockedSenderEntity(c.env, id).exists()) return bad(c, 'Sender already blocked');
+    const created = await BlockedSenderEntity.create(c.env, {
+      id,
+      address: id,
+      reason: reason?.trim() || undefined,
+      createdAt: Date.now(),
+    });
+    return ok(c, created);
+  });
+
+  app.delete('/api/mail/blocked-senders/:address', async (c) => {
+    const id = decodeURIComponent(c.req.param('address')).toLowerCase();
+    if (!await new BlockedSenderEntity(c.env, id).exists()) return notFound(c, 'Sender not blocked');
+    const deleted = await BlockedSenderEntity.delete(c.env, id);
+    return ok(c, { address: id, deleted });
+  });
+
+  // Feeds (virtual inboxes)
+  app.get('/api/mail/feeds', async (c) => {
+    const items = await listAll(cursor => EmailFeedEntity.list(c.env, cursor));
+    items.sort((a, b) => a.createdAt - b.createdAt);
+    return ok(c, { items });
+  });
+
+  const validateFeedInput = async (
+    env: Env,
+    body: Partial<Pick<EmailFeed, 'name' | 'color' | 'accountIds' | 'senders'>>
+  ): Promise<string | null> => {
+    if (body.accountIds !== undefined) {
+      if (!Array.isArray(body.accountIds) || body.accountIds.length > 100) return 'accountIds must be an array of at most 100 ids';
+      for (const accountId of body.accountIds) {
+        if (!isStr(accountId) || !(await new EmailAddressEntity(env, accountId).exists())) {
+          return `Unknown address: ${accountId}`;
+        }
+      }
+    }
+    if (body.senders !== undefined) {
+      if (!Array.isArray(body.senders) || body.senders.length > 100) return 'senders must be an array of at most 100 addresses';
+      for (const sender of body.senders) {
+        if (!isStr(sender) || !isValidEmail(sender.trim())) return `Invalid sender address: ${sender}`;
+      }
+    }
+    return null;
+  };
+
+  app.post('/api/mail/feeds', async (c) => {
+    const body = await c.req.json() as Partial<Pick<EmailFeed, 'name' | 'color' | 'accountIds' | 'senders'>>;
+    if (!isStr(body.name)) return bad(c, 'name is required');
+    const error = await validateFeedInput(c.env, body);
+    if (error) return bad(c, error);
+    const created = await EmailFeedEntity.create(c.env, {
+      id: crypto.randomUUID(),
+      name: body.name.trim(),
+      color: body.color?.trim() || '',
+      accountIds: body.accountIds ?? [],
+      senders: (body.senders ?? []).map(s => s.trim().toLowerCase()),
+      createdAt: Date.now(),
+    });
+    return ok(c, created);
+  });
+
+  app.put('/api/mail/feeds/:id', async (c) => {
+    const id = c.req.param('id');
+    const body = await c.req.json() as Partial<Pick<EmailFeed, 'name' | 'color' | 'accountIds' | 'senders'>>;
+    const entity = new EmailFeedEntity(c.env, id);
+    if (!await entity.exists()) return notFound(c, 'Feed not found');
+    if (body.name !== undefined && !isStr(body.name)) return bad(c, 'name cannot be empty');
+    const error = await validateFeedInput(c.env, body);
+    if (error) return bad(c, error);
+    const updated = await entity.mutate(f => ({
+      ...f,
+      name: body.name !== undefined ? body.name.trim() : f.name,
+      color: body.color !== undefined ? body.color.trim() : f.color,
+      accountIds: body.accountIds ?? f.accountIds,
+      senders: body.senders !== undefined ? body.senders.map(s => s.trim().toLowerCase()) : f.senders,
+    }));
+    return ok(c, updated);
+  });
+
+  app.delete('/api/mail/feeds/:id', async (c) => {
+    const id = c.req.param('id');
+    if (!await new EmailFeedEntity(c.env, id).exists()) return notFound(c, 'Feed not found');
+    const deleted = await EmailFeedEntity.delete(c.env, id);
+    return ok(c, { id, deleted });
+  });
+
+  // Unread stats for sidebar badges
+  app.get('/api/mail/stats', async (c) => {
+    const threads = await listAll(cursor => EmailThreadEntity.list(c.env, cursor));
+    const stats: MailStats = { accounts: {}, labels: {} };
+    for (const thread of threads) {
+      if (thread.read) continue;
+      stats.accounts[thread.account] = (stats.accounts[thread.account] ?? 0) + 1;
+      for (const label of thread.labels) {
+        stats.labels[label] = (stats.labels[label] ?? 0) + 1;
+      }
+    }
+    return ok(c, stats);
   });
 
   // Get all labels
@@ -404,14 +595,26 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // List threads (inbox view)
   app.get('/api/mail/threads', async (c) => {
     const account = c.req.query('account');
+    const feedId = c.req.query('feed');
     const label = c.req.query('label') || 'inbox';
     const cursor = c.req.query('cursor');
     const limit = Math.min(parseInt(c.req.query('limit') || '50', 10), 100);
+    if (account && feedId) return bad(c, 'account and feed are mutually exclusive');
 
     const page = await EmailThreadEntity.list(c.env, cursor, limit + 50);
-    let threads = account
-      ? page.items.filter(t => t.account === account)
-      : page.items;
+    let threads = page.items;
+    if (feedId) {
+      const feedEntity = new EmailFeedEntity(c.env, feedId);
+      if (!await feedEntity.exists()) return notFound(c, 'Feed not found');
+      const feed = await feedEntity.getState();
+      const accountSet = new Set(feed.accountIds);
+      const senderSet = new Set(feed.senders);
+      threads = threads.filter(t =>
+        accountSet.has(t.account) || t.participants.some(p => senderSet.has(p.toLowerCase()))
+      );
+    } else if (account) {
+      threads = threads.filter(t => t.account === account);
+    }
     if (label !== 'all') {
       threads = threads.filter(t => t.labels.includes(label));
     }
@@ -458,6 +661,35 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       }
     }
     return ok(c, updated);
+  });
+
+  // Mark thread as spam and optionally block its senders
+  app.post('/api/mail/threads/:id/spam', async (c) => {
+    const id = c.req.param('id');
+    const { blockSenders = true } = await c.req.json().catch(() => ({})) as { blockSenders?: boolean };
+    const thread = new EmailThreadEntity(c.env, id);
+    if (!await thread.exists()) return notFound(c, 'Thread not found');
+
+    const toSpamLabels = (labels: string[]) => mergeUnique(labels.filter(l => l !== 'inbox'), ['spam']);
+    const updated = await thread.mutate(t => ({ ...t, labels: toSpamLabels(t.labels) }));
+
+    const allEmails = await getAllEmails(c.env);
+    for (const email of allEmails.filter(e => e.threadId === id)) {
+      await new EmailEntity(c.env, email.id).mutate(e => ({ ...e, labels: toSpamLabels(e.labels) }));
+    }
+
+    const blockedSenders: string[] = [];
+    if (blockSenders) {
+      const now = Date.now();
+      for (const participant of updated.participants) {
+        const address = participant.toLowerCase();
+        if (!isValidEmail(address) || isOwnDomainAddress(address)) continue;
+        if (await new BlockedSenderEntity(c.env, address).exists()) continue;
+        await BlockedSenderEntity.create(c.env, { id: address, address, createdAt: now });
+        blockedSenders.push(address);
+      }
+    }
+    return ok(c, { id, spam: true, blockedSenders });
   });
 
   // Trash thread
@@ -546,7 +778,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       return bad(c, 'from, to, and subject are required');
     }
 
-    if (!isAllowedFromAddress(from)) {
+    const sender = await getActiveFromAddress(c.env, from);
+    if (!sender) {
       return bad(c, 'Invalid sender address');
     }
 
@@ -558,7 +791,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     try {
       const messageId = generateMessageId();
       const msg = createMimeMessage();
-      msg.setSender({ addr: from });
+      msg.setSender({ addr: from, name: sender.name });
       toList.forEach((addr: string) => msg.setRecipient(addr));
       if (cc) {
         const ccAddrs = cc.split(',').map(a => a.trim()).filter(Boolean);
@@ -606,7 +839,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       const emailMsg = new EmailMessage(from, toList[0], msg.asRaw());
       await env.EMAIL_SENDER.send(emailMsg);
 
-      const account = from.split('@')[0];
+      const account = sender.id;
       const ccList = cc ? cc.split(',').map(a => a.trim()).filter(Boolean) : undefined;
       const bccList = bcc ? bcc.split(',').map(a => a.trim()).filter(Boolean) : undefined;
       const now = Date.now();
@@ -750,16 +983,17 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 
   // Create/Update draft
   app.post('/api/mail/drafts', async (c) => {
-    const env = c.env as ExtendedEnv;
     const body = await c.req.json() as Partial<EmailDraft> & { id?: string };
     const now = Date.now();
 
-    if (body.from && !isAllowedFromAddress(body.from)) {
-      return bad(c, 'Invalid sender address');
+    let account = '';
+    if (body.from) {
+      const sender = await getActiveFromAddress(c.env, body.from);
+      if (!sender) return bad(c, 'Invalid sender address');
+      account = sender.id;
     }
 
     const id = body.id || crypto.randomUUID();
-    const account = body.from?.split('@')[0] || 'me';
 
     const draft: EmailDraft = {
       id,
@@ -794,7 +1028,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const draft = new EmailDraftEntity(c.env, id);
     if (!await draft.exists()) return notFound(c, 'Draft not found');
 
-    if (body.from && !isAllowedFromAddress(body.from)) {
+    if (body.from && !(await getActiveFromAddress(c.env, body.from))) {
       return bad(c, 'Invalid sender address');
     }
 
@@ -961,7 +1195,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     return ok(c, {
       items,
       prefix,
-      cursor: listed.cursor,
+      cursor: listed.truncated ? listed.cursor : undefined,
       truncated: listed.truncated,
     });
   });

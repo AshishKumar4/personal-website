@@ -140,9 +140,35 @@ export interface EmailLabel {
   color?: string;
   type: 'system' | 'user';
 }
-export interface EmailAccount {
+export const EMAIL_DOMAIN = 'ashishkumarsingh.com';
+export type EmailAddressKind = 'primary' | 'custom' | 'throwaway';
+export type EmailAddressStatus = 'active' | 'suppressed';
+export interface EmailAddress {
+  id: string;
   address: string;
   name: string;
+  kind: EmailAddressKind;
+  status: EmailAddressStatus;
+  note?: string;
+  createdAt: number;
+}
+export interface BlockedSender {
+  id: string;
+  address: string;
+  reason?: string;
+  createdAt: number;
+}
+export interface EmailFeed {
+  id: string;
+  name: string;
+  color: string;
+  accountIds: string[];
+  senders: string[];
+  createdAt: number;
+}
+export interface MailStats {
+  accounts: Record<string, number>;
+  labels: Record<string, number>;
 }
 export interface EmailDraft {
   id: string;
@@ -161,12 +187,6 @@ export interface EmailDraft {
 }
 export const SYSTEM_LABELS = ['inbox', 'sent', 'drafts', 'starred', 'trash', 'spam'] as const;
 export type SystemLabel = typeof SYSTEM_LABELS[number];
-export const EMAIL_ACCOUNT_IDS = ['me', 'contact'] as const;
-export type EmailAccountId = typeof EMAIL_ACCOUNT_IDS[number];
-export const EMAIL_ACCOUNTS_CONFIG: EmailAccount[] = [
-  { address: 'me@ashishkumarsingh.com', name: 'Ashish Kumar Singh' },
-  { address: 'contact@ashishkumarsingh.com', name: 'Contact' },
-];
 export interface R2FileItem {
   key: string;
   name: string;

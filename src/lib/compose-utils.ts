@@ -1,6 +1,6 @@
-import type { Email, EmailAccount } from '@shared/types';
+import type { Email, EmailAddress } from '@shared/types';
 import {
-  findAccountByLocalPart,
+  resolveFromAddress,
   getLocalPart,
   createReplySubject,
   createForwardSubject,
@@ -16,12 +16,11 @@ export interface ComposeInitialValues {
 }
 
 export function getNewEmailInitialValues(
-  accounts: EmailAccount[],
+  addresses: EmailAddress[],
   defaultFrom?: string
 ): ComposeInitialValues {
-  const matchedAccount = findAccountByLocalPart(accounts, defaultFrom);
   return {
-    fromAccount: matchedAccount?.address || accounts[0]?.address || '',
+    fromAccount: resolveFromAddress(addresses, defaultFrom),
     to: '',
     cc: '',
     subject: '',
@@ -32,21 +31,20 @@ export function getNewEmailInitialValues(
 
 export function getReplyInitialValues(
   email: Email,
-  accounts: EmailAccount[],
+  addresses: EmailAddress[],
   mode: 'reply' | 'replyAll',
   defaultFrom?: string
 ): ComposeInitialValues {
-  const matchedAccount = findAccountByLocalPart(accounts, defaultFrom);
-  const fromAccount = matchedAccount?.address || accounts[0]?.address || '';
+  const fromAccount = resolveFromAddress(addresses, defaultFrom);
 
-  const isOwnEmail = accounts.some((a) => a.address === email.from);
+  const isOwnEmail = addresses.some((a) => a.address === email.from);
   const to = isOwnEmail ? email.to[0] || '' : email.from;
 
   let cc = '';
   if (mode === 'replyAll') {
     const allRecipients = [...email.to, ...(email.cc || [])];
     cc = allRecipients
-      .filter((addr) => !accounts.some((a) => a.address === addr) && addr !== email.from)
+      .filter((addr) => !addresses.some((a) => a.address === addr) && addr !== email.from)
       .join(', ');
   }
 
@@ -68,11 +66,10 @@ export function getReplyInitialValues(
 
 export function getForwardInitialValues(
   email: Email,
-  accounts: EmailAccount[],
+  addresses: EmailAddress[],
   defaultFrom?: string
 ): ComposeInitialValues {
-  const matchedAccount = findAccountByLocalPart(accounts, defaultFrom);
-  const fromAccount = matchedAccount?.address || accounts[0]?.address || '';
+  const fromAccount = resolveFromAddress(addresses, defaultFrom);
 
   const fromDisplay = email.fromName
     ? `${email.fromName} <${email.from}>`

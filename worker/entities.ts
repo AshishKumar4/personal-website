@@ -2,7 +2,8 @@
  * Minimal real-world demo: One Durable Object instance per entity (User, ChatBoard), with Indexes for listing.
  */
 import { Entity, IndexedEntity } from "./core-utils";
-import type { User, Chat, ChatMessage, BlogPost, AuthUser, SiteConfig, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft } from "@shared/types";
+import type { BlogPost, AuthUser, SiteConfig, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAddress, BlockedSender, EmailFeed } from "@shared/types";
+import { EMAIL_DOMAIN } from "@shared/types";
 
 
 
@@ -237,6 +238,28 @@ export class EmailLabelEntity extends IndexedEntity<EmailLabel> {
     static readonly indexName = "emailLabels";
     static readonly initialState: EmailLabel = { id: "", name: "", type: "user" };
     static seedData = SEED_EMAIL_LABELS;
+}
+const SEED_EMAIL_ADDRESSES: EmailAddress[] = [
+    { id: "me", address: `me@${EMAIL_DOMAIN}`, name: "Ashish Kumar Singh", kind: "primary", status: "active", createdAt: 0 },
+    { id: "contact", address: `contact@${EMAIL_DOMAIN}`, name: "Contact", kind: "primary", status: "active", createdAt: 0 },
+];
+export class EmailAddressEntity extends IndexedEntity<EmailAddress> {
+    static readonly entityName = "emailAddress";
+    static readonly indexName = "emailAddresses";
+    static readonly initialState: EmailAddress = { id: "", address: "", name: "", kind: "custom", status: "active", createdAt: 0 };
+    static seedData = SEED_EMAIL_ADDRESSES;
+}
+export class BlockedSenderEntity extends IndexedEntity<BlockedSender> {
+    static readonly entityName = "blockedSender";
+    static readonly indexName = "blockedSenders";
+    static readonly initialState: BlockedSender = { id: "", address: "", createdAt: 0 };
+    static seedData: BlockedSender[] = [];
+}
+export class EmailFeedEntity extends IndexedEntity<EmailFeed> {
+    static readonly entityName = "emailFeed";
+    static readonly indexName = "emailFeeds";
+    static readonly initialState: EmailFeed = { id: "", name: "", color: "", accountIds: [], senders: [], createdAt: 0 };
+    static seedData: EmailFeed[] = [];
 }
 export class EmailDraftEntity extends IndexedEntity<EmailDraft> {
     static readonly entityName = "emailDraft";

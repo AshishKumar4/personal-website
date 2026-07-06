@@ -3,17 +3,20 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { EmailReader } from '@/components/mail/EmailReader';
 import { api } from '@/lib/api-client';
 import { MAIL_ROUTES, API_ENDPOINTS } from '@/lib/mail-constants';
-import type { Email, EmailThread, EmailAccount } from '@shared/types';
+import type { Email, EmailThread } from '@shared/types';
 import { toast } from 'sonner';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useMailContext } from '@/contexts/MailContext';
 
 export function MailThreadPage() {
-  const { label = 'inbox', threadId } = useParams();
+  const { label = 'inbox', feedId, threadId } = useParams();
   const navigate = useNavigate();
+  const { addresses, refreshStats } = useMailContext();
   const [thread, setThread] = useState<EmailThread | null>(null);
   const [emails, setEmails] = useState<Email[]>([]);
-  const [accounts, setAccounts] = useState<EmailAccount[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const listPath = feedId ? MAIL_ROUTES.FEED(feedId) : MAIL_ROUTES.LABEL(label);
 
   const fetchThread = useCallback(async (showLoading = true) => {
     if (!threadId) return;
@@ -28,40 +31,33 @@ export function MailThreadPage() {
     } catch (error) {
       console.error('Failed to fetch thread:', error);
       toast.error('Failed to load email');
-      navigate(MAIL_ROUTES.LABEL(label));
+      navigate(listPath);
     } finally {
       if (showLoading) setLoading(false);
     }
-  }, [threadId, label, navigate]);
+  }, [threadId, listPath, navigate]);
 
   useEffect(() => {
     const currentThreadId = threadId;
     const init = async () => {
-      const [threadRes, accountsRes] = await Promise.all([
-        fetchThread(),
-        api<{ accounts: EmailAccount[] }>(API_ENDPOINTS.ACCOUNTS),
-      ]);
-
-      if (accountsRes) {
-        setAccounts(accountsRes.accounts);
-      }
-
+      const threadRes = await fetchThread();
       if (currentThreadId && threadRes && !threadRes.thread.read) {
         await api(API_ENDPOINTS.THREAD(currentThreadId), {
           method: 'PUT',
           body: JSON.stringify({ read: true }),
         });
+        refreshStats();
       }
     };
     init();
-  }, [fetchThread, threadId]);
+  }, [fetchThread, threadId, refreshStats]);
 
   const handleEmailSent = useCallback(() => {
     fetchThread(false);
   }, [fetchThread]);
 
   const handleBack = () => {
-    navigate(MAIL_ROUTES.LABEL(label));
+    navigate(listPath);
   };
 
   const handleDelete = async () => {
@@ -69,7 +65,8 @@ export function MailThreadPage() {
     try {
       await api(API_ENDPOINTS.THREAD(threadId), { method: 'DELETE' });
       toast.success('Moved to trash');
-      navigate(MAIL_ROUTES.LABEL(label));
+      refreshStats();
+      navigate(listPath);
     } catch (error) {
       console.error('Failed to delete thread:', error);
       toast.error('Failed to delete');
@@ -96,7 +93,8 @@ export function MailThreadPage() {
         body: JSON.stringify({ read: false }),
       });
       toast.success('Marked as unread');
-      navigate(MAIL_ROUTES.LABEL(label));
+      refreshStats();
+      navigate(listPath);
     } catch (error) {
       console.error('Failed to mark as unread:', error);
       toast.error('Failed to update');
@@ -119,7 +117,7 @@ export function MailThreadPage() {
     <EmailReader
       thread={thread}
       emails={emails}
-      accounts={accounts}
+      addresses={addresses}
       onBack={handleBack}
       onDelete={handleDelete}
       onToggleStar={handleToggleStar}

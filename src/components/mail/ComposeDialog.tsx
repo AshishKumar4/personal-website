@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/mail-constants';
 import { useCompose, type ComposeMode } from '@/hooks/useCompose';
-import type { Email, EmailAccount } from '@shared/types';
+import type { Email, EmailAddress } from '@shared/types';
 import { AccountSelector } from './AccountSelector';
 import { EmailFieldRow, FieldToggleButton } from './EmailFieldRow';
 import { AttachmentList } from './AttachmentList';
@@ -21,7 +21,7 @@ import { SendButton } from './SendButton';
 interface ComposeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  accounts: EmailAccount[];
+  addresses: EmailAddress[];
   defaultFromAccount?: string;
   replyTo?: Email;
   replyAll?: boolean;
@@ -31,7 +31,7 @@ interface ComposeDialogProps {
 export function ComposeDialog({
   open,
   onOpenChange,
-  accounts,
+  addresses,
   defaultFromAccount,
   replyTo,
   replyAll,
@@ -48,7 +48,7 @@ export function ComposeDialog({
         : 'new';
 
   const compose = useCompose({
-    accounts,
+    addresses,
     defaultFromAccount,
     replyTo: forward || replyTo,
     mode,
@@ -135,7 +135,7 @@ export function ComposeDialog({
                 From
               </span>
               <AccountSelector
-                accounts={accounts}
+                addresses={addresses}
                 value={compose.fromAccount}
                 onChange={compose.setFromAccount}
                 className="flex-1"

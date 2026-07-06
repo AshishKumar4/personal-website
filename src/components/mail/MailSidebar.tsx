@@ -20,10 +20,10 @@ export function MailSidebar() {
   const { label = 'inbox' } = useParams();
   const navigate = useNavigate();
   const { isDark, toggleTheme } = useTheme();
-  const { selectedAccount, setSelectedAccount, accounts, labels, loading } = useMailContext();
+  const { selectedAccount, setSelectedAccount, addresses, labels, loading } = useMailContext();
 
   const currentAccount = selectedAccount
-    ? accounts.find((a) => getLocalPart(a.address) === selectedAccount)
+    ? addresses.find((a) => getLocalPart(a.address) === selectedAccount)
     : null;
 
   const displayName = currentAccount?.address || 'All Inboxes';
@@ -62,15 +62,15 @@ export function MailSidebar() {
               All Inboxes
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            {accounts.map((account) => {
-              const localPart = getLocalPart(account.address);
+            {addresses.map((address) => {
+              const localPart = getLocalPart(address.address);
               return (
                 <DropdownMenuItem
-                  key={account.address}
+                  key={address.address}
                   onClick={() => setSelectedAccount(localPart)}
                   className={cn(selectedAccount === localPart && 'bg-accent')}
                 >
-                  {account.address}
+                  {address.address}
                 </DropdownMenuItem>
               );
             })}

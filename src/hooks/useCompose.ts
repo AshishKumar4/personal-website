@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import type { Email, EmailAccount, AttachmentFile } from '@shared/types';
+import type { Email, EmailAddress, AttachmentFile } from '@shared/types';
 import { API_ENDPOINTS } from '@/lib/mail-constants';
 import { getErrorMessage } from '@/lib/error-utils';
 import {
@@ -16,7 +16,7 @@ import {
 export type ComposeMode = 'new' | 'reply' | 'replyAll' | 'forward';
 
 export interface UseComposeOptions {
-  accounts: EmailAccount[];
+  addresses: EmailAddress[];
   defaultFromAccount?: string;
   replyTo?: Email;
   mode?: ComposeMode;
@@ -53,7 +53,7 @@ export interface UseComposeReturn {
 }
 
 export function useCompose({
-  accounts,
+  addresses,
   defaultFromAccount,
   replyTo,
   mode = 'new',
@@ -61,12 +61,12 @@ export function useCompose({
 }: UseComposeOptions): UseComposeReturn {
   const initial = (() => {
     if (mode === 'forward' && replyTo) {
-      return getForwardInitialValues(replyTo, accounts, defaultFromAccount);
+      return getForwardInitialValues(replyTo, addresses, defaultFromAccount);
     }
     if ((mode === 'reply' || mode === 'replyAll') && replyTo) {
-      return getReplyInitialValues(replyTo, accounts, mode, defaultFromAccount);
+      return getReplyInitialValues(replyTo, addresses, mode, defaultFromAccount);
     }
-    return getNewEmailInitialValues(accounts, defaultFromAccount);
+    return getNewEmailInitialValues(addresses, defaultFromAccount);
   })();
 
   const [fromAccount, setFromAccount] = useState(initial.fromAccount);

@@ -1,7 +1,7 @@
 import PostalMime from 'postal-mime';
-import type { Email, EmailThread, EmailAttachment, EmailAccountId } from '@shared/types';
-import { EMAIL_ACCOUNT_IDS } from '@shared/types';
-import { EmailEntity, EmailThreadEntity } from './entities';
+import type { Email, EmailThread, EmailAttachment } from '@shared/types';
+import { EmailEntity, EmailThreadEntity, BlockedSenderEntity } from './entities';
+import { resolveAddress } from './address-utils';
 import type { Env } from './core-utils';
 
 interface ExtendedEnv extends Env {
@@ -14,15 +14,13 @@ interface IncomingEmailMessage {
   headers: Headers;
   raw: ReadableStream<Uint8Array>;
   rawSize: number;
+  setReject(reason: string): void;
 }
 
-function extractAccount(toAddress: string): EmailAccountId | null {
-  const localPart = toAddress.split('@')[0]?.toLowerCase();
-  if (EMAIL_ACCOUNT_IDS.includes(localPart as EmailAccountId)) {
-    return localPart as EmailAccountId;
-  }
-  console.warn(`Unknown email account: ${localPart}, rejecting email to: ${toAddress}`);
-  return null;
+async function isBlockedSender(env: Env, envelopeFrom: string, headerFrom: string): Promise<boolean> {
+  if (await new BlockedSenderEntity(env, envelopeFrom).exists()) return true;
+  if (headerFrom !== envelopeFrom && await new BlockedSenderEntity(env, headerFrom).exists()) return true;
+  return false;
 }
 
 export function generateThreadId(subject: string, references?: string[], inReplyTo?: string): string {
@@ -55,15 +53,25 @@ export async function handleIncomingEmail(
   message: IncomingEmailMessage,
   env: ExtendedEnv
 ): Promise<void> {
-  const account = extractAccount(message.to);
-  if (!account) {
-    console.log(`Unknown account for address: ${message.to}`);
+  const addr = await resolveAddress(env, message.to);
+  if (!addr) {
+    console.log(`Rejecting email to unknown address: ${message.to}`);
+    message.setReject('No such recipient');
     return;
   }
+  if (addr.status === 'suppressed') {
+    console.log(`Dropping email to suppressed address: ${message.to}`);
+    return;
+  }
+  const account = addr.id;
 
   const rawBytes = await streamToArrayBuffer(message.raw);
   const parser = new PostalMime();
   const parsed = await parser.parse(rawBytes);
+
+  const envelopeFrom = message.from.toLowerCase();
+  const headerFrom = (parsed.from?.address ?? message.from).toLowerCase();
+  const blocked = await isBlockedSender(env, envelopeFrom, headerFrom);
 
   const messageId = parsed.messageId || crypto.randomUUID();
   const subject = parsed.subject || '(No Subject)';
@@ -133,7 +141,7 @@ export async function handleIncomingEmail(
     textBody: parsed.text,
     rawKey,
     attachments,
-    labels: ['inbox'],
+    labels: blocked ? ['spam'] : ['inbox'],
     read: false,
     starred: false,
     createdAt: parsed.date ? new Date(parsed.date).getTime() : now,

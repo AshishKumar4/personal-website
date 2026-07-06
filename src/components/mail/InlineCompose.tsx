@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Paperclip, Trash2, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCompose, type ComposeMode } from '@/hooks/useCompose';
-import type { Email, EmailAccount } from '@shared/types';
+import type { Email, EmailAddress } from '@shared/types';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +18,7 @@ import { SendButton } from './SendButton';
 interface InlineComposeProps {
   mode: ComposeMode;
   email: Email;
-  accounts: EmailAccount[];
+  addresses: EmailAddress[];
   defaultFromAccount?: string;
   onSend: () => void;
   onDiscard: () => void;
@@ -27,7 +27,7 @@ interface InlineComposeProps {
 export function InlineCompose({
   mode,
   email,
-  accounts,
+  addresses,
   defaultFromAccount,
   onSend,
   onDiscard,
@@ -35,7 +35,7 @@ export function InlineCompose({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const compose = useCompose({
-    accounts,
+    addresses,
     defaultFromAccount,
     replyTo: email,
     mode,
@@ -74,13 +74,13 @@ export function InlineCompose({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              {accounts.map((account) => (
+              {addresses.filter((a) => a.status === 'active').map((address) => (
                 <DropdownMenuItem
-                  key={account.address}
-                  onClick={() => compose.setFromAccount(account.address)}
-                  className={cn(compose.fromAccount === account.address && 'bg-accent')}
+                  key={address.address}
+                  onClick={() => compose.setFromAccount(address.address)}
+                  className={cn(compose.fromAccount === address.address && 'bg-accent')}
                 >
-                  {account.address}
+                  {address.address}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>

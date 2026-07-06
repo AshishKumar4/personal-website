@@ -37,8 +37,8 @@ export default tseslint.config(
       ],
       'import/named': 'error',
       'import/default': 'error',
-      'import/no-unresolved': ['error', { 
-        ignore: ['cloudflare:workers', 'agents'] 
+      'import/no-unresolved': ['error', {
+        ignore: ['^cloudflare:', 'agents']
       }],
 
       // CHANGED: Replaced the flawed rule with a more intelligent one.
@@ -70,6 +70,13 @@ export default tseslint.config(
   // as shadcn/ui components commonly export both components and utilities
   {
     files: ['src/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  // Context modules conventionally export a provider component plus its hook
+  {
+    files: ['src/contexts/**/*.{ts,tsx}'],
     rules: {
       'react-refresh/only-export-components': 'off',
     },
