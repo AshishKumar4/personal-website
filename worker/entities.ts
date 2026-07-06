@@ -2,8 +2,10 @@
  * Minimal real-world demo: One Durable Object instance per entity (User, ChatBoard), with Indexes for listing.
  */
 import { Entity, IndexedEntity } from "./core-utils";
-import type { BlogPost, AuthUser, SiteConfig, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAddress, BlockedSender, EmailFeed } from "@shared/types";
+import type { BlogPost, AuthUser, SiteConfig, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAddress, BlockedSender, EmailFeed, ApiTokenPublic } from "@shared/types";
 import { EMAIL_DOMAIN } from "@shared/types";
+
+export type ApiTokenRecord = ApiTokenPublic & { secretHash: string };
 
 
 
@@ -260,6 +262,20 @@ export class EmailFeedEntity extends IndexedEntity<EmailFeed> {
     static readonly indexName = "emailFeeds";
     static readonly initialState: EmailFeed = { id: "", name: "", color: "", accountIds: [], senders: [], createdAt: 0 };
     static seedData: EmailFeed[] = [];
+}
+export class ApiTokenEntity extends IndexedEntity<ApiTokenRecord> {
+    static readonly entityName = "apiToken";
+    static readonly indexName = "apiTokens";
+    static readonly initialState: ApiTokenRecord = {
+        id: "",
+        name: "",
+        secretHash: "",
+        createdAt: 0,
+        expiresAt: 0,
+        lastUsedAt: 0,
+        revoked: false,
+    };
+    static seedData: ApiTokenRecord[] = [];
 }
 export class EmailDraftEntity extends IndexedEntity<EmailDraft> {
     static readonly entityName = "emailDraft";

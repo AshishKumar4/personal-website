@@ -63,6 +63,30 @@ export interface LoginResponse {
     token: string;
     user: Pick<AuthUser, 'username'>;
 }
+// API token types (short-lived programmatic access to the admin content API)
+export interface ApiTokenPublic {
+    id: string;
+    name: string;
+    createdAt: number;
+    expiresAt: number;
+    lastUsedAt: number;
+    revoked: boolean;
+}
+export interface ApiTokenCreated extends ApiTokenPublic {
+    token: string;
+}
+export const API_TOKEN_TTL_OPTIONS = [
+    { label: '30 minutes', minutes: 30 },
+    { label: '1 hour', minutes: 60 },
+    { label: '6 hours', minutes: 360 },
+    { label: '24 hours', minutes: 1440 },
+] as const;
+export const API_TOKEN_DEFAULT_TTL_MINUTES = 30;
+export const API_TOKEN_MAX_TTL_MINUTES = 1440;
+export function clampTtlMinutes(minutes: number): number {
+    if (!Number.isFinite(minutes) || minutes <= 0) return API_TOKEN_DEFAULT_TTL_MINUTES;
+    return Math.min(Math.floor(minutes), API_TOKEN_MAX_TTL_MINUTES);
+}
 // Site Config type
 export interface SiteConfig {
   subtitle: string;
