@@ -45,6 +45,53 @@ function getAllEmails(env: Env): Promise<Email[]> {
   return listAll(cursor => EmailEntity.list(env, cursor));
 }
 
+interface SearchQuery {
+  text: string[];
+  from?: string;
+  to?: string;
+  subject?: string;
+  hasAttachment?: boolean;
+  unread?: boolean;
+  starred?: boolean;
+}
+
+function parseSearchQuery(raw: string): SearchQuery {
+  const query: SearchQuery = { text: [] };
+  const tokens = raw.toLowerCase().match(/(\w+:"[^"]*"|\w+:\S+|"[^"]*"|\S+)/g) ?? [];
+  for (const token of tokens) {
+    const opMatch = token.match(/^(\w+):"?([^"]*)"?$/);
+    if (opMatch) {
+      const [, op, value] = opMatch;
+      if (op === 'from') { query.from = value; continue; }
+      if (op === 'to') { query.to = value; continue; }
+      if (op === 'subject') { query.subject = value; continue; }
+      if (op === 'has' && value === 'attachment') { query.hasAttachment = true; continue; }
+      if (op === 'is') {
+        if (value === 'unread') query.unread = true;
+        else if (value === 'read') query.unread = false;
+        else if (value === 'starred') query.starred = true;
+        continue;
+      }
+    }
+    query.text.push(token.replace(/^"|"$/g, ''));
+  }
+  return query;
+}
+
+function matchesSearch(e: Email, q: SearchQuery): boolean {
+  if (q.from && !e.from.toLowerCase().includes(q.from)) return false;
+  if (q.to && !e.to.some(t => t.toLowerCase().includes(q.to!))) return false;
+  if (q.subject && !e.subject.toLowerCase().includes(q.subject)) return false;
+  if (q.hasAttachment && e.attachments.length === 0) return false;
+  if (q.unread !== undefined && e.read !== !q.unread) return false;
+  if (q.starred && !e.starred) return false;
+  if (q.text.length > 0) {
+    const haystack = `${e.subject} ${e.from} ${e.snippet} ${e.textBody ?? ''}`.toLowerCase();
+    if (!q.text.every(term => haystack.includes(term))) return false;
+  }
+  return true;
+}
+
 const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 const authMiddleware = async (c: any, next: any) => {
@@ -953,21 +1000,22 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 
   // Search emails
   app.get('/api/mail/search', async (c) => {
-    const q = c.req.query('q')?.toLowerCase();
+    const raw = c.req.query('q');
     const account = c.req.query('account');
-    if (!q) return ok(c, { items: [] });
+    if (!raw) return ok(c, { items: [] });
+
+    const query = parseSearchQuery(raw);
     const allEmails = await getAllEmails(c.env);
-    let results = allEmails.filter(e =>
-      e.subject.toLowerCase().includes(q) ||
-      e.from.toLowerCase().includes(q) ||
-      e.snippet.toLowerCase().includes(q) ||
-      (e.textBody && e.textBody.toLowerCase().includes(q))
-    );
-    if (account) {
-      results = results.filter(e => e.account === account);
+    const matchedThreadIds = new Set<string>();
+    for (const e of allEmails) {
+      if (matchesSearch(e, query)) matchedThreadIds.add(e.threadId);
     }
-    results.sort((a, b) => b.createdAt - a.createdAt);
-    return ok(c, { items: results.slice(0, 50) });
+
+    let threads = (await listAll(cursor => EmailThreadEntity.list(c.env, cursor)))
+      .filter(t => matchedThreadIds.has(t.id));
+    if (account) threads = threads.filter(t => t.account === account);
+    threads.sort((a, b) => b.lastEmailAt - a.lastEmailAt);
+    return ok(c, { items: threads.slice(0, 50) });
   });
 
   // ============ DRAFTS API ============

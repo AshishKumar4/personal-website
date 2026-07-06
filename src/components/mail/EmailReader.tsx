@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -270,14 +271,6 @@ export function EmailReader({
   const [composeEmail, setComposeEmail] = useState<Email | null>(null);
   const lastEmail = emails[emails.length - 1];
 
-  if (emails.length === 0) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-muted-foreground">
-        No emails in this thread
-      </div>
-    );
-  }
-
   const handleReply = (email: Email) => {
     setComposeEmail(email);
     setComposeMode('reply');
@@ -292,6 +285,23 @@ export function EmailReader({
     setComposeEmail(email);
     setComposeMode('forward');
   };
+
+  const composeActive = composeMode !== null;
+  const hk = { enabled: !composeActive && emails.length > 0 };
+  useHotkeys('r', () => lastEmail && handleReply(lastEmail), hk, [lastEmail, composeActive]);
+  useHotkeys('a', () => lastEmail && handleReplyAll(lastEmail), hk, [lastEmail, composeActive]);
+  useHotkeys('f', () => lastEmail && handleForward(lastEmail), hk, [lastEmail, composeActive]);
+  useHotkeys('s', () => onToggleStar?.(thread.id, !thread.starred), hk, [thread, composeActive]);
+  useHotkeys('shift+3', () => onDelete?.(thread.id), hk, [thread, composeActive]);
+  useHotkeys('shift+1', () => onSpam?.(thread.id), hk, [thread, composeActive]);
+
+  if (emails.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-muted-foreground">
+        No emails in this thread
+      </div>
+    );
+  }
 
   const handleComposeDiscard = () => {
     setComposeMode(null);

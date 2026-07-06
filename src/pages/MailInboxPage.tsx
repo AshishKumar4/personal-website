@@ -402,7 +402,7 @@ export function MailInboxPage() {
                           clearSearch();
                         }
                       }}
-                      placeholder="Search emails..."
+                      placeholder="Search mail — from: subject: has:attachment is:unread"
                       className="pl-8 pr-8"
                       autoComplete="off"
                     />

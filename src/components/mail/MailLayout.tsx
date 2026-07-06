@@ -6,12 +6,14 @@ import { Toaster } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { MailProvider } from '@/contexts/MailContext';
+import { MailShortcutsDialog } from './MailShortcutsDialog';
 import { useMailHotkeys } from '@/hooks/useMailHotkeys';
 
 export function MailLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const location = useLocation();
-  useMailHotkeys();
+  useMailHotkeys(() => setShortcutsOpen(true));
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -45,6 +47,7 @@ export function MailLayout() {
           <Outlet />
         </div>
         <Toaster position="bottom-right" />
+        <MailShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       </div>
     </MailProvider>
   );
