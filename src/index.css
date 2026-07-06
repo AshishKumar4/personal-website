@@ -164,17 +164,18 @@
     background-color: rgb(var(--color-navy));
   }
   .prose-styles pre code { @apply bg-transparent p-0; color: rgb(var(--color-lightest-slate)); }
-  /* Figures: centered on a light matte so transparent line-art diagrams read in
-     both themes, framed, with a sensible height cap. */
+  /* Figures: rendered at natural size (never upscaled, so low-res sources stay
+     crisp), centered on a light matte so transparent line-art diagrams read in
+     both themes. */
   .prose-styles img {
     display: block;
     margin: 2rem auto;
     max-width: 100%;
-    max-height: 32rem;
     width: auto;
+    height: auto;
     border-radius: 0.5rem;
     background: #ffffff;
-    padding: 0.75rem;
+    padding: 0.5rem;
     border: 1px solid rgb(var(--color-lightest-navy));
     box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
   }
@@ -208,16 +209,17 @@
   /* Notebook rendering (nbviewer-style) */
   .nb-code pre { @apply my-0; }
   .nb-code.prose-styles { font-size: 0.9rem; }
+  /* Output text is capped + scrollable (like Jupyter's scrolled output);
+     code inputs render in full. */
   .nb-output-text {
     background-color: rgb(var(--color-navy));
     border: 1px solid rgb(var(--color-lightest-navy) / 0.6);
     color: rgb(var(--color-slate));
     font-family: theme('fontFamily.mono');
-    max-height: 22rem;
+    max-height: 24rem;
     overflow: auto;
   }
-  /* Cap tall code inputs too, keeping cells compact like Jupyter. */
-  .nb-code pre { max-height: 30rem; overflow: auto; }
+  .nb-code pre { overflow-x: auto; }
   .nb-out-img {
     display: block;
     max-width: 100%;

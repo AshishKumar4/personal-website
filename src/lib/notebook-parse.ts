@@ -122,7 +122,12 @@ export function parseNotebook(input: RawNotebook | string): ParsedNotebook {
       for (const out of cell.outputs ?? []) {
         if (out.output_type === 'stream') {
           const text = stripAnsi(s(out.text)).replace(/\n+$/, '');
-          if (text) outputs.push({ kind: 'stream', text });
+          if (!text) continue;
+          // Merge consecutive stream chunks (e.g. tqdm + per-epoch prints) into
+          // one block so a long training log is a single scrollable output.
+          const last = outputs[outputs.length - 1];
+          if (last && last.kind === 'stream') last.text += '\n' + text;
+          else outputs.push({ kind: 'stream', text });
         } else if (out.output_type === 'execute_result' || out.output_type === 'display_data') {
           const data = out.data ?? {};
           const imageMime = Object.keys(data).find((k) => k.startsWith('image/'));

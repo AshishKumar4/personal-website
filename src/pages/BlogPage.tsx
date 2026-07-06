@@ -56,9 +56,9 @@ export function BlogPage() {
   const rest = featured ? posts.filter((p) => p.slug !== featured.slug) : posts;
 
   return (
-    <PortfolioLayout>
-      <main className="relative z-10 py-24 md:py-32">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <PortfolioLayout variant="reading">
+      <main className="relative z-10 py-24 md:py-28">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -116,7 +116,7 @@ export function BlogPage() {
                       <span className="text-sm font-mono text-primary">Featured Post</span>
                     </div>
                     <Link to={`/blog/${featured.slug}`} className="group block">
-                      <div className="relative p-[1px] rounded-2xl bg-gradient-to-r from-primary via-primary/50 to-transparent group-hover:from-primary group-hover:via-primary group-hover:to-primary/50 transition-all duration-500">
+                      <div className="relative p-[1px] rounded-2xl bg-gradient-to-r from-primary via-primary/50 to-transparent group-hover:from-primary group-hover:via-primary group-hover:to-primary/50 transition-all duration-500 shadow-lg shadow-primary/5">
                         <div className="relative bg-card rounded-2xl p-8 md:p-10">
                           <div className="flex flex-wrap items-center gap-4 mb-4">
                             <span className="px-3 py-1 text-xs font-mono bg-primary/10 text-primary rounded-full inline-flex items-center gap-1.5">
@@ -164,8 +164,7 @@ export function BlogPage() {
                       {rest.map((post) => (
                         <motion.div key={post.slug} variants={itemVariants}>
                           <Link to={`/blog/${post.slug}`} className="group block h-full">
-                            <div className="relative h-full p-[1px] rounded-xl bg-border group-hover:bg-gradient-to-r group-hover:from-primary group-hover:to-primary/50 transition-all duration-300">
-                              <div className="h-full bg-card rounded-xl p-6 group-hover:-translate-y-1 transition-transform duration-300">
+                            <div className="flex flex-col h-full bg-card border border-border rounded-xl p-6 shadow-sm transition-all duration-300 hover:border-primary/60 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1">
                                 <div className="flex items-center gap-3 mb-3">
                                   <span className="px-2 py-0.5 text-xs font-mono bg-primary/10 text-primary rounded inline-flex items-center gap-1">
                                     {post.format === 'notebook' && <BookOpen size={11} />}
@@ -179,22 +178,22 @@ export function BlogPage() {
                                 <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors duration-300 mb-2 line-clamp-2">
                                   {post.title}
                                 </h3>
-                                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                                <p className="text-sm text-muted-foreground mb-4 line-clamp-2 flex-1">
                                   {postExcerpt(post, 140)}
                                 </p>
-                                <div className="flex items-center justify-between mt-auto">
+                                <div className="flex items-center justify-between mt-auto pt-2">
                                   <span className="text-xs font-mono text-muted-foreground">
                                     {new Date(post.createdAt).toLocaleDateString('en-US', {
                                       month: 'short',
                                       day: 'numeric',
+                                      year: 'numeric',
                                     })}
                                   </span>
                                   <ArrowRight
                                     size={16}
-                                    className="text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                                    className="text-primary opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all duration-300"
                                   />
                                 </div>
-                              </div>
                             </div>
                           </Link>
                         </motion.div>

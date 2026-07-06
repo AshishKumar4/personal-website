@@ -119,6 +119,33 @@ describe('parseNotebook', () => {
     expect((out as { text: string }).text).toBe('DEPRECATION installing flax[all]');
   });
 
+  it('merges consecutive stream outputs into one block', () => {
+    const { notebook } = parseNotebook({
+      cells: [{ cell_type: 'code', source: 'train()', outputs: [
+        { output_type: 'stream', name: 'stdout', text: 'Epoch 1\n' },
+        { output_type: 'stream', name: 'stderr', text: 'Epoch 1: 600step\n' },
+        { output_type: 'stream', name: 'stdout', text: 'Epoch 2\n' },
+      ] }],
+    });
+    const cell = notebook.cells[0];
+    if (cell.kind !== 'code') throw new Error('expected code cell');
+    expect(cell.outputs).toHaveLength(1);
+    expect(cell.outputs[0]).toEqual({ kind: 'stream', text: 'Epoch 1\nEpoch 1: 600step\nEpoch 2' });
+  });
+
+  it('does not merge streams across an image output', () => {
+    const { notebook } = parseNotebook({
+      cells: [{ cell_type: 'code', source: 'x', outputs: [
+        { output_type: 'stream', name: 'stdout', text: 'before' },
+        { output_type: 'display_data', data: { 'image/png': 'AAAA' } },
+        { output_type: 'stream', name: 'stdout', text: 'after' },
+      ] }],
+    });
+    const cell = notebook.cells[0];
+    if (cell.kind !== 'code') throw new Error('expected code cell');
+    expect(cell.outputs.map((o) => o.kind)).toEqual(['stream', 'image', 'stream']);
+  });
+
   it('notebookTitle returns the first H1', () => {
     expect(notebookTitle({ cells: [
       { kind: 'markdown', source: 'intro' },
