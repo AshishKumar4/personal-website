@@ -59,13 +59,25 @@ export interface RenderedEmail {
   blockedImageCount: number;
 }
 
-function escapeHtml(s: string): string {
+export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+export function textToHtml(text: string): string {
+  return escapeHtml(text).replace(/\r?\n/g, '<br>');
+}
+
+export function htmlToPlainText(html: string): string {
+  const prepared = html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|blockquote|h[1-6]|tr)>/gi, '$&\n');
+  const doc = new DOMParser().parseFromString(prepared, 'text/html');
+  return (doc.body.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 function isRemoteUrl(url: string): boolean {

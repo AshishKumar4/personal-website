@@ -776,6 +776,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const bcc = formData.get('bcc') as string | null;
     const subject = formData.get('subject') as string;
     const body = formData.get('body') as string;
+    const htmlBody = formData.get('html') as string | null;
     const inReplyTo = formData.get('inReplyTo') as string | null;
     const existingThreadId = formData.get('threadId') as string | null;
     const attachmentFiles = formData.getAll('attachments') as File[];
@@ -825,6 +826,9 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       }
       if (body) {
         msg.addMessage({ contentType: 'text/plain', data: body });
+      }
+      if (htmlBody) {
+        msg.addMessage({ contentType: 'text/html', data: htmlBody });
       }
 
       const attachmentContents: { file: File; content: ArrayBuffer }[] = [];
@@ -930,7 +934,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
         subject,
         snippet: body?.slice(0, 100) || '',
         textBody: body,
-        htmlBody: undefined,
+        htmlBody: htmlBody || undefined,
         rawKey: '',
         attachments,
         labels: ['sent'],

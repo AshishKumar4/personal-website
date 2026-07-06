@@ -5,6 +5,13 @@ import {
   createReplySubject,
   createForwardSubject,
 } from './email-utils';
+import { escapeHtml, textToHtml } from './email-render';
+
+function quotedBodyHtml(email: Email): string {
+  if (email.textBody) return textToHtml(email.textBody);
+  if (email.htmlBody) return email.htmlBody;
+  return '';
+}
 
 export interface ComposeInitialValues {
   fromAccount: string;
@@ -68,11 +75,9 @@ export function getReplyInitialValues(
       .join(', ');
   }
 
-  const senderDisplay = email.fromName || getLocalPart(email.from);
-  const quotedBody = email.textBody
-    ? email.textBody.split('\n').map((line) => `> ${line}`).join('\n')
-    : '';
-  const body = `\n\nOn ${new Date(email.createdAt).toLocaleString()}, ${senderDisplay} wrote:\n${quotedBody}`;
+  const senderDisplay = escapeHtml(email.fromName || getLocalPart(email.from));
+  const attribution = `On ${new Date(email.createdAt).toLocaleString()}, ${senderDisplay} &lt;${escapeHtml(email.from)}&gt; wrote:`;
+  const body = `<p></p><p>${attribution}</p><blockquote>${quotedBodyHtml(email)}</blockquote>`;
 
   return {
     fromAccount,
@@ -94,10 +99,16 @@ export function getForwardInitialValues(
   const fromAccount = resolveFromAddress(addresses, defaultFrom);
 
   const fromDisplay = email.fromName
-    ? `${email.fromName} <${email.from}>`
-    : email.from;
-
-  const body = `\n\n---------- Forwarded message ----------\nFrom: ${fromDisplay}\nDate: ${new Date(email.createdAt).toLocaleString()}\nSubject: ${email.subject}\nTo: ${email.to.join(', ')}\n\n${email.textBody || ''}`;
+    ? `${escapeHtml(email.fromName)} &lt;${escapeHtml(email.from)}&gt;`
+    : escapeHtml(email.from);
+  const header = [
+    '---------- Forwarded message ----------',
+    `From: ${fromDisplay}`,
+    `Date: ${escapeHtml(new Date(email.createdAt).toLocaleString())}`,
+    `Subject: ${escapeHtml(email.subject)}`,
+    `To: ${escapeHtml(email.to.join(', '))}`,
+  ].join('<br>');
+  const body = `<p></p><p>${header}</p><blockquote>${quotedBodyHtml(email)}</blockquote>`;
 
   return {
     fromAccount,

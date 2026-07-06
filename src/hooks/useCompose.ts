@@ -14,6 +14,7 @@ import {
   getForwardInitialValues,
   getDraftInitialValues,
 } from '@/lib/compose-utils';
+import { htmlToPlainText } from '@/lib/email-render';
 
 export type ComposeMode = 'new' | 'reply' | 'replyAll' | 'forward';
 
@@ -148,7 +149,9 @@ export function useCompose({
       if (bcc.trim()) formData.append('bcc', bcc);
 
       formData.append('subject', subject);
-      formData.append('body', body);
+      const plainText = htmlToPlainText(body);
+      formData.append('body', plainText);
+      if (plainText.trim()) formData.append('html', body);
 
       const inReplyTo = replyTo?.messageId ?? draft?.inReplyTo;
       const threadId = replyTo?.threadId ?? draft?.threadId;

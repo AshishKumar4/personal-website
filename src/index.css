@@ -156,6 +156,27 @@
     background-color: rgb(var(--color-navy));
   }
   .prose-styles pre code { @apply bg-transparent p-0; }
+
+  /* Mail compose editor (TipTap) - theme aware, lightweight */
+  .mail-editor {
+    @apply text-sm text-foreground leading-relaxed;
+  }
+  .mail-editor:focus { @apply outline-none; }
+  .mail-editor p { @apply my-1; }
+  .mail-editor a { @apply text-primary underline; }
+  .mail-editor ul { @apply list-disc pl-5 my-1; }
+  .mail-editor ol { @apply list-decimal pl-5 my-1; }
+  .mail-editor blockquote {
+    @apply border-l-2 pl-3 my-1 text-muted-foreground;
+    border-color: hsl(var(--border));
+  }
+  .mail-editor p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    @apply text-muted-foreground;
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
 }
 
 /* Custom scrollbar - Light mode */

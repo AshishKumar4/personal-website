@@ -1,7 +1,5 @@
-import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Paperclip, Trash2, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCompose, type ComposeMode } from '@/hooks/useCompose';
@@ -14,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { AttachmentList } from './AttachmentList';
 import { SendButton } from './SendButton';
+import { ComposeEditor } from './ComposeEditor';
 
 interface InlineComposeProps {
   mode: ComposeMode;
@@ -32,8 +31,6 @@ export function InlineCompose({
   onSend,
   onDiscard,
 }: InlineComposeProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
   const compose = useCompose({
     addresses,
     defaultFromAccount,
@@ -41,10 +38,6 @@ export function InlineCompose({
     mode,
     onSuccess: onSend,
   });
-
-  useEffect(() => {
-    textareaRef.current?.focus();
-  }, []);
 
   const modeLabel = mode === 'reply' ? 'Reply' : mode === 'replyAll' ? 'Reply All' : 'Forward';
 
@@ -141,12 +134,11 @@ export function InlineCompose({
           </div>
         )}
 
-        <Textarea
-          ref={textareaRef}
+        <ComposeEditor
           value={compose.body}
-          onChange={(e) => compose.setBody(e.target.value)}
-          placeholder="Write your message..."
-          className="min-h-[150px] resize-none text-sm"
+          onChange={compose.setBody}
+          autoFocus
+          minHeight="150px"
         />
 
         <AttachmentList
