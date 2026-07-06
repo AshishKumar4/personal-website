@@ -13,8 +13,8 @@ import { getErrorMessage } from '@/lib/error-utils';
 export function MailThreadPage() {
   const { label = 'inbox', feedId, threadId } = useParams();
   const navigate = useNavigate();
-  const { addresses, refreshStats } = useMailContext();
-  const { spamThread, unblockSender } = useThreadActions();
+  const { addresses } = useMailContext();
+  const { updateThread, trashThread, spamThread, unblockSender } = useThreadActions();
   const [thread, setThread] = useState<EmailThread | null>(null);
   const [emails, setEmails] = useState<Email[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,19 +41,17 @@ export function MailThreadPage() {
   }, [threadId, listPath, navigate]);
 
   useEffect(() => {
+    let ignore = false;
     const currentThreadId = threadId;
     const init = async () => {
       const threadRes = await fetchThread();
-      if (currentThreadId && threadRes && !threadRes.thread.read) {
-        await api(API_ENDPOINTS.THREAD(currentThreadId), {
-          method: 'PUT',
-          body: JSON.stringify({ read: true }),
-        });
-        refreshStats();
+      if (!ignore && currentThreadId && threadRes && !threadRes.thread.read) {
+        await updateThread(currentThreadId, { read: true });
       }
     };
     init();
-  }, [fetchThread, threadId, refreshStats]);
+    return () => { ignore = true; };
+  }, [fetchThread, threadId, updateThread]);
 
   const handleEmailSent = useCallback(() => {
     fetchThread(false);
@@ -66,9 +64,8 @@ export function MailThreadPage() {
   const handleDelete = async () => {
     if (!threadId) return;
     try {
-      await api(API_ENDPOINTS.THREAD(threadId), { method: 'DELETE' });
+      await trashThread(threadId);
       toast.success('Moved to trash');
-      refreshStats();
       navigate(listPath);
     } catch (error) {
       console.error('Failed to delete thread:', error);
@@ -77,26 +74,20 @@ export function MailThreadPage() {
   };
 
   const handleToggleStar = async (id: string, starred: boolean) => {
+    setThread((prev) => (prev ? { ...prev, starred } : null));
     try {
-      await api(API_ENDPOINTS.THREAD(id), {
-        method: 'PUT',
-        body: JSON.stringify({ starred }),
-      });
-      setThread((prev) => (prev ? { ...prev, starred } : null));
+      await updateThread(id, { starred });
     } catch (error) {
       console.error('Failed to update thread:', error);
+      setThread((prev) => (prev ? { ...prev, starred: !starred } : null));
       toast.error('Failed to update');
     }
   };
 
   const handleMarkUnread = async (id: string) => {
     try {
-      await api(API_ENDPOINTS.THREAD(id), {
-        method: 'PUT',
-        body: JSON.stringify({ read: false }),
-      });
+      await updateThread(id, { read: false });
       toast.success('Marked as unread');
-      refreshStats();
       navigate(listPath);
     } catch (error) {
       console.error('Failed to mark as unread:', error);
@@ -135,10 +126,7 @@ export function MailThreadPage() {
     const previous = thread;
     setThread({ ...thread, labels: nextLabels });
     try {
-      await api(API_ENDPOINTS.THREAD(thread.id), {
-        method: 'PUT',
-        body: JSON.stringify({ labels: nextLabels }),
-      });
+      await updateThread(thread.id, { labels: nextLabels });
     } catch (error) {
       console.error('Failed to update labels:', error);
       setThread(previous);

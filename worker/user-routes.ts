@@ -426,7 +426,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     }
     const updated = await entity.mutate(a => ({
       ...a,
-      name: name !== undefined && isStr(name) ? name.trim() : a.name,
+      name: name !== undefined && isStr(name) && name.trim() ? name.trim() : a.name,
       note: note !== undefined ? (note.trim() || undefined) : a.note,
       status: status ?? a.status,
     }));
@@ -600,12 +600,9 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const account = c.req.query('account');
     const feedId = c.req.query('feed');
     const label = c.req.query('label') || 'inbox';
-    const cursor = c.req.query('cursor');
-    const limit = Math.min(parseInt(c.req.query('limit') || '50', 10), 100);
     if (account && feedId) return bad(c, 'account and feed are mutually exclusive');
 
-    const page = await EmailThreadEntity.list(c.env, cursor, limit + 50);
-    let threads = page.items;
+    let threads = await listAll(cursor => EmailThreadEntity.list(c.env, cursor));
     if (feedId) {
       const feedEntity = new EmailFeedEntity(c.env, feedId);
       if (!await feedEntity.exists()) return notFound(c, 'Feed not found');
@@ -623,11 +620,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     }
     threads.sort((a, b) => b.lastEmailAt - a.lastEmailAt);
 
-    const hasMore = threads.length > limit;
-    const items = threads.slice(0, limit);
-    const nextCursor = hasMore ? page.next : null;
-
-    return ok(c, { items, nextCursor });
+    return ok(c, { items: threads });
   });
 
   // Get single thread with all emails
@@ -794,7 +787,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     try {
       const messageId = generateMessageId();
       const msg = createMimeMessage();
-      msg.setSender({ addr: from, name: sender.name });
+      msg.setSender({ addr: sender.address, name: sender.name });
       toList.forEach((addr: string) => msg.setRecipient(addr));
       if (cc) {
         const ccAddrs = cc.split(',').map(a => a.trim()).filter(Boolean);
@@ -839,7 +832,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       }
 
       const { EmailMessage } = await import('cloudflare:email');
-      const emailMsg = new EmailMessage(from, toList[0], msg.asRaw());
+      const emailMsg = new EmailMessage(sender.address, toList[0], msg.asRaw());
       await env.EMAIL_SENDER.send(emailMsg);
 
       const account = sender.id;
@@ -894,7 +887,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             snippet: body?.slice(0, 100) || t.snippet,
             emailCount: t.emailCount + 1,
             lastEmailAt: now,
-            participants: [...new Set([...t.participants, from, ...toList])],
+            participants: [...new Set([...t.participants, sender.address, ...toList])],
             labels: [...new Set([...t.labels, 'sent'])],
           }));
         } else {
@@ -902,7 +895,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             id: threadId,
             account,
             subject,
-            participants: [from, ...toList],
+            participants: [sender.address, ...toList],
             snippet: body?.slice(0, 100) || '',
             emailCount: 1,
             lastEmailAt: now,
@@ -919,7 +912,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
         account,
         threadId,
         messageId,
-        from,
+        from: sender.address,
         to: toList,
         cc: ccList,
         bcc: bccList,
@@ -989,7 +982,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const body = await c.req.json() as Partial<EmailDraft> & { id?: string };
     const now = Date.now();
 
-    let account = '';
+    let account = 'me';
     if (body.from) {
       const sender = await getActiveFromAddress(c.env, body.from);
       if (!sender) return bad(c, 'Invalid sender address');

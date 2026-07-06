@@ -22,7 +22,7 @@ export function getDraftInitialValues(
   addresses: EmailAddress[]
 ): ComposeInitialValues {
   return {
-    fromAccount: draft.from || resolveFromAddress(addresses, undefined),
+    fromAccount: resolveFromAddress(addresses, draft.from ? getLocalPart(draft.from) : undefined),
     to: draft.to,
     cc: draft.cc ?? '',
     bcc: draft.bcc ?? '',

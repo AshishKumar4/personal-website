@@ -1,6 +1,7 @@
 import type { Env } from './core-utils';
 import type { EmailAddress } from '@shared/types';
 import { normalizeLocalPart } from '@shared/address-validation';
+import { EMAIL_DOMAIN } from '@shared/types';
 import { EmailAddressEntity } from './entities';
 
 const THROWAWAY_ADJECTIVES = [
@@ -42,7 +43,9 @@ export async function generateThrowawayLocalPart(env: Env): Promise<string> {
 }
 
 export async function resolveAddress(env: Env, toAddress: string): Promise<EmailAddress | null> {
-  const localPart = normalizeLocalPart(toAddress.split('@')[0] ?? '');
+  const [localRaw, domain] = toAddress.split('@');
+  if (domain && domain.trim().toLowerCase() !== EMAIL_DOMAIN) return null;
+  const localPart = normalizeLocalPart(localRaw ?? '');
   if (!localPart) return null;
   await EmailAddressEntity.ensureSeed(env);
   const entity = new EmailAddressEntity(env, localPart);

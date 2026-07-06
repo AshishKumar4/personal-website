@@ -70,6 +70,7 @@ export function ComposeDialog({
           bcc: compose.bcc,
           subject: compose.subject,
           body: compose.body,
+          attachments: draft?.attachments,
           inReplyTo: draft?.inReplyTo,
           threadId: draft?.threadId,
           createdAt: draft?.createdAt,

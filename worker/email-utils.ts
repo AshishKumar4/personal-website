@@ -153,15 +153,19 @@ export async function handleIncomingEmail(
 
   const threadEntity = new EmailThreadEntity(env, threadId);
   if (await threadEntity.exists()) {
-    await threadEntity.mutate(thread => ({
-      ...thread,
-      snippet: email.snippet,
-      emailCount: thread.emailCount + 1,
-      lastEmailAt: email.createdAt,
-      participants: [...new Set([...thread.participants, email.from])],
-      read: false,
-      labels: [...new Set([...thread.labels, ...email.labels])],
-    }));
+    await threadEntity.mutate(thread => {
+      const merged = new Set([...thread.labels, ...email.labels]);
+      if (blocked) merged.delete('inbox');
+      return {
+        ...thread,
+        snippet: email.snippet,
+        emailCount: thread.emailCount + 1,
+        lastEmailAt: email.createdAt,
+        participants: [...new Set([...thread.participants, email.from])],
+        read: false,
+        labels: [...merged],
+      };
+    });
   } else {
     const thread: EmailThread = {
       id: threadId,
