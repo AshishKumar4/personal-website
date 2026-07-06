@@ -288,12 +288,13 @@ export function EmailReader({
 
   const composeActive = composeMode !== null;
   const hk = { enabled: !composeActive && emails.length > 0 };
+  const hkKey = { ...hk, useKey: true };
   useHotkeys('r', () => lastEmail && handleReply(lastEmail), hk, [lastEmail, composeActive]);
   useHotkeys('a', () => lastEmail && handleReplyAll(lastEmail), hk, [lastEmail, composeActive]);
   useHotkeys('f', () => lastEmail && handleForward(lastEmail), hk, [lastEmail, composeActive]);
   useHotkeys('s', () => onToggleStar?.(thread.id, !thread.starred), hk, [thread, composeActive]);
-  useHotkeys('shift+3', () => onDelete?.(thread.id), hk, [thread, composeActive]);
-  useHotkeys('shift+1', () => onSpam?.(thread.id), hk, [thread, composeActive]);
+  useHotkeys('#', () => onDelete?.(thread.id), hkKey, [thread, composeActive]);
+  useHotkeys('!', () => onSpam?.(thread.id), hkKey, [thread, composeActive]);
 
   if (emails.length === 0) {
     return (

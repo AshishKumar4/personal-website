@@ -9,7 +9,7 @@ export function useMailHotkeys(onShowShortcuts: () => void) {
 
   useHotkeys('c', () => navigate(MAIL_ROUTES.COMPOSE), { preventDefault: true });
 
-  useHotkeys('shift+/', onShowShortcuts, { preventDefault: true }, [onShowShortcuts]);
+  useHotkeys('?', onShowShortcuts, { preventDefault: true, useKey: true }, [onShowShortcuts]);
 
   useHotkeys('/', () => {
     document.getElementById('mail-search')?.focus();
