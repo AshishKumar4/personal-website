@@ -424,6 +424,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       description: body.description || '',
       repo: body.repo || '',
       url: body.url || '',
+      ...(body.imageUrl ? { imageUrl: body.imageUrl } : {}),
     };
     const created = await ProjectEntity.create(c.env, newProject);
     return ok(c, created);

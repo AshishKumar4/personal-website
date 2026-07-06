@@ -43,7 +43,7 @@ const ProjectCard = ({ name, description, repo, url, imageUrl, prefersReducedMot
     >
       <Card className="h-full flex flex-col justify-between transition-all duration-300 hover:border-primary/50 hover:shadow-lg overflow-hidden">
         {imageUrl && (
-          <div className="relative aspect-video overflow-hidden">
+          <div className="relative aspect-video overflow-hidden border-b border-border">
             <img
               src={imageUrl}
               alt={name}
