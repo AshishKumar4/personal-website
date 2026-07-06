@@ -557,7 +557,9 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const stats: MailStats = { accounts: {}, labels: {} };
     for (const thread of threads) {
       if (thread.read) continue;
-      stats.accounts[thread.account] = (stats.accounts[thread.account] ?? 0) + 1;
+      if (thread.labels.includes('inbox')) {
+        stats.accounts[thread.account] = (stats.accounts[thread.account] ?? 0) + 1;
+      }
       for (const label of thread.labels) {
         stats.labels[label] = (stats.labels[label] ?? 0) + 1;
       }
