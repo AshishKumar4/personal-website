@@ -6,9 +6,11 @@ export interface ThreadListSync {
   removeThread: (id: string) => void;
 }
 
+const NOOP_SYNC: ThreadListSync = {
+  patchThread: () => {},
+  removeThread: () => {},
+};
+
 export function useThreadListSync(): ThreadListSync {
-  return useOutletContext<ThreadListSync | null>() ?? {
-    patchThread: () => {},
-    removeThread: () => {},
-  };
+  return useOutletContext<ThreadListSync | null>() ?? NOOP_SYNC;
 }

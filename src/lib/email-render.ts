@@ -51,8 +51,7 @@ const QUOTE_SELECTORS = [
 // "On <date>, <sender> wrote:" attribution across common locales.
 const ATTRIBUTION_RE = /^\s*(On\b.*\bwrote:|Le\b.*\ba écrit\s*:|Am\b.*\bschrieb\b.*:|El\b.*\bescribió:|Il\b.*\bha scritto:|.*于.*写道：|.*<[^>]+>\s*wrote:)\s*$/i;
 
-const URL_RE = /\b(https?:\/\/[^\s<>"']+)/gi;
-const EMAIL_RE = /\b([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/gi;
+const LINKIFY_RE = /(https?:\/\/[^\s<>"']+)|([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/gi;
 
 export interface RenderedEmail {
   html: string;
@@ -81,7 +80,7 @@ export function htmlToPlainText(html: string): string {
 }
 
 function isRemoteUrl(url: string): boolean {
-  return /^https?:\/\//i.test(url.trim());
+  return /^(https?:)?\/\//i.test(url.trim());
 }
 
 function resolveCidValue(value: string, email: Email): string | null {
@@ -221,9 +220,11 @@ export function renderEmailHtml(
 }
 
 function linkifyEscaped(escaped: string): string {
-  return escaped
-    .replace(URL_RE, (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`)
-    .replace(EMAIL_RE, (addr) => `<a href="mailto:${addr}">${addr}</a>`);
+  return escaped.replace(LINKIFY_RE, (match, url, email) =>
+    url
+      ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
+      : `<a href="mailto:${email}">${email}</a>`
+  );
 }
 
 export function renderPlainText(text: string): string {
