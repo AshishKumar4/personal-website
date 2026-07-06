@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import { ApiTokensCard } from '@/components/admin/ApiTokensCard';
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z.string().min(6, 'New password must be at least 6 characters'),
@@ -120,6 +121,7 @@ export function AdminSecurityPage() {
           </form>
         </Form>
       </Card>
+      <ApiTokensCard />
     </div>
   );
 }

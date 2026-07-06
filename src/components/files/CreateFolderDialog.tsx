@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getToken } from '@/lib/auth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,7 +34,7 @@ export function CreateFolderDialog({ open, onOpenChange, currentPrefix, onCreate
 
     try {
       const path = currentPrefix + folderName;
-      const token = localStorage.getItem('admin_token');
+      const token = getToken();
       const res = await fetch('/api/files/folder', {
         method: 'POST',
         headers: {

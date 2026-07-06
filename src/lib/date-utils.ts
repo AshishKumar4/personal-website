@@ -12,6 +12,16 @@ export function formatRelativeTime(timestamp: number): string {
   return formatFullDate(timestamp);
 }
 
+export function formatTimeUntil(timestamp: number): string {
+  const diff = timestamp - Date.now();
+  if (diff <= 0) return 'expired';
+  const minutes = Math.round(diff / 60000);
+  if (minutes < 60) return `${minutes}m left`;
+  const hours = Math.round(diff / 3600000);
+  if (hours < 24) return `${hours}h left`;
+  return `${Math.round(diff / 86400000)}d left`;
+}
+
 export function formatFullDate(timestamp: number): string {
   const date = new Date(timestamp);
   return date.toLocaleString([], {
