@@ -10,6 +10,7 @@ import { formatThreadDate } from '@/lib/date-utils';
 import { useMailContext } from '@/contexts/MailContext';
 import { AccountChip } from './AccountChip';
 import { ListSkeleton } from './MailSkeleton';
+import { SwipeActions } from './SwipeActions';
 
 interface ThreadListProps {
   threads: EmailThread[];
@@ -107,8 +108,12 @@ export function ThreadList({
         {threads.map((thread) => {
           const hasHoverActions = Boolean(onArchive || onTrash || onToggleRead || onSpam);
           return (
-            <Link
+            <SwipeActions
               key={thread.id}
+              onArchive={onArchive ? () => onArchive(thread) : undefined}
+              onTrash={onTrash ? () => onTrash(thread) : undefined}
+            >
+            <Link
               to={buildThreadPath(thread.id)}
               className={cn(
                 'group relative flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-muted/50 transition-colors',
@@ -211,6 +216,7 @@ export function ThreadList({
                 </div>
               )}
             </Link>
+            </SwipeActions>
           );
         })}
       </div>
