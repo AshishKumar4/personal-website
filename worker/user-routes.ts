@@ -4,7 +4,7 @@ import { BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEnti
 import { generateApiToken, parseApiToken, isApiTokenString, hashSecret, timingSafeEqualHex } from './api-token';
 import * as twoFactor from './two-factor';
 import { TwoFactorError, type TwoFactorEnv } from './two-factor';
-import type { AuthUser, LoginStep } from '@shared/types';
+import type { AuthUser } from '@shared/types';
 import { ok, bad, notFound, isStr, mergeUnique } from './core-utils';
 import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, ApiTokenPublic, ApiTokenCreated, R2FileItem, MultipartUploadPart } from "@shared/types";
 import { EMAIL_DOMAIN, clampTtlMinutes } from "@shared/types";
@@ -189,7 +189,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       return c.json({ success: false, error: 'Invalid credentials' }, 401);
     }
     await twoFactor.clearFailures(c.env);
-    return ok(c, (await twoFactor.beginAfterPassword(c.env)) as unknown as LoginStep);
+    return ok(c, await twoFactor.beginAfterPassword(c.env));
   });
 
   // ---- 2FA: login second factor (authorized by challengeToken) ----

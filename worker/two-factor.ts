@@ -7,7 +7,7 @@ import {
 import type { RegistrationResponseJSON, AuthenticationResponseJSON } from '@simplewebauthn/server';
 import { isoBase64URL } from '@simplewebauthn/server/helpers';
 import type { Env } from './core-utils';
-import type { AuthUser, StoredTwoFactor, StoredPasskey, PendingAuth, TwoFactorStatus, SessionGrant } from '@shared/types';
+import type { AuthUser, StoredTwoFactor, StoredPasskey, PendingAuth, TwoFactorStatus, SessionGrant, LoginStep } from '@shared/types';
 import { AuthEntity, PendingAuthEntity, generateSessionToken } from './entities';
 import {
   encryptSecret, decryptSecret, newTotp, verifyTotp,
@@ -175,15 +175,15 @@ async function completeFlow(
 
 // ---------- entry points ----------
 
-export async function beginAfterPassword(env: Env): Promise<{ setupToken: string } | { challengeToken: string; methods: ReturnType<typeof methodsFor> }> {
+export async function beginAfterPassword(env: Env): Promise<LoginStep> {
   const admin = await loadAdmin(env);
   const user = await admin.getState();
   if (!isTwoFactorEnabled(user)) {
     const pending = await createPending(env, 'enroll');
-    return { setupToken: pending.id };
+    return { step: 'setup', setupToken: pending.id };
   }
   const pending = await createPending(env, 'login');
-  return { challengeToken: pending.id, methods: methodsFor(user) };
+  return { step: '2fa', challengeToken: pending.id, methods: methodsFor(user) };
 }
 
 async function beginEnrollOrManage(env: Env, setupToken: string | undefined, sessionValid: boolean): Promise<{ entity: PendingAuthEntity; state: PendingAuth }> {
