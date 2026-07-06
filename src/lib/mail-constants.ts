@@ -30,6 +30,7 @@ export const API_ENDPOINTS = {
   THREAD: (id: string) => `/api/mail/threads/${id}`,
   THREAD_SPAM: (id: string) => `/api/mail/threads/${id}/spam`,
   ATTACHMENTS: (emailId: string, attId: string) => `/api/mail/attachments/${emailId}/${attId}`,
+  EMAIL_RAW: (id: string) => `/api/mail/emails/${id}/raw`,
 } as const;
 
 export const MAIL_ROUTES = {

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import type { Email, EmailThread, EmailAddress } from '@shared/types';
 import {
   Reply, ReplyAll, Forward, MoreVertical, Star, Trash2,
-  Paperclip, Download, ArrowLeft, ChevronDown, ChevronRight, ShieldOff,
+  Paperclip, Download, ArrowLeft, ChevronDown, ChevronRight, ShieldOff, ImageOff, FileCode,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -15,14 +15,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import DOMPurify from 'dompurify';
 import { InlineCompose } from './InlineCompose';
 import { AccountChip } from './AccountChip';
 import { LabelMenu } from './LabelMenu';
 import { formatRelativeTime, formatFullDate, formatFileSize } from '@/lib/date-utils';
 import { getInitials } from '@/lib/text-utils';
-import { getSenderName, extractNewContent, extractNewHtmlContent } from '@/lib/email-utils';
-import { DOMPURIFY_CONFIG } from '@/lib/mail-constants';
+import { getSenderName } from '@/lib/email-utils';
+import { renderEmailHtml, renderPlainText, buildEmailSrcDoc } from '@/lib/email-render';
+import { API_ENDPOINTS, MIN_HTML_DISPLAY_LENGTH } from '@/lib/mail-constants';
 
 interface EmailReaderProps {
   thread: EmailThread;
@@ -39,56 +39,24 @@ interface EmailReaderProps {
 
 type ComposeMode = 'reply' | 'replyAll' | 'forward' | null;
 
-// Minimal CSS injected into the iframe so text is readable without clobbering email styles.
-// Deliberately light — only sets defaults that emails commonly omit.
-const IFRAME_BASE_CSS = `
-  html, body {
-    margin: 0;
-    padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
-    color: #1a1a1a;
-    background: transparent;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-  }
-  img { max-width: 100%; height: auto; display: block; }
-  a { color: #1a73e8; }
-  table { border-spacing: 0; }
-  blockquote { border-left: 3px solid #ccc; margin: 8px 0; padding: 4px 12px; color: #555; }
-  pre, code { font-family: 'Fira Code', 'Roboto Mono', monospace; }
-`;
-
-function resolveCidUrls(html: string, email: Email): string {
-  if (!html.includes('cid:')) return html;
-  return html.replace(/src="cid:([^"]+)"/gi, (_, cid) => {
-    const normalizedCid = cid.replace(/^<|>$/g, '');
-    const attachment = email.attachments.find(
-      (a) => a.contentId === normalizedCid || a.contentId === `<${normalizedCid}>`
-    );
-    if (!attachment) return 'src=""';
-    return `src="/api/mail/attachments/${email.id}/${attachment.id}"`;
-  });
-}
-
-function buildIframeSrcdoc(html: string): string {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${IFRAME_BASE_CSS}</style></head><body>${html}</body></html>`;
-}
-
 interface IframeEmailBodyProps {
-  html: string;
+  bodyHtml: string;
+  allowRemoteImages: boolean;
 }
 
-function IframeEmailBody({ html }: IframeEmailBodyProps) {
+function IframeEmailBody({ bodyHtml, allowRemoteImages }: IframeEmailBodyProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const observerRef = useRef<ResizeObserver | null>(null);
   const [height, setHeight] = useState(200);
 
-  const updateHeight = useCallback(() => {
+  const srcDoc = buildEmailSrcDoc(bodyHtml, { allowRemoteImages });
+
+  const measure = useCallback(() => {
     const frame = iframeRef.current;
-    if (!frame?.contentDocument?.body) return;
-    const newHeight = frame.contentDocument.documentElement.scrollHeight;
-    if (newHeight > 0) setHeight(newHeight);
+    const doc = frame?.contentDocument;
+    if (!doc?.body) return;
+    const h = Math.max(doc.documentElement.scrollHeight, doc.body.scrollHeight);
+    if (h > 0) setHeight(h);
   }, []);
 
   useEffect(() => {
@@ -96,36 +64,45 @@ function IframeEmailBody({ html }: IframeEmailBodyProps) {
     if (!frame) return;
 
     const handleLoad = () => {
-      updateHeight();
-      // Watch for any dynamic height changes (images loading, etc.)
-      if (!frame.contentDocument) return;
-      const ro = new ResizeObserver(updateHeight);
-      ro.observe(frame.contentDocument.body);
-      return () => ro.disconnect();
+      measure();
+      const doc = frame.contentDocument;
+      if (!doc) return;
+      observerRef.current?.disconnect();
+      const ro = new ResizeObserver(measure);
+      ro.observe(doc.body);
+      observerRef.current = ro;
+      doc.querySelectorAll('img').forEach((img) => {
+        if (!img.complete) img.addEventListener('load', measure, { once: true });
+      });
     };
 
     frame.addEventListener('load', handleLoad);
-    return () => frame.removeEventListener('load', handleLoad);
-  }, [html, updateHeight]);
+    return () => {
+      frame.removeEventListener('load', handleLoad);
+      observerRef.current?.disconnect();
+      observerRef.current = null;
+    };
+  }, [srcDoc, measure]);
 
   return (
-    <iframe
-      ref={iframeRef}
-      srcDoc={buildIframeSrcdoc(html)}
-      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-      referrerPolicy="no-referrer"
-      title="Email content"
-      className="w-full border-0 block"
-      style={{ height, minHeight: 40 }}
-      scrolling="no"
-    />
+    <div className="w-full overflow-x-auto">
+      <iframe
+        ref={iframeRef}
+        srcDoc={srcDoc}
+        sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+        referrerPolicy="no-referrer"
+        title="Email content"
+        className="w-full border-0 block"
+        style={{ height, minHeight: 40 }}
+        scrolling="no"
+      />
+    </div>
   );
 }
 
 interface EmailMessageProps {
   email: Email;
   isLast: boolean;
-  index: number;
   defaultExpanded: boolean;
   onReply?: () => void;
   onReplyAll?: () => void;
@@ -135,35 +112,26 @@ interface EmailMessageProps {
 function EmailMessage({
   email,
   isLast,
-  index,
   defaultExpanded,
   onReply,
   onReplyAll,
   onForward,
 }: EmailMessageProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [showRemoteImages, setShowRemoteImages] = useState(false);
   const senderName = getSenderName(email);
-  const isReply = Boolean(email.inReplyTo);
 
-  const htmlContent = (() => {
-    if (!email.htmlBody) return null;
-    // Only strip reply-quote boilerplate from actual reply emails
-    const extracted = isReply ? extractNewHtmlContent(email.htmlBody) : email.htmlBody;
-    const withCids = resolveCidUrls(extracted, email);
-    return DOMPurify.sanitize(withCids, {
-      ALLOWED_TAGS: [...DOMPURIFY_CONFIG.ALLOWED_TAGS],
-      ALLOWED_ATTR: [...DOMPURIFY_CONFIG.ALLOWED_ATTR],
-      FORCE_BODY: DOMPURIFY_CONFIG.FORCE_BODY,
-    });
-  })();
+  const rendered = useMemo(() => {
+    if (email.htmlBody) {
+      return renderEmailHtml(email.htmlBody, email, { allowRemoteImages: showRemoteImages });
+    }
+    if (email.textBody) {
+      return { html: renderPlainText(email.textBody), blockedImageCount: 0 };
+    }
+    return { html: '', blockedImageCount: 0 };
+  }, [email, showRemoteImages]);
 
-  const textContent = (() => {
-    if (email.htmlBody) return null;
-    return isReply ? extractNewContent(email.textBody) : (email.textBody || '');
-  })();
-
-  const hasContent = Boolean(htmlContent && htmlContent.trim().length > 10) || Boolean(textContent);
-
+  const hasContent = rendered.html.trim().length > MIN_HTML_DISPLAY_LENGTH;
   const collapsedPreview = email.snippet || (email.textBody?.slice(0, 80) ?? '');
 
   return (
@@ -216,15 +184,20 @@ function EmailMessage({
 
         {/* Body — only rendered when expanded */}
         {expanded && (
-          <div className="px-4 pb-4 pt-1 pl-[64px]">
+          <div className="px-4 pb-4 pt-1">
+            {rendered.blockedImageCount > 0 && !showRemoteImages && (
+              <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm">
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <ImageOff className="h-4 w-4 shrink-0" />
+                  Remote images blocked to protect your privacy
+                </span>
+                <Button variant="outline" size="sm" onClick={() => setShowRemoteImages(true)}>
+                  Show images
+                </Button>
+              </div>
+            )}
             {hasContent ? (
-              htmlContent && htmlContent.trim().length > 10 ? (
-                <IframeEmailBody html={htmlContent} />
-              ) : (
-                <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                  {textContent || '(No content)'}
-                </div>
-              )
+              <IframeEmailBody bodyHtml={rendered.html} allowRemoteImages={showRemoteImages} />
             ) : (
               <div className="text-sm text-muted-foreground italic">(No content)</div>
             )}
@@ -295,6 +268,7 @@ export function EmailReader({
 }: EmailReaderProps) {
   const [composeMode, setComposeMode] = useState<ComposeMode>(null);
   const [composeEmail, setComposeEmail] = useState<Email | null>(null);
+  const lastEmail = emails[emails.length - 1];
 
   if (emails.length === 0) {
     return (
@@ -406,6 +380,18 @@ export function EmailReader({
             <DropdownMenuItem onClick={() => onMarkUnread?.(thread.id)}>
               Mark as unread
             </DropdownMenuItem>
+            {lastEmail && (
+              <DropdownMenuItem asChild>
+                <a
+                  href={API_ENDPOINTS.EMAIL_RAW(lastEmail.id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <FileCode className="h-4 w-4 mr-2" />
+                  View original
+                </a>
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -416,7 +402,6 @@ export function EmailReader({
             key={email.id}
             email={email}
             isLast={index === emails.length - 1}
-            index={index}
             defaultExpanded={index === emails.length - 1}
             onReply={() => handleReply(email)}
             onReplyAll={() => handleReplyAll(email)}

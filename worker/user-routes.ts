@@ -5,7 +5,7 @@ import { ok, bad, notFound, isStr, mergeUnique } from './core-utils';
 import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, R2FileItem, MultipartUploadPart } from "@shared/types";
 import { EMAIL_DOMAIN } from "@shared/types";
 import { getEmailRaw, getAttachment, generateThreadId } from './email-utils';
-import { arrayBufferToBase64, isSafeMessageIdHeader } from './mail-encoding';
+import { arrayBufferToBase64, isSafeMessageIdHeader, contentDispositionHeader } from './mail-encoding';
 import { generateThrowawayLocalPart, getActiveFromAddress } from './address-utils';
 import { normalizeLocalPart, validateLocalPart } from '@shared/address-validation';
 import { createMimeMessage } from 'mimetext';
@@ -718,7 +718,10 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const raw = await getEmailRaw(c.env as ExtendedEnv, state.rawKey);
     if (!raw) return notFound(c, 'Raw email not found');
     return new Response(raw, {
-      headers: { 'Content-Type': 'message/rfc822' },
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'X-Content-Type-Options': 'nosniff',
+      },
     });
   });
 
@@ -747,10 +750,13 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     if (!attachment) return notFound(c, 'Attachment not found');
     const data = await getAttachment(c.env as ExtendedEnv, attachment.r2Key);
     if (!data) return notFound(c, 'Attachment data not found');
+    const disposition = attachment.disposition === 'inline' ? 'inline' : 'attachment';
     return new Response(data.data, {
       headers: {
         'Content-Type': data.contentType,
-        'Content-Disposition': `attachment; filename="${attachment.filename}"`,
+        'Content-Disposition': contentDispositionHeader(disposition, attachment.filename),
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'private, max-age=3600',
       },
     });
   });
@@ -934,7 +940,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       return ok(c, { message: 'Email sent successfully', id: sentEmail.id, threadId });
     } catch (error: any) {
       console.error('Send email error:', error);
-      return bad(c, `Failed to send email: ${error.message}`);
+      return bad(c, 'Failed to send email');
     }
   });
 

@@ -42,6 +42,12 @@ export function isSafeMessageIdHeader(value: string): boolean {
   return /^<[^\s<>]+>$/.test(value.trim());
 }
 
+export function contentDispositionHeader(disposition: 'inline' | 'attachment', filename: string): string {
+  const ascii = filename.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
+  const encoded = encodeURIComponent(filename).replace(/['()*]/g, (ch) => `%${ch.charCodeAt(0).toString(16).toUpperCase()}`);
+  return `${disposition}; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+}
+
 export function normalizeSubject(subject: string): string {
   return subject.replace(/^(re|fwd|fw):\s*/gi, '').toLowerCase().trim();
 }
