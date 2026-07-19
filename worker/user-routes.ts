@@ -1,11 +1,11 @@
 import { Hono } from "hono";
-import type { Env } from './core-utils';
+import type { Env, Entity } from './core-utils';
 import { BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEntity, ContactEntity, EmailEntity, EmailThreadEntity, EmailLabelEntity, EmailDraftEntity, EmailAddressEntity, BlockedSenderEntity, EmailFeedEntity, ApiTokenEntity, hashPasswordPBKDF2, hashPasswordLegacySHA256, generateSalt } from "./entities";
 import { generateApiToken, parseApiToken, isApiTokenString, hashSecret, timingSafeEqualHex } from './api-token';
 import * as twoFactor from './two-factor';
 import { TwoFactorError, type TwoFactorEnv } from './two-factor';
 import type { AuthUser } from '@shared/types';
-import { ok, bad, notFound, isStr, mergeUnique } from './core-utils';
+import { ok, bad, notFound, isStr, mergeUnique, Index } from './core-utils';
 import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, ApiTokenPublic, ApiTokenCreated, R2FileItem, MultipartUploadPart } from "@shared/types";
 import { EMAIL_DOMAIN, clampTtlMinutes } from "@shared/types";
 import { getEmailRaw, getAttachment, generateThreadId } from './email-utils';
@@ -14,6 +14,7 @@ import { generateThrowawayLocalPart, getActiveFromAddress } from './address-util
 import { normalizeLocalPart, validateLocalPart } from '@shared/address-validation';
 import { createMimeMessage } from 'mimetext';
 import { accessMiddleware } from './access-middleware';
+import { withDurableRetry, mapWithConcurrency, DEFAULT_CONCURRENCY } from './durable-batch';
 
 interface ExtendedEnv extends Env {
   IMAGES_BUCKET?: R2Bucket;
@@ -34,19 +35,21 @@ function isOwnDomainAddress(address: string): boolean {
   return address.toLowerCase().endsWith(`@${EMAIL_DOMAIN}`);
 }
 
-async function listAll<T>(page: (cursor?: string | null) => Promise<{ items: T[]; next: string | null }>): Promise<T[]> {
-  const items: T[] = [];
-  let cursor: string | null | undefined;
-  do {
-    const p = await page(cursor);
-    items.push(...p.items);
-    cursor = p.next;
-  } while (cursor);
-  return items;
+interface IndexedEntityClass<S> {
+  new (env: Env, id: string): Entity<S>;
+  readonly indexName: string;
+}
+
+async function listAllEntities<S>(env: Env, EntityClass: IndexedEntityClass<S>): Promise<S[]> {
+  const index = new Index<string>(env, EntityClass.indexName);
+  const ids = await withDurableRetry(() => index.list());
+  return mapWithConcurrency(ids, DEFAULT_CONCURRENCY, (id) =>
+    withDurableRetry(() => new EntityClass(env, id).getState())
+  );
 }
 
 function getAllEmails(env: Env): Promise<Email[]> {
-  return listAll(cursor => EmailEntity.list(env, cursor));
+  return listAllEntities(env, EmailEntity);
 }
 
 interface SearchQuery {
@@ -270,7 +273,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   app.get('/api/admin/api-tokens', sessionAuthMiddleware, async (c) => {
-    const all = await listAll(cursor => ApiTokenEntity.list(c.env, cursor));
+    const all = await listAllEntities(c.env, ApiTokenEntity);
     const now = Date.now();
     const expired = all.filter(t => t.expiresAt <= now);
     if (expired.length > 0) {
@@ -328,9 +331,9 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // BLOG POSTS (Public)
   app.get('/api/posts', async (c) => {
     await BlogEntity.ensureSeed(c.env);
-    const page = await BlogEntity.list(c.env);
-    page.items.sort((a, b) => b.createdAt - a.createdAt);
-    return ok(c, page);
+    const items = await listAllEntities(c.env, BlogEntity);
+    items.sort((a, b) => b.createdAt - a.createdAt);
+    return ok(c, { items, next: null });
   });
   app.get('/api/posts/:slug', async (c) => {
     const slug = c.req.param('slug');
@@ -376,8 +379,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // EXPERIENCE (Public)
   app.get('/api/experiences', async (c) => {
     await ExperienceEntity.ensureSeed(c.env);
-    const page = await ExperienceEntity.list(c.env);
-    return ok(c, page);
+    return ok(c, { items: await listAllEntities(c.env, ExperienceEntity), next: null });
   });
   // EXPERIENCE (Protected Admin Routes)
   app.post('/api/experiences', adminAuthMiddleware, async (c) => {
@@ -412,8 +414,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // PROJECTS (Public)
   app.get('/api/projects', async (c) => {
     await ProjectEntity.ensureSeed(c.env);
-    const page = await ProjectEntity.list(c.env);
-    return ok(c, page);
+    return ok(c, { items: await listAllEntities(c.env, ProjectEntity), next: null });
   });
   // PROJECTS (Protected Admin Routes)
   app.post('/api/projects', adminAuthMiddleware, async (c) => {
@@ -529,9 +530,9 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 
   // CONTACT MESSAGES (Admin only)
   app.get('/api/contacts', adminAuthMiddleware, async (c) => {
-    const page = await ContactEntity.list(c.env);
-    page.items.sort((a, b) => b.createdAt - a.createdAt);
-    return ok(c, page);
+    const items = await listAllEntities(c.env, ContactEntity);
+    items.sort((a, b) => b.createdAt - a.createdAt);
+    return ok(c, { items, next: null });
   });
 
   app.delete('/api/contacts/:id', adminAuthMiddleware, async (c) => {
@@ -544,10 +545,11 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // Protected by Cloudflare Zero Trust Access JWT validation
   app.use('/api/mail/*', accessMiddleware);
 
+
   // Email addresses (dynamic handles)
   app.get('/api/mail/addresses', async (c) => {
     await EmailAddressEntity.ensureSeed(c.env);
-    const items = await listAll(cursor => EmailAddressEntity.list(c.env, cursor));
+    const items = await listAllEntities(c.env, EmailAddressEntity);
     items.sort((a, b) => {
       if ((a.kind === 'primary') !== (b.kind === 'primary')) return a.kind === 'primary' ? -1 : 1;
       return b.createdAt - a.createdAt;
@@ -612,7 +614,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const state = await entity.getState();
     if (state.kind === 'primary') return bad(c, 'Primary addresses cannot be deleted');
     const deleted = await EmailAddressEntity.delete(c.env, id);
-    const feeds = await listAll(cursor => EmailFeedEntity.list(c.env, cursor));
+    const feeds = await listAllEntities(c.env, EmailFeedEntity);
     for (const feed of feeds) {
       if (feed.accountIds.includes(id)) {
         await new EmailFeedEntity(c.env, feed.id).mutate(f => ({
@@ -626,7 +628,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 
   // Blocked senders
   app.get('/api/mail/blocked-senders', async (c) => {
-    const items = await listAll(cursor => BlockedSenderEntity.list(c.env, cursor));
+    const items = await listAllEntities(c.env, BlockedSenderEntity);
     items.sort((a, b) => b.createdAt - a.createdAt);
     return ok(c, { items });
   });
@@ -656,7 +658,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 
   // Feeds (virtual inboxes)
   app.get('/api/mail/feeds', async (c) => {
-    const items = await listAll(cursor => EmailFeedEntity.list(c.env, cursor));
+    const items = await listAllEntities(c.env, EmailFeedEntity);
     items.sort((a, b) => a.createdAt - b.createdAt);
     return ok(c, { items });
   });
@@ -725,7 +727,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 
   // Unread stats for sidebar badges
   app.get('/api/mail/stats', async (c) => {
-    const threads = await listAll(cursor => EmailThreadEntity.list(c.env, cursor));
+    const threads = await listAllEntities(c.env, EmailThreadEntity);
     const stats: MailStats = { accounts: {}, labels: {} };
     for (const thread of threads) {
       if (thread.read) continue;
@@ -742,8 +744,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // Get all labels
   app.get('/api/mail/labels', async (c) => {
     await EmailLabelEntity.ensureSeed(c.env);
-    const page = await EmailLabelEntity.list(c.env);
-    return ok(c, page);
+    return ok(c, { items: await listAllEntities(c.env, EmailLabelEntity), next: null });
   });
 
   // Create custom label
@@ -774,7 +775,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const label = c.req.query('label') || 'inbox';
     if (account && feedId) return bad(c, 'account and feed are mutually exclusive');
 
-    let threads = await listAll(cursor => EmailThreadEntity.list(c.env, cursor));
+    let threads = await listAllEntities(c.env, EmailThreadEntity);
     if (feedId) {
       const feedEntity = new EmailFeedEntity(c.env, feedId);
       if (!await feedEntity.exists()) return notFound(c, 'Feed not found');
@@ -1135,7 +1136,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       if (matchesSearch(e, query)) matchedThreadIds.add(e.threadId);
     }
 
-    let threads = (await listAll(cursor => EmailThreadEntity.list(c.env, cursor)))
+    let threads = (await listAllEntities(c.env, EmailThreadEntity))
       .filter(t => matchedThreadIds.has(t.id));
     if (account) threads = threads.filter(t => t.account === account);
     threads.sort((a, b) => b.lastEmailAt - a.lastEmailAt);
@@ -1147,8 +1148,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // List drafts
   app.get('/api/mail/drafts', async (c) => {
     const account = c.req.query('account');
-    const page = await EmailDraftEntity.list(c.env);
-    let drafts = page.items;
+    let drafts = await listAllEntities(c.env, EmailDraftEntity);
     if (account) {
       drafts = drafts.filter(d => d.account === account);
     }
