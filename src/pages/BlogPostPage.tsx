@@ -1,3 +1,4 @@
+import { PERSONAL_INFO } from '@/components/config/constants';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
@@ -144,7 +145,7 @@ function PostBody() {
             ) : (
               <div className="mx-auto max-w-3xl py-32 text-center">
                 <div className={cn(MONO_LABEL, 'text-foreground/40')}>{failed ? 'Error 404' : 'Empty'}</div>
-                <p className={cn(DISPLAY_TITLE, 'mt-6 text-[clamp(2.4rem,5vw,4rem)] leading-none')}>{failed ? 'Lost in the clouds.' : 'Nothing here.'}</p>
+                <p className={cn(DISPLAY_TITLE, 'mt-6 text-[clamp(2.4rem,5vw,4rem)] leading-none')}>{failed ? 'Could not load this post.' : 'Post not found.'}</p>
                 <p className="mt-6 font-serif text-[1.125rem] italic text-foreground/55">{failed ? 'This note does not exist, or it has moved.' : 'This note is empty.'}</p>
               </div>
             )}
@@ -161,7 +162,7 @@ function PostBody() {
               <div className={cn(isNotebook ? 'w-full max-w-[52rem]' : cn(READING_MEASURE, 'mx-0'))}>
                 {isNotebook ? <NotebookFromJson json={post.content} /> : <MarkdownContent className={POST_PROSE}>{body}</MarkdownContent>}
                 <div className="mt-20 flex items-center justify-between gap-6 border-t border-white/10 pt-8">
-                  <span className={cn(MONO_LABEL, 'text-foreground/35')}>End of note</span>
+                  <span className={cn(MONO_LABEL, 'text-foreground/35')}>{PERSONAL_INFO.name}</span>
                   <Link to="/blog" className={cn(MONO_LABEL, 'group inline-flex items-center gap-2 text-foreground/60 transition-colors hover:text-foreground')}>
                     <ArrowLeft size={13} className="transition-transform group-hover:-translate-x-1" /> All notes
                   </Link>
@@ -173,7 +174,7 @@ function PostBody() {
       </article>
       {post && more.length > 0 && (
         <Container className="mt-28 pb-24 md:mt-36 md:pb-32">
-          <div className={cn(MONO_LABEL, 'mb-4 text-foreground/40')}>Keep reading</div>
+          <div className={cn(MONO_LABEL, 'mb-4 text-foreground/40')}>More writing</div>
           <ol className="border-b border-white/10">
             {more.map((p, i) => <PostRow key={p.slug} post={p} index={i + 1} />)}
           </ol>

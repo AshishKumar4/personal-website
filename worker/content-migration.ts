@@ -8,6 +8,7 @@ export const SEED_PROJECTS: Project[] = [
     repo: "AshishKumar4/kinu",
     url: "https://github.com/AshishKumar4/kinu",
     order: 1,
+    year: "2026-04",
   },
   {
     id: "cloudflare-vibesdk",
@@ -16,6 +17,7 @@ export const SEED_PROJECTS: Project[] = [
     repo: "cloudflare/vibesdk",
     url: "https://github.com/cloudflare/vibesdk",
     order: 2,
+    year: "2025-08",
   },
   {
     id: "dew",
@@ -24,6 +26,7 @@ export const SEED_PROJECTS: Project[] = [
     repo: "AshishKumar4/dew",
     url: "https://github.com/AshishKumar4/dew",
     order: 3,
+    year: "2026-09",
   },
   {
     id: "do86",
@@ -32,6 +35,7 @@ export const SEED_PROJECTS: Project[] = [
     repo: "AshishKumar4/do86",
     url: "https://github.com/AshishKumar4/do86",
     order: 4,
+    year: "2026-03",
   },
   {
     id: "nimbus",
@@ -40,6 +44,7 @@ export const SEED_PROJECTS: Project[] = [
     repo: "AshishKumar4/Nimbus",
     url: "https://github.com/AshishKumar4/Nimbus",
     order: 5,
+    year: "2026-04",
   },
   {
     id: "ashishkumar4-flaxdiff",
@@ -48,6 +53,7 @@ export const SEED_PROJECTS: Project[] = [
     repo: "AshishKumar4/FlaxDiff",
     url: "https://github.com/AshishKumar4/FlaxDiff",
     order: 6,
+    year: "2024-06",
   },
   {
     id: "flydreamer",
@@ -56,6 +62,7 @@ export const SEED_PROJECTS: Project[] = [
     repo: "AshishKumar4/FlyDreamer",
     url: "https://github.com/AshishKumar4/FlyDreamer",
     order: 7,
+    year: "2025-10",
   },
   {
     id: "ashishkumar4-aqeous",
@@ -64,6 +71,7 @@ export const SEED_PROJECTS: Project[] = [
     repo: "AshishKumar4/Aqeous",
     url: "https://github.com/AshishKumar4/Aqeous",
     order: 8,
+    year: "2015-12",
   },
 ];
 
@@ -72,21 +80,24 @@ export interface ProjectsMigrationSpec {
   remove: string[];
   add: Project[];
   order: Record<string, number>;
+  year: Record<string, string>;
 }
 
 const seedById = new Map(SEED_PROJECTS.map((p) => [p.id, p]));
 
 export const PROJECTS_MIGRATION: ProjectsMigrationSpec = {
-  id: "2026-09-projects-v3",
+  id: "2026-09-projects-v4",
   remove: ["mossaic", "ashishkumar4-cf-git"],
   add: ["kinu", "dew"].map((id) => seedById.get(id)!),
   order: Object.fromEntries(SEED_PROJECTS.map((p) => [p.id, p.order!])),
+  year: Object.fromEntries(SEED_PROJECTS.filter((p) => p.year).map((p) => [p.id, p.year!])),
 };
 
 export interface ProjectsMigrationPlan {
   deleteIds: string[];
   add: Project[];
   orders: { id: string; order: number }[];
+  years: { id: string; year: string }[];
 }
 
 export function planProjectsMigration(existing: Project[], spec: ProjectsMigrationSpec): ProjectsMigrationPlan {
@@ -102,7 +113,13 @@ export function planProjectsMigration(existing: Project[], spec: ProjectsMigrati
       const current = byId.get(id);
       return current && typeof current.order !== "number" ? [{ id, order }] : [];
     });
-  return { deleteIds, add, orders };
+  const years = Object.entries(spec.year)
+    .filter(([id]) => !removed.has(id))
+    .flatMap(([id, year]) => {
+      const current = byId.get(id);
+      return current && !current.year ? [{ id, year }] : [];
+    });
+  return { deleteIds, add, orders, years };
 }
 
 export interface MigrationMarker {
@@ -135,6 +152,7 @@ export interface ProjectsMigrationStore {
   deleteProject(id: string): Promise<void>;
   addProjectIfAbsent(project: Project): Promise<void>;
   setOrderIfUnset(id: string, order: number): Promise<void>;
+  setYearIfUnset(id: string, year: string): Promise<void>;
 }
 
 export type MigrationOutcome = "already-done" | "applied" | "busy";
@@ -155,6 +173,7 @@ export async function runProjectsMigration(
   for (const id of plan.deleteIds) await store.deleteProject(id);
   for (const project of plan.add) await store.addProjectIfAbsent(project);
   for (const { id, order } of plan.orders) await store.setOrderIfUnset(id, order);
+  for (const { id, year } of plan.years) await store.setYearIfUnset(id, year);
   await store.updateMarker((current) => finishMarker(current, now()));
   return "applied";
 }

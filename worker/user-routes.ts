@@ -6,10 +6,9 @@ import * as twoFactor from './two-factor';
 import { TwoFactorError, type TwoFactorEnv } from './two-factor';
 import type { AuthUser } from '@shared/types';
 import { ok, bad, notFound, isStr, mergeUnique, Index } from './core-utils';
-import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, ApiTokenPublic, ApiTokenCreated, R2FileItem, MultipartUploadPart, SiteFact, PostSummary, HomePayload, GitHubSnapshot, RepoStats, StoryChapter } from "@shared/types";
+import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, ApiTokenPublic, ApiTokenCreated, R2FileItem, MultipartUploadPart, SiteFact, PostSummary, HomePayload, GitHubSnapshot, RepoStats } from "@shared/types";
 import { runProjectsMigration, PROJECTS_MIGRATION } from './content-migration';
-import { parseStory } from './story';
-import { EMAIL_DOMAIN, clampTtlMinutes, ACCENT_PRESETS, DEFAULT_SITE_EXTRAS } from "@shared/types";
+import { EMAIL_DOMAIN, clampTtlMinutes, ACCENT_PRESETS, DEFAULT_SITE_EXTRAS, SCENE_IDS } from "@shared/types";
 import { postExcerpt, postReadingTime } from '@shared/post-preview';
 import { getEmailRaw, getAttachment, generateThreadId } from './email-utils';
 import { arrayBufferToBase64, isSafeMessageIdHeader, contentDispositionHeader } from './mail-encoding';
@@ -196,6 +195,30 @@ function pickOptionalStrings<K extends keyof SiteConfig>(body: Partial<SiteConfi
     if (typeof value === 'string') (out as Record<string, string>)[key] = value.trim();
   }
   return out;
+}
+
+function storyFields(body: { scene?: unknown; year?: unknown }, withYear: boolean): { scene?: Project['scene']; year?: string } | string {
+  const out: { scene?: Project['scene']; year?: string } = {};
+  if (body.scene !== undefined && body.scene !== null && body.scene !== '') {
+    if (!SCENE_IDS.includes(body.scene as NonNullable<Project['scene']>)) return 'Invalid scene.';
+    out.scene = body.scene as Project['scene'];
+  }
+  if (withYear && body.year !== undefined && body.year !== null && body.year !== '') {
+    if (typeof body.year !== 'string' || !/^\d{4}(-(0[1-9]|1[0-2]))?$/.test(body.year.trim())) return 'year must look like 2024 or 2024-06';
+    out.year = body.year.trim();
+  }
+  return out;
+}
+
+function withStoryFields<T extends { scene?: unknown; year?: unknown }>(state: T, body: { scene?: unknown; year?: unknown }, fields: { scene?: unknown; year?: string }): T {
+  const next = { ...state };
+  if ('scene' in body) {
+    if (fields.scene) next.scene = fields.scene; else delete next.scene;
+  }
+  if ('year' in body) {
+    if (fields.year) next.year = fields.year; else delete next.year;
+  }
+  return next;
 }
 
 let projectsMigrated = false;
@@ -400,15 +423,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     }
     if (body.accent !== undefined && !ACCENT_PRESETS.includes(body.accent)) return bad(c, 'Invalid accent preset.');
     if (body.facts !== undefined && !isFactList(body.facts)) return bad(c, 'facts must be a list of { label, value } strings');
-    let story: StoryChapter[] | undefined;
-    const resetStory = (body as { story?: unknown }).story === null;
-    if (body.story !== undefined && !resetStory) {
-      try {
-        story = parseStory(body.story);
-      } catch (error) {
-        return bad(c, error instanceof Error ? error.message : 'Invalid story.');
-      }
-    }
     const config = new SiteConfigEntity(c.env, "main");
     const current = await config.getState();
     const next: SiteConfig = {
@@ -422,9 +436,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       ...pickOptionalStrings(body, ['heroPrompt', 'portraitUrl', 'now', 'location']),
       ...(body.accent ? { accent: body.accent } : {}),
       ...(body.facts ? { facts: body.facts.map(f => ({ label: f.label.trim(), value: f.value.trim() })).filter(f => f.label && f.value).slice(0, 12) } : {}),
-      ...(story ? { story } : {}),
     };
-    if (resetStory) delete next.story;
     await config.save(next);
     return ok(c, await readSiteConfig(c.env));
   });
@@ -518,6 +530,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // EXPERIENCE (Protected Admin Routes)
   app.post('/api/experiences', adminAuthMiddleware, async (c) => {
     const body = await c.req.json() as Partial<Experience>;
+    const fields = storyFields(body, false);
+    if (typeof fields === 'string') return bad(c, fields);
     const newExperience: Experience = {
       id: crypto.randomUUID(),
       company: body.company || '',
@@ -528,6 +542,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       description: body.description || '',
       skills: body.skills || [],
       ...(typeof body.order === 'number' ? { order: body.order } : {}),
+      ...fields,
     };
     const created = await ExperienceEntity.create(c.env, newExperience);
     return ok(c, created);
@@ -535,9 +550,12 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.put('/api/experiences/:id', adminAuthMiddleware, async (c) => {
     const id = c.req.param('id');
     const body = await c.req.json() as Partial<Experience>;
+    const fields = storyFields(body, false);
+    if (typeof fields === 'string') return bad(c, fields);
     const exp = new ExperienceEntity(c.env, id);
     if (!await exp.exists()) return notFound(c, 'experience not found');
-    const updated = await exp.mutate(s => ({ ...s, ...body, id: s.id }));
+    const { scene: _scene, ...rest } = body;
+    const updated = await exp.mutate(s => withStoryFields({ ...s, ...rest, id: s.id }, body, fields));
     return ok(c, updated);
   });
   app.delete('/api/experiences/:id', adminAuthMiddleware, async (c) => {
@@ -556,6 +574,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // PROJECTS (Protected Admin Routes)
   app.post('/api/projects', adminAuthMiddleware, async (c) => {
     const body = await c.req.json() as Partial<Project>;
+    const fields = storyFields(body, true);
+    if (typeof fields === 'string') return bad(c, fields);
     const newProject: Project = {
       id: body.name?.toLowerCase().replace(/\s+/g, '-') || crypto.randomUUID(),
       name: body.name || '',
@@ -564,6 +584,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       url: body.url || '',
       ...(body.imageUrl ? { imageUrl: body.imageUrl } : {}),
       ...(typeof body.order === 'number' ? { order: body.order } : {}),
+      ...fields,
     };
     const created = await ProjectEntity.create(c.env, newProject);
     return ok(c, created);
@@ -571,10 +592,13 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.put('/api/projects/:id', adminAuthMiddleware, async (c) => {
     const id = c.req.param('id');
     const { order, ...body } = await c.req.json() as Omit<Partial<Project>, 'order'> & { order?: number | null };
+    const fields = storyFields(body, true);
+    if (typeof fields === 'string') return bad(c, fields);
+    const { scene: _scene, year: _year, ...plain } = body;
     const proj = new ProjectEntity(c.env, id);
     if (!await proj.exists()) return notFound(c, 'project not found');
     const updated = await proj.mutate(s => {
-      const { order: currentOrder, ...rest } = { ...s, ...body, id: s.id };
+      const { order: currentOrder, ...rest } = withStoryFields({ ...s, ...plain, id: s.id }, body, fields);
       const nextOrder = order === null ? undefined : typeof order === 'number' && Number.isFinite(order) ? order : currentOrder;
       return nextOrder === undefined ? rest : { ...rest, order: nextOrder };
     });

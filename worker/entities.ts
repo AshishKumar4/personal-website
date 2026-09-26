@@ -112,6 +112,11 @@ export function projectsMigrationStore(env: Env, migrationId: string): ProjectsM
             if (!(await entity.exists())) return;
             await entity.mutate((current) => (current.name && typeof current.order !== "number" ? { ...current, order } : current));
         },
+        setYearIfUnset: async (id, year) => {
+            const entity = new ProjectEntity(env, id);
+            if (!(await entity.exists())) return;
+            await entity.mutate((current) => (current.name && !current.year ? { ...current, year } : current));
+        },
     };
 }
 // AUTH ENTITY

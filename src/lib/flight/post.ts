@@ -65,12 +65,14 @@ uniform sampler2D u_bloom;
 uniform vec2 u_res;
 uniform float u_time;
 uniform float u_bloomAmt;
-uniform float u_boost;
+uniform float u_warp;
 uniform float u_glitch;
 uniform float u_scan;
 uniform float u_grain;
 uniform float u_exposure;
 uniform float u_dpr;
+uniform vec3 u_rays;
+uniform vec3 u_rayColor;
 out vec4 o;
 float hash(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -95,27 +97,40 @@ void main() {
     split = abs(off) * 0.6 + on * 0.0015 * u_glitch;
   }
   vec2 dc = uv - 0.5;
-  float ca = u_boost * 0.012 * dot(dc, dc) * 4.0 + split;
+  float ca = (0.001 + u_warp * 0.012) * dot(dc, dc) * 4.0 + split;
   vec3 col;
   col.r = texture(u_scene, uv - dc * ca * 2.0 - vec2(split, 0.0)).r;
   col.g = texture(u_scene, uv).g;
   col.b = texture(u_scene, uv + dc * ca * 2.0 + vec2(split, 0.0)).b;
   vec3 bl = texture(u_bloom, uv).rgb;
-  if (u_boost > 0.01) {
+  if (u_warp > 0.01) {
     vec3 acc = vec3(0.0);
     float j = hash(gl_FragCoord.xy + u_time);
     for (int i = 0; i < 8; i++) {
       float s = (float(i) + j) / 8.0;
-      vec2 q = uv - dc * s * 0.09 * u_boost;
+      vec2 q = uv - dc * s * 0.09 * u_warp;
       acc += texture(u_scene, q).rgb + texture(u_bloom, q).rgb * u_bloomAmt;
     }
-    float w = u_boost * smoothstep(0.02, 0.35, length(dc));
+    float w = u_warp * smoothstep(0.12, 0.5, length(dc));
     col = mix(col, acc / 8.0 - bl * u_bloomAmt, w * 0.85);
   }
   col += bl * u_bloomAmt;
+  if (u_rays.z > 0.001) {
+    vec2 st = (u_rays.xy - uv) / 28.0;
+    vec2 q = uv + st * hash(gl_FragCoord.xy + u_time);
+    float acc = 0.0;
+    float decay = 1.0;
+    for (int i = 0; i < 28; i++) {
+      acc += max(dot(texture(u_bloom, q).rgb, vec3(0.3, 0.45, 0.25)) - 0.05, 0.0) * decay;
+      decay *= 0.94;
+      q += st;
+    }
+    float fall = 1.0 - smoothstep(0.1, 1.1, length((u_rays.xy - uv) * vec2(u_res.x / u_res.y, 1.0)));
+    col += u_rayColor * acc * u_rays.z * 0.05 * fall;
+  }
   col = tone(col * u_exposure);
   float v = length(dc * vec2(u_res.x / u_res.y, 1.0) * 0.9);
-  col *= mix(1.0, smoothstep(1.05, 0.25, v), 0.55 + u_boost * 0.25);
+  col *= mix(1.0, smoothstep(1.05, 0.25, v), 0.55 + u_warp * 0.25);
   if (u_scan > 0.001) {
     float y = gl_FragCoord.y / max(u_dpr, 1.0);
     col *= 1.0 - u_scan * 0.2 * (0.5 + 0.5 * cos(y * 2.0944));
@@ -136,12 +151,14 @@ interface Target {
 export interface PostUniforms {
   time: number;
   bloom: number;
-  boost: number;
+  warp: number;
   glitch: number;
   scan: number;
   grain: number;
   exposure: number;
   dpr: number;
+  rays: [number, number, number];
+  rayColor: number[];
 }
 
 export class Post {
@@ -157,6 +174,7 @@ export class Post {
   private mips: Target[] = [];
   private internal = 0;
   private samples = 0;
+  private maxSamples = 0;
   w = 0;
   h = 0;
   bloomOn = true;
@@ -170,7 +188,7 @@ export class Post {
     const gl = this.gl;
     const float = !!gl.getExtension('EXT_color_buffer_float');
     this.internal = float ? gl.RGBA16F : gl.RGBA8;
-    this.samples = Math.min(4, gl.getParameter(gl.MAX_SAMPLES) as number);
+    this.maxSamples = Math.min(4, gl.getParameter(gl.MAX_SAMPLES) as number);
     this.prefilter = new Program(gl, FULLSCREEN_VERT, PREFILTER);
     this.down = new Program(gl, FULLSCREEN_VERT, DOWN);
     this.up = new Program(gl, FULLSCREEN_VERT, UP);
@@ -216,6 +234,7 @@ export class Post {
     this.free();
     this.w = w;
     this.h = h;
+    this.samples = Math.min(this.maxSamples, w * h > 2.6e6 ? 2 : 4);
     for (let attempt = 0; attempt < 3; attempt++) {
       this.msColor = gl.createRenderbuffer();
       gl.bindRenderbuffer(gl.RENDERBUFFER, this.msColor);
@@ -296,12 +315,14 @@ export class Post {
       .set('u_res', [this.w, this.h])
       .set('u_time', u.time)
       .set('u_bloomAmt', bloom ? u.bloom : 0)
-      .set('u_boost', u.boost)
+      .set('u_warp', u.warp)
       .set('u_glitch', u.glitch)
       .set('u_scan', u.scan)
       .set('u_grain', u.grain)
       .set('u_exposure', u.exposure)
-      .set('u_dpr', u.dpr);
+      .set('u_dpr', u.dpr)
+      .set('u_rays', bloom ? u.rays : [0, 0, 0])
+      .set('u_rayColor', u.rayColor);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindVertexArray(null);

@@ -23,11 +23,7 @@ function rng(seed: number) {
 const W = 400;
 const H = 250;
 
-export function RidgeArt({ seed, className, hue }: { seed: string; className?: string; hue?: number }) {
-  const h = hue === undefined ? null : Math.round(hue * 360);
-  const sky = h === null ? ['hsl(228 22% 6%)', 'hsl(24 30% 11%)', 'hsl(228 20% 7%)'] : [`hsl(${h} 30% 5%)`, `hsl(${h} 45% 13%)`, `hsl(${h} 25% 6%)`];
-  const ground = h === null ? 'hsl(228 20% 7%)' : `hsl(${h} 22% 5%)`;
-  const stroke = h === null ? 'hsl(222 30% 82%)' : `hsl(${h} 70% 80%)`;
+export function RidgeArt({ seed, className }: { seed: string; className?: string }) {
   const lines = useMemo(() => {
     const rand = rng(hash(seed));
     const peaks = Array.from({ length: 4 }, () => ({ x: 40 + rand() * 320, w: 30 + rand() * 70, h: 30 + rand() * 70 }));
@@ -57,16 +53,16 @@ export function RidgeArt({ seed, className, hue }: { seed: string; className?: s
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
       <defs>
         <linearGradient id={`sky-${seed}`} x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stopColor={sky[0]} />
-          <stop offset="0.35" stopColor={sky[1]} />
-          <stop offset="0.6" stopColor={sky[2]} />
+          <stop offset="0" stopColor="hsl(228 22% 6%)" />
+          <stop offset="0.35" stopColor="hsl(24 30% 11%)" />
+          <stop offset="0.6" stopColor="hsl(228 20% 7%)" />
         </linearGradient>
       </defs>
       <rect width={W} height={H} fill={`url(#sky-${seed})`} />
       {lines.map((l, i) => (
         <g key={i}>
-          <path d={l.fill} fill={ground} />
-          <path d={l.d} fill="none" stroke={stroke} strokeOpacity={l.o} strokeWidth="0.8" />
+          <path d={l.fill} fill="hsl(228 20% 7%)" />
+          <path d={l.d} fill="none" stroke="hsl(222 30% 82%)" strokeOpacity={l.o} strokeWidth="0.8" />
         </g>
       ))}
     </svg>

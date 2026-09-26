@@ -3,20 +3,12 @@ import type { SceneId } from '@shared/types';
 export interface FlightTelemetry {
   scene: SceneId;
   sceneMix: number;
-  altitude: number;
-  speed: number;
-  heading: number;
   distance: number;
-  boost: number;
-  free: boolean;
 }
 
 export interface FlightEvents {
   pulse: { x: number; y: number; strength?: number };
   focus: { hue: number | null; strength?: number };
-  boost: boolean;
-  free: boolean;
-  sound: boolean;
   telemetry: FlightTelemetry;
 }
 

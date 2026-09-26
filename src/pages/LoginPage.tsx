@@ -72,7 +72,7 @@ export function LoginPage() {
             </div>
             <div className={cn(MONO_LABEL, 'mt-12 flex items-center gap-2.5 text-foreground/45')}>
               <span className="h-1.5 w-1.5 rounded-full bg-signal shadow-[0_0_10px_hsl(var(--signal))]" aria-hidden="true" />
-              Restricted airspace
+              Admin
             </div>
             <h1 className={cn(DISPLAY_TITLE, 'mt-4 text-[2.5rem] leading-[1]')}>{header.title}</h1>
             <p className="mt-4 font-serif text-[1.0625rem] italic leading-snug text-foreground/60">{header.desc}</p>

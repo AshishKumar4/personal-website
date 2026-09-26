@@ -62,6 +62,12 @@ class MemoryStore implements ProjectsMigrationStore {
     if (!this.docs.get(p.id)?.name) this.docs.set(p.id, p);
     this.index.add(p.id);
   }
+  async setYearIfUnset(id: string, year: string) {
+    await this.tick();
+    const current = this.docs.get(id);
+    if (!current || current.year) return;
+    this.docs.set(id, { ...current, year });
+  }
   async setOrderIfUnset(id: string, order: number) {
     await this.tick();
     const current = this.docs.get(id);
@@ -100,6 +106,10 @@ describe('planProjectsMigration', () => {
     expect(plan.orders.map((o) => o.id)).not.toContain('kinu');
   });
 
+  test('fills missing years without touching ones the admin set', () => {
+    const plan = planProjectsMigration([project('ashishkumar4-aqeous'), project('do86', { year: '2025-01' })], PROJECTS_MIGRATION);
+    expect(plan.years).toEqual([{ id: 'ashishkumar4-aqeous', year: '2015-12' }]);
+  });
   test('keeps explicit admin ordering', () => {
     const plan = planProjectsMigration([project('do86', { order: 0 }), project('nimbus')], PROJECTS_MIGRATION);
     expect(plan.orders).toEqual([{ id: 'nimbus', order: 5 }]);
@@ -114,7 +124,7 @@ describe('planProjectsMigration', () => {
 
   test('is a no-op once applied', () => {
     const after = SEED_PROJECTS.map((p) => ({ ...p }));
-    expect(planProjectsMigration(after, PROJECTS_MIGRATION)).toEqual({ deleteIds: [], add: [], orders: [] });
+    expect(planProjectsMigration(after, PROJECTS_MIGRATION)).toEqual({ deleteIds: [], add: [], orders: [], years: [] });
   });
 
   test('restores index entries that point at missing documents', () => {

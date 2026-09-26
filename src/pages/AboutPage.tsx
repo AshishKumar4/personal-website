@@ -51,8 +51,8 @@ function Story() {
     <>
       <NightMasthead
         seed="about"
-        meta={['About', PERSONAL_INFO.name, location]}
-        title={<>Built to<br className="hidden sm:block" /> understand.</>}
+        meta={[PERSONAL_INFO.name, location]}
+        title="About"
       />
       <Container className="pb-28 md:pb-40">
         <div className="grid grid-cols-1 gap-y-14 md:grid-cols-12 md:gap-x-8">
@@ -67,7 +67,7 @@ function Story() {
                   }}
                   className="aspect-[4/5] w-full rounded-[3px] object-cover object-[45%_30%] opacity-90 ring-1 ring-white/10 [filter:saturate(0.85)]"
                 />
-                <figcaption className={cn(MONO_LABEL, 'mt-3 text-foreground/35')}>Fig. 1 · The author</figcaption>
+                <figcaption className={cn(MONO_LABEL, 'mt-3 text-foreground/35')}>{PERSONAL_INFO.name}</figcaption>
               </figure>
               {chapters.length > 0 && (
                 <nav className="mt-14 hidden md:block" aria-label="Chapters">
@@ -106,16 +106,16 @@ function Story() {
                 <MarkdownContent className={cn('chapters', CHAPTER_PROSE, LEDE)}>{story}</MarkdownContent>
               )}
               <div className="mt-24 border-t border-white/10 pt-8">
-                <div className={cn(MONO_LABEL, 'text-foreground/35')}>End of the log</div>
+                <div className={cn(MONO_LABEL, 'text-foreground/35')}>More</div>
                 <div className="mt-6 flex flex-wrap gap-x-10 gap-y-4 font-display text-[1.05rem] [font-stretch:112%]">
                   <Link to="/#contact" className="group inline-flex items-center gap-2 text-foreground transition-colors hover:text-signal">
-                    Say hi <ArrowUpRight size={15} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                    Contact <ArrowUpRight size={15} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                   </Link>
                   <Link to="/#work" className="group inline-flex items-center gap-2 text-foreground/55 transition-colors hover:text-foreground">
-                    See the work <ArrowUpRight size={15} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                    Work <ArrowUpRight size={15} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                   </Link>
                   <Link to="/blog" className="group inline-flex items-center gap-2 text-foreground/55 transition-colors hover:text-foreground">
-                    Read the notes <ArrowUpRight size={15} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                    Writing <ArrowUpRight size={15} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                   </Link>
                 </div>
               </div>

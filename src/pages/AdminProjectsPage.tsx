@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { SceneSelect } from '@/components/admin/SceneSelect';
 import { toast } from 'sonner';
 import { PlusCircle, Edit, Trash2, Search, Loader2, ExternalLink } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -98,9 +99,11 @@ export function AdminProjectsPage() {
     const isEditing = !!currentProject.id;
     const url = isEditing ? `/api/projects/${currentProject.id}` : '/api/projects';
     const method = isEditing ? 'PUT' : 'POST';
-    const payload: Partial<Omit<Project, 'order'>> & { order?: number | null } = {
+    const payload: Partial<Omit<Project, 'order' | 'scene'>> & { order?: number | null; scene?: Project['scene'] | null } = {
       ...currentProject,
       imageUrl: currentProject.imageUrl?.trim() || '',
+      year: currentProject.year?.trim() || '',
+      scene: currentProject.scene ?? null,
       order: typeof currentProject.order === 'number' && Number.isFinite(currentProject.order) ? currentProject.order : isEditing ? null : undefined,
     };
     if (!isEditing) {
@@ -299,6 +302,26 @@ export function AdminProjectsPage() {
                   rows={4}
                   placeholder="Describe what this project does..."
                 />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="year" className="text-muted-foreground">
+                    Started (places it on the homepage timeline)
+                  </Label>
+                  <Input
+                    id="year"
+                    value={currentProject.year ?? ''}
+                    onChange={(e) => setCurrentProject({ ...currentProject, year: e.target.value })}
+                    className="bg-background border-border"
+                    placeholder="2024-06"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="scene" className="text-muted-foreground">
+                    Landscape
+                  </Label>
+                  <SceneSelect id="scene" value={currentProject.scene} onChange={(scene) => setCurrentProject({ ...currentProject, scene })} />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="order" className="text-muted-foreground">

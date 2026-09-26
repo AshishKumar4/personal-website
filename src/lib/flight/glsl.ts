@@ -42,9 +42,10 @@ vec3 hash31(float p) {
 `;
 
 export const TERRAIN = `
-uniform float u_amp;
-uniform float u_terrace;
-uniform float u_terraceStep;
+uniform vec3 u_cam;
+uniform vec3 u_shapeA;
+uniform vec3 u_shapeB;
+uniform vec3 u_front;
 uniform vec4 u_rip[4];
 float ridged(vec2 p) {
   float sum = 0.0;
@@ -84,14 +85,25 @@ float terrainBase(vec2 xz) {
   float carve = smoothstep(10.0, 170.0, d);
   return h * mix(0.2, 1.0, carve);
 }
-float terrainH(vec2 xz) {
-  float h = terrainBase(xz) * u_amp;
-  if (u_terrace > 0.001) {
-    float q = h / u_terraceStep;
-    float t = (floor(q) + smoothstep(0.78, 1.0, fract(q))) * u_terraceStep;
-    h = mix(h, t, u_terrace);
+float terrainH(vec2 xz, vec3 s) {
+  float h = terrainBase(xz) * s.x;
+  if (s.y > 0.001) {
+    float q = h / s.z;
+    float t = (floor(q) + smoothstep(0.78, 1.0, fract(q))) * s.z;
+    h = mix(h, t, s.y);
   }
   return h;
+}
+float sweepAt(vec2 xz) {
+  float d = length(xz - u_cam.xz);
+  return smoothstep(u_front.x - u_front.y, u_front.x + u_front.y, d);
+}
+vec3 shapeAt(vec2 xz) {
+  return mix(u_shapeA, u_shapeB, sweepAt(xz));
+}
+float seamAt(vec2 xz) {
+  float x = (length(xz - u_cam.xz) - u_front.x) / 30.0;
+  return exp(-x * x) * u_front.z;
 }
 vec2 ripple(vec2 xz) {
   vec2 r = vec2(0.0);
@@ -106,5 +118,8 @@ vec2 ripple(vec2 xz) {
     r.y += g * life;
   }
   return r;
+}
+float groundH(vec2 p) {
+  return terrainH(p, shapeAt(p)) + ripple(p).x * 13.0 + seamAt(p) * 9.0;
 }
 `;

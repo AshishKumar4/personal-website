@@ -94,12 +94,12 @@ export function terrainHeight(x: number, z: number, s: TerrainShape): number {
   return h;
 }
 
-export function raycast(o: number[], d: number[], s: TerrainShape, maxT: number): [number, number, number] | null {
+export function raycast(o: number[], d: number[], height: (x: number, z: number) => number, maxT: number): [number, number, number] | null {
   let t = 2;
   let prev = 0;
   for (let i = 0; i < 110 && t < maxT; i++) {
     const y = o[1] + d[1] * t;
-    const h = terrainHeight(o[0] + d[0] * t, o[2] + d[2] * t, s);
+    const h = height(o[0] + d[0] * t, o[2] + d[2] * t);
     const gap = y - h;
     if (gap < 0) {
       let lo = prev;
@@ -107,7 +107,7 @@ export function raycast(o: number[], d: number[], s: TerrainShape, maxT: number)
       for (let k = 0; k < 7; k++) {
         const mid = (lo + hi) / 2;
         const my = o[1] + d[1] * mid;
-        if (my < terrainHeight(o[0] + d[0] * mid, o[2] + d[2] * mid, s)) hi = mid;
+        if (my < height(o[0] + d[0] * mid, o[2] + d[2] * mid)) hi = mid;
         else lo = mid;
       }
       return [o[0] + d[0] * hi, o[1] + d[1] * hi, o[2] + d[2] * hi];

@@ -5,17 +5,16 @@ import type { Frame } from './frame';
 const HEAD = `#version 300 es
 precision highp float;
 uniform mat4 u_viewProj;
-uniform vec3 u_cam;
 uniform float u_time;
 uniform float u_far;
 uniform float u_fog;
 uniform float u_pxScale;
-uniform float u_amount;
+uniform vec2 u_amount;
 uniform float u_minPx;
 ${NOISE}
 ${TERRAIN}
-float groundH(vec2 p) {
-  return terrainH(p) + ripple(p).x * 13.0;
+float amountAt(vec2 p) {
+  return mix(u_amount.x, u_amount.y, sweepAt(p));
 }
 float sprite(float a, float core, inout float energy) {
   float s = max(core * 2.2, u_minPx);
@@ -35,7 +34,8 @@ uniform vec4 u_cursor;
 uniform float u_box;
 out float v_a;
 out vec3 v_col;
-uniform vec3 u_color;
+uniform vec3 u_colorA;
+uniform vec3 u_colorB;
 void main() {
   float id = float(gl_VertexID);
   vec3 r = hash31(id * 1.618 + 0.5);
@@ -53,14 +53,14 @@ void main() {
   vec2 orbit = u_cursor.xy + vec2(cos(ang), sin(ang)) * (10.0 + r2.z * 55.0);
   p = mix(p, orbit, pull * 0.82);
   vec2 rp = ripple(p);
-  float y = terrainH(p) + rp.x * 13.0 + 6.0 + r.z * r.z * 48.0 + sin(u_time * (0.6 + r.x) + id) * 3.0;
+  float y = groundH(p) + 6.0 + r.z * r.z * 48.0 + sin(u_time * (0.6 + r.x) + id) * 3.0;
   y = mix(y, max(y, u_cursor.z + 8.0 + r2.z * 34.0), pull * 0.7);
   vec3 w = vec3(p.x, y, p.y);
   gl_Position = u_viewProj * vec4(w, 1.0);
   float blink = 0.25 + 0.75 * pow(0.5 + 0.5 * sin(u_time * (0.8 + r2.x * 2.2) + r2.y * 40.0), 3.0);
-  float a = fogA(w) * (1.0 - smoothstep(0.82, 1.0, edge)) * u_amount;
+  float a = fogA(w) * (1.0 - smoothstep(0.82, 1.0, edge)) * amountAt(p);
   v_a = a * blink * (1.0 + pull * 0.8 + rp.y * 2.0);
-  v_col = mix(u_color, vec3(1.0, 0.72, 0.36), step(0.86, r2.x));
+  v_col = mix(mix(u_colorA, u_colorB, sweepAt(p)), vec3(1.0, 0.72, 0.36), step(0.86, r2.x));
   gl_PointSize = sprite(a, u_pxScale * (0.7 + r.x * 0.8) / gl_Position.w, v_a);
 }`;
 
@@ -78,17 +78,19 @@ void main() {
 
 const CITY_CELL = 64;
 const CITY_N = 26;
-const CITY_LIGHTS = 7;
-const ARC_N = 18;
-const ARC_SEG = 14;
+const CITY_LIGHTS = 12;
+const ARC_N = 14;
+const ARC_SEG = 12;
 
 const CITY_COMMON = `
 const float CELL = ${CITY_CELL}.0;
 vec3 city(vec2 g) {
   float ex = step(0.52, hash12(g + 0.37));
   vec2 c = (g + 0.2 + hash22(g) * 0.6) * CELL;
-  float h = terrainH(c);
-  ex *= 1.0 - smoothstep(40.0, 90.0, h);
+  vec3 s = shapeAt(c);
+  float h = terrainH(c, s);
+  float around = (terrainH(c + vec2(55.0, 0.0), s) + terrainH(c - vec2(55.0, 0.0), s)) * 0.5;
+  ex *= max(1.0 - smoothstep(50.0, 90.0, h), smoothstep(2.0, 14.0, around - h));
   return vec3(c, ex);
 }
 `;
@@ -103,14 +105,14 @@ void main() {
   float li = mod(id, ${CITY_LIGHTS}.0);
   vec2 g = vec2(mod(ci, ${CITY_N}.0), floor(ci / ${CITY_N}.0)) - ${CITY_N / 2}.0 + floor(u_cam.xz / CELL);
   vec3 c = city(g);
-  vec2 o = (hash22(g * 1.7 + li * 3.1) - 0.5) * (li < 0.5 ? 2.0 : 26.0);
+  vec2 o = (hash22(g * 1.7 + li * 3.1) - 0.5) * (li < 0.5 ? 2.0 : 10.0 + li * 2.4);
   vec2 p = c.xy + o;
-  vec3 w = vec3(p.x, groundH(p) + 1.2, p.y);
+  vec3 w = vec3(p.x, groundH(p) + 3.0, p.y);
   gl_Position = u_viewProj * vec4(w, 1.0);
   float hs = hash12(g + li * 5.3);
   float tw = 0.75 + 0.25 * sin(u_time * (1.0 + hs * 3.0) + hs * 30.0);
-  float a = c.z * fogA(w) * u_amount;
-  v_a = a * tw * (li < 0.5 ? 1.8 : 0.9);
+  float a = c.z * fogA(w) * amountAt(p);
+  v_a = a * tw * (li < 0.5 ? 3.0 : 1.5);
   v_col = mix(vec3(1.0, 0.8, 0.52), vec3(0.62, 0.9, 1.0), step(0.6, hs));
   gl_PointSize = sprite(a, u_pxScale * (li < 0.5 ? 1.3 : 0.7) / gl_Position.w, v_a);
 }`;
@@ -131,14 +133,14 @@ void main() {
   vec2 n = g + (mod(ai, 2.0) < 0.5 ? vec2(1.0, 0.0) : vec2(1.0, -1.0));
   vec3 a = city(g);
   vec3 b = city(n);
-  float on = a.z * b.z * step(0.35, hash12(g * 2.3 + n));
+  float on = a.z * b.z * step(0.3, hash12(g * 2.3 + n));
   vec2 p = mix(a.xy, b.xy, t);
   float len = distance(a.xy, b.xy);
   float ha = groundH(a.xy);
   float hb = groundH(b.xy);
   vec3 w = vec3(p.x, mix(ha, hb, t) + sin(t * 3.14159) * len * 0.32 + 1.5, p.y);
   gl_Position = on < 0.5 ? vec4(2.0, 2.0, 2.0, 1.0) : u_viewProj * vec4(w, 1.0);
-  v_a = on * fogA(w) * u_amount;
+  v_a = on * fogA(w) * amountAt(p);
   v_t = t;
   v_seed = hash12(g + n * 3.0);
 }`;
@@ -152,8 +154,8 @@ uniform float u_time;
 out vec4 o;
 void main() {
   float s = fract(v_t * 0.5 - u_time * (0.12 + v_seed * 0.2) + v_seed * 7.0);
-  float pulse = smoothstep(0.93, 1.0, s) * 2.5;
-  vec3 c = vec3(0.45, 0.85, 1.0) * (0.14 + pulse);
+  float pulse = pow(s, 12.0) * 2.4 + smoothstep(0.97, 1.0, s) * 3.0;
+  vec3 c = vec3(0.45, 0.85, 1.0) * (0.2 + pulse);
   o = vec4(c * v_a, 1.0);
 }`;
 
@@ -175,7 +177,7 @@ export class Particles {
     this.vao = gl.createVertexArray()!;
   }
 
-  private common(prog: Program, f: Frame, amount: number) {
+  private common(prog: Program, f: Frame, amount: number[]) {
     prog.use()
       .set('u_viewProj', f.viewProj)
       .set('u_cam', f.cam)
@@ -185,30 +187,32 @@ export class Particles {
       .set('u_pxScale', f.pxScale)
       .set('u_amount', amount)
       .set('u_minPx', 3.2 * f.dprScale)
-      .set('u_amp', f.p.amp)
-      .set('u_terrace', f.p.terrace)
-      .set('u_terraceStep', f.p.terraceStep)
+      .set('u_shapeA', [f.a.amp, f.a.terrace, f.a.terraceStep])
+      .set('u_shapeB', [f.b.amp, f.b.terrace, f.b.terraceStep])
+      .set('u_front', f.front)
       .set('u_rip', f.ripples);
   }
 
   render(f: Frame, cursor: [number, number, number, number]) {
     const gl = this.gl;
-    const p = f.p;
-    if (p.cities < 0.01 && p.fireflies < 0.01) return;
+    const { a, b } = f;
+    const cities = [a.cities, b.cities];
+    const flies = [a.fireflies, b.fireflies];
+    if (Math.max(...cities, ...flies) < 0.01) return;
     gl.enable(gl.DEPTH_TEST);
     gl.depthMask(false);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE);
     gl.bindVertexArray(this.vao);
-    if (p.cities > 0.01) {
-      this.common(this.arcs, f, p.cities);
+    if (Math.max(...cities) > 0.01) {
+      this.common(this.arcs, f, cities);
       gl.drawArrays(gl.LINES, 0, ARC_N * ARC_N * 2 * ARC_SEG * 2);
-      this.common(this.cities, f, p.cities);
+      this.common(this.cities, f, cities);
       gl.drawArrays(gl.POINTS, 0, CITY_N * CITY_N * CITY_LIGHTS);
     }
-    if (p.fireflies > 0.01) {
-      this.common(this.flies, f, p.fireflies);
-      this.flies.set('u_fwd', f.fwd).set('u_cursor', cursor).set('u_box', 560).set('u_color', p.particle);
+    if (Math.max(...flies) > 0.01) {
+      this.common(this.flies, f, flies);
+      this.flies.set('u_fwd', f.fwd).set('u_cursor', cursor).set('u_box', 560).set('u_colorA', a.particle).set('u_colorB', b.particle);
       gl.drawArrays(gl.POINTS, 0, this.count);
     }
     gl.bindVertexArray(null);

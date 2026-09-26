@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { SceneSelect } from '@/components/admin/SceneSelect';
 import { toast } from 'sonner';
 import { PlusCircle, Edit, Trash2, Search, Loader2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -86,7 +87,7 @@ export function AdminExperiencePage() {
     const isEditing = !!currentExperience.id;
     const url = isEditing ? `/api/experiences/${currentExperience.id}` : '/api/experiences';
     const method = isEditing ? 'PUT' : 'POST';
-    const payload = { ...currentExperience };
+    const payload = { ...currentExperience, scene: currentExperience.scene ?? null };
     if (typeof payload.skills === 'string') {
       payload.skills = (payload.skills as string).split(',').map(s => s.trim()).filter(Boolean);
     }
@@ -306,6 +307,12 @@ export function AdminExperiencePage() {
                   className="bg-background border-border"
                   placeholder="React, TypeScript, Node.js"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="scene" className="text-muted-foreground">
+                  Landscape
+                </Label>
+                <SceneSelect id="scene" value={currentExperience.scene} onChange={(scene) => setCurrentExperience({ ...currentExperience, scene })} />
               </div>
               <DialogFooter className="pt-4 border-t border-border">
                 <DialogClose asChild>

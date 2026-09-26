@@ -1,32 +1,37 @@
 import { useEffect, type RefObject } from 'react';
+import { scrollToHash } from '@/lib/site-events';
 
-export type RegionKind = 'hero' | 'chapter' | 'section' | 'end';
+export type RegionKind = 'hero' | 'reveal' | 'node' | 'section';
 
-interface Region {
-  el: HTMLElement;
+export interface RegionMeta {
   kind: RegionKind;
-  label: string;
-  pinnable: boolean;
-  pinned: boolean;
+  id?: string;
+  label?: string;
+  year?: number | null;
+  scene?: string;
+  anchor?: 'top' | 'bottom';
+  span?: number;
+}
+
+interface Region extends RegionMeta {
+  el: HTMLElement;
   top: number;
   height: number;
   p: number;
-  live: boolean;
-  liveEl: HTMLElement | null;
-  liveTop: number;
-  onLive?: () => void;
 }
 
 export interface StageState {
   y: number;
   vh: number;
-  kind: RegionKind | null;
-  label: string;
-  chapter: number;
-  chapterP: number;
-  chapters: number;
   heroP: number;
-  endP: number;
+  node: number;
+  nodes: number;
+  label: string;
+  scene: string;
+  year: number | null;
+  nodeYear: number | null;
+  inTimeline: boolean;
+  progress: number;
 }
 
 type StageListener = (state: StageState) => void;
@@ -37,102 +42,79 @@ let raf = 0;
 let vh = 0;
 let bound = false;
 let ro: ResizeObserver | null = null;
-let io: IntersectionObserver | null = null;
 let last: StageState | null = null;
 
 function reducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-function canPin() {
-  return !reducedMotion() && window.matchMedia('(min-width: 768px) and (min-height: 620px)').matches;
-}
-
-function absTop(el: HTMLElement) {
-  return el.getBoundingClientRect().top + window.scrollY;
-}
-
 function measure() {
   vh = window.innerHeight;
-  const pin = canPin();
+  const y = window.scrollY;
   for (const r of regions) {
-    r.pinned = r.pinnable && pin;
-    const mode = r.pinned ? 'pin' : 'flow';
-    if (r.el.dataset.mode !== mode) r.el.dataset.mode = mode;
-  }
-  for (const r of regions) {
-    r.top = absTop(r.el);
+    r.top = r.el.getBoundingClientRect().top + y;
     r.height = r.el.offsetHeight;
-    r.liveTop = r.liveEl ? absTop(r.liveEl) : r.top;
   }
   regions.sort((a, b) => a.top - b.top);
-  observeReveals();
-}
-
-function observeReveals() {
-  if (!io) {
-    io = new IntersectionObserver(
-      entries => {
-        for (const e of entries) {
-          if (e.isIntersecting) {
-            e.target.classList.add('is-in');
-            io?.unobserve(e.target);
-          }
-        }
-      },
-      { rootMargin: '0px 0px -10% 0px', threshold: 0.05 },
-    );
-  }
-  for (const r of regions) {
-    if (r.pinned) continue;
-    r.el.querySelectorAll<HTMLElement>('[data-reveal]:not(.is-in)').forEach(n => io?.observe(n));
-  }
 }
 
 function update() {
   raf = 0;
   const y = window.scrollY;
   const center = y + vh * 0.5;
-  let active: Region | null = null;
-  const chapters = regions.filter(r => r.kind === 'chapter');
+  let heroP = 1;
+  const nodes: Region[] = [];
+  let firstSection: Region | null = null;
   for (const r of regions) {
+    if (r.kind === 'node') nodes.push(r);
+    if (r.kind === 'section' && !firstSection) firstSection = r;
+    if (r.kind !== 'hero' && r.kind !== 'reveal') continue;
     let p: number;
-    if (r.kind === 'hero') p = (y - r.top) / Math.max(1, r.height);
-    else if (r.pinned) p = (y - r.top) / Math.max(1, r.height - vh);
-    else p = -0.3 + ((vh * 0.85 - (r.top - y)) / (vh * 0.6)) * 0.8;
-    p = Math.max(-1.2, Math.min(2, p));
+    if (r.kind === 'hero') {
+      p = (y - r.top) / Math.max(1, r.height);
+      heroP = Math.max(0, Math.min(1, p));
+    } else {
+      const edge = (r.anchor === 'top' ? r.top : r.top + r.height) - y;
+      p = (vh - edge) / (vh * (r.span ?? 0.35));
+    }
+    p = Math.max(-1, Math.min(2, p));
     if (Math.abs(p - r.p) > 0.0004) {
       r.p = p;
       r.el.style.setProperty('--p', p.toFixed(4));
     }
-    if (!r.live) {
-      const hit = r.pinned ? p > 0.06 : r.liveTop - y < vh * 0.88;
-      if (hit) {
-        r.live = true;
-        r.el.dataset.live = '1';
-        r.onLive?.();
-      }
-    }
-    if (center >= r.top && center < r.top + r.height) active = r;
   }
-  const hero = regions.find(r => r.kind === 'hero');
-  const end = regions.find(r => r.kind === 'end');
-  const ci = active ? chapters.indexOf(active) : -1;
-  let chapter = ci;
-  if (ci < 0) {
-    chapter = -1;
-    for (let i = 0; i < chapters.length; i++) if (chapters[i].top <= center) chapter = i;
+  let node = -1;
+  for (let i = 0; i < nodes.length; i++) if (nodes[i].top <= center) node = i;
+  const cur = nodes[node];
+  const nodeP = cur ? Math.max(0, Math.min(1, (center - cur.top) / Math.max(1, cur.height))) : 0;
+  let year: number | null = null;
+  let nodeYear: number | null = null;
+  if (cur) {
+    let from: number | null = null;
+    for (let i = node; i >= 0 && from === null; i--) from = nodes[i].year ?? null;
+    let to: number | null = null;
+    for (let i = node + 1; i < nodes.length && to === null; i++) to = nodes[i].year ?? null;
+    year = from === null ? to : cur.year != null && to !== null ? from + (to - from) * nodeP : from;
+    nodeYear = cur.year ?? from;
+  } else if (nodes.length) {
+    year = nodes.find(n => n.year != null)?.year ?? null;
   }
+  const endTop = firstSection ? firstSection.top : Infinity;
+  const startTop = nodes[0]?.top ?? Infinity;
+  const inTimeline = center >= startTop - vh * 0.2 && center < endTop;
+  const span = Math.max(1, endTop === Infinity ? 1 : endTop - startTop);
   const state: StageState = {
     y,
     vh,
-    kind: active?.kind ?? null,
-    label: active?.label ?? '',
-    chapter,
-    chapterP: ci >= 0 ? Math.max(0, Math.min(1, (center - active!.top) / active!.height)) : chapter >= 0 ? 1 : 0,
-    chapters: chapters.length,
-    heroP: hero ? Math.max(0, Math.min(1, (y - hero.top) / Math.max(1, hero.height))) : 1,
-    endP: end ? Math.max(0, Math.min(1, (y + vh - end.top) / vh)) : 0,
+    heroP,
+    node,
+    nodes: nodes.length,
+    label: cur?.label ?? '',
+    scene: cur?.scene ?? 'night',
+    year,
+    nodeYear,
+    inTimeline,
+    progress: Math.max(0, Math.min(1, (center - startTop) / span)),
   };
   last = state;
   listeners.forEach(fn => fn(state));
@@ -163,47 +145,26 @@ function unbind() {
   window.removeEventListener('resize', remeasure);
   ro?.disconnect();
   ro = null;
-  io?.disconnect();
-  io = null;
   if (raf) cancelAnimationFrame(raf);
   raf = 0;
+  last = null;
 }
 
-interface RegionOptions {
-  kind: RegionKind;
-  label: string;
-  pin?: boolean;
-  onLive?: () => void;
-}
-
-export function useStageRegion(ref: RefObject<HTMLElement>, { kind, label, pin = false, onLive }: RegionOptions) {
+export function useStageRegion(ref: RefObject<HTMLElement>, meta: RegionMeta) {
+  const { kind, id, label, year, scene, anchor, span } = meta;
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const region: Region = {
-      el,
-      kind,
-      label,
-      pinnable: pin,
-      pinned: false,
-      top: 0,
-      height: 0,
-      p: -9,
-      live: false,
-      liveEl: el.querySelector<HTMLElement>('[data-anchor]'),
-      liveTop: 0,
-      onLive,
-    };
+    const region: Region = { el, kind, id, label, year, scene, anchor, span, top: 0, height: 0, p: -9 };
     regions.push(region);
     bind();
     remeasure();
     return () => {
       const i = regions.indexOf(region);
       if (i >= 0) regions.splice(i, 1);
-      delete el.dataset.mode;
       unbind();
     };
-  }, [ref, kind, label, pin, onLive]);
+  }, [ref, kind, id, label, year, scene, anchor, span]);
 }
 
 export function onStage(fn: StageListener): () => void {
@@ -215,9 +176,24 @@ export function onStage(fn: StageListener): () => void {
   };
 }
 
-export function scrollToChapter(index: number) {
-  const r = regions.filter(x => x.kind === 'chapter')[index];
-  if (!r) return;
-  const top = r.pinned ? r.top + (r.height - vh) * 0.3 : r.top - vh * 0.08;
-  window.scrollTo({ top, behavior: reducedMotion() ? 'auto' : 'smooth' });
+function go(top: number) {
+  window.scrollTo({ top: Math.max(0, top), behavior: reducedMotion() ? 'auto' : 'smooth' });
+}
+
+export function scrollToSection(id: string) {
+  if (id === 'timeline') id = regions.find(r => r.kind === 'node')?.id ?? id;
+  const title = regions.find(r => r.kind === 'reveal' && r.id === id);
+  if (title) {
+    go(title.top + title.height - vh * 0.62);
+    return;
+  }
+  scrollToHash(id);
+}
+
+export function scrollToYear(year: number) {
+  const nodes = regions.filter(r => r.kind === 'node');
+  const target = nodes.find(n => n.year != null && Math.floor(n.year) >= year) ?? nodes[nodes.length - 1];
+  if (!target) return;
+  const title = regions.find(r => r.kind === 'reveal' && r.id === target.id);
+  go(title ? title.top + title.height - vh * 0.62 : target.top);
 }

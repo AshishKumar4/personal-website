@@ -46,9 +46,8 @@ function BlogIndex() {
     <>
       <NightMasthead
         seed="notes"
-        meta={['Writing', count > 0 ? `${count} ${count === 1 ? 'note' : 'notes'}` : null]}
-        title="Notes"
-        lede="On machine learning, systems, and building things from first principles."
+        meta={[count > 0 ? `${count} ${count === 1 ? 'post' : 'posts'}` : null]}
+        title="Writing"
       />
       <Container className="pb-28 md:pb-40">
         {loading && posts.length === 0 ? (
@@ -57,7 +56,7 @@ function BlogIndex() {
             <Skeleton className="h-24 w-full bg-white/5" />
           </div>
         ) : posts.length === 0 ? (
-          <p className="border-t border-white/10 py-16 font-serif text-[1.125rem] italic text-foreground/50">No notes yet. Check back soon.</p>
+          <p className="border-t border-white/10 py-16 font-serif text-[1.125rem] italic text-foreground/50">No posts yet.</p>
         ) : (
           <>
             {featured && <Featured post={featured} />}

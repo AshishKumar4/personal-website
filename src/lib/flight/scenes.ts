@@ -20,6 +20,9 @@ export interface SceneParams {
   particle: V3;
   stars: number;
   moon: number;
+  clouds: number;
+  mist: number;
+  rays: number;
   amp: number;
   terrace: number;
   terraceStep: number;
@@ -33,6 +36,8 @@ export interface SceneParams {
   sun: number;
   altitude: number;
   lookUp: number;
+  fov: number;
+  roll: number;
   fog: number;
   veil: number;
   speed: number;
@@ -57,9 +62,12 @@ const NIGHT: SceneParams = {
   particle: [0.8, 0.9, 1],
   stars: 1,
   moon: 1,
+  clouds: 0.55,
+  mist: 0.55,
+  rays: 0,
   amp: 1,
   terrace: 0,
-  terraceStep: 18,
+  terraceStep: 16,
   jitter: 0,
   packets: 0,
   cities: 0,
@@ -70,6 +78,8 @@ const NIGHT: SceneParams = {
   sun: 0,
   altitude: 0,
   lookUp: 0,
+  fov: 0,
+  roll: 0,
   fog: 0.35,
   veil: 0.14,
   speed: 1,
@@ -95,12 +105,17 @@ export const SCENES: Record<SceneId, SceneParams> = {
     lantern: [1, 0.72, 0.3],
     stars: 0.2,
     moon: 0,
+    clouds: 0.15,
+    mist: 0.2,
     amp: 0.92,
     terrace: 1,
     terraceStep: 16,
     scanlines: 1,
-    altitude: -20,
-    veil: 0.14,
+    altitude: -62,
+    lookUp: 34,
+    fov: 7,
+    roll: 1,
+    speed: 2.6,
     bloom: 1,
   },
   breach: {
@@ -119,10 +134,11 @@ export const SCENES: Record<SceneId, SceneParams> = {
     lantern: [1, 0.3, 0.32],
     stars: 0.45,
     moon: 0,
+    clouds: 0.35,
+    mist: 0.35,
     amp: 1.12,
     glitch: 1,
     altitude: 10,
-    veil: 0.14,
     bloom: 1.1,
   },
   signal: {
@@ -142,11 +158,15 @@ export const SCENES: Record<SceneId, SceneParams> = {
     particle: [1, 0.86, 0.6],
     stars: 0.6,
     moon: 0,
+    clouds: 0.3,
+    mist: 0.45,
     amp: 0.85,
     packets: 1,
     cities: 1,
-    speed: 1.25,
-    veil: 0.14,
+    altitude: 38,
+    lookUp: -6,
+    fov: 2,
+    speed: 1.4,
     bloom: 1,
   },
   noise: {
@@ -165,8 +185,13 @@ export const SCENES: Record<SceneId, SceneParams> = {
     lantern: [0.82, 0.7, 1],
     stars: 0.5,
     moon: 0,
+    clouds: 0.4,
+    mist: 0.4,
     jitter: 1,
-    veil: 0.14,
+    altitude: 12,
+    lookUp: 8,
+    fov: -3,
+    speed: 0.85,
     bloom: 0.95,
   },
   swarm: {
@@ -186,12 +211,15 @@ export const SCENES: Record<SceneId, SceneParams> = {
     particle: [0.72, 1, 0.42],
     stars: 0.8,
     moon: 0,
+    clouds: 0.2,
+    mist: 0.45,
     amp: 0.82,
     fireflies: 1,
     aurora: 1,
-    altitude: -45,
-    speed: 0.75,
-    veil: 0.14,
+    altitude: 70,
+    lookUp: -12,
+    fov: -4,
+    speed: 0.6,
     bloom: 1.1,
   },
   dawn: {
@@ -204,19 +232,24 @@ export const SCENES: Record<SceneId, SceneParams> = {
     skyTop: [0.028, 0.034, 0.07],
     skyHorizon: [0.2, 0.11, 0.1],
     glow: [1, 0.5, 0.24],
-    glowAmt: 0.42,
+    glowAmt: 0.34,
     rim: [1, 0.62, 0.35],
     rimAmt: 0.6,
     lantern: [1, 0.8, 0.55],
     stars: 0.12,
     moon: 0,
+    clouds: 1,
+    mist: 0.75,
+    rays: 1,
     sun: 1,
-    altitude: 60,
-    lookUp: 50,
+    altitude: 80,
+    lookUp: 62,
+    fov: 3,
     fog: 0.28,
     veil: 0.08,
     speed: 0.9,
     bloom: 1,
+    exposure: 0.9,
   },
 };
 
@@ -266,7 +299,6 @@ export class SceneTracker {
   private lastRefresh = 0;
   private forced: SceneId | null = null;
   private forcedProgress = 0.35;
-  frozen = false;
 
   constructor() {
     try {
@@ -283,7 +315,6 @@ export class SceneTracker {
   }
 
   refresh() {
-    if (this.frozen) return;
     const els = Array.from(document.querySelectorAll<HTMLElement>('[data-scene]'));
     const sy = window.scrollY;
     const next: Region[] = [];
@@ -295,7 +326,13 @@ export class SceneTracker {
       next.push({ id: id as SceneId, top: r.top + sy, bottom: r.bottom + sy });
     }
     next.sort((x, y) => x.top - y.top);
-    this.regions = next;
+    const merged: Region[] = [];
+    for (const r of next) {
+      const prev = merged[merged.length - 1];
+      if (prev && prev.id === r.id) prev.bottom = Math.max(prev.bottom, r.bottom);
+      else merged.push({ ...r });
+    }
+    this.regions = merged;
     this.lastRefresh = performance.now();
   }
 
@@ -320,16 +357,16 @@ export class SceneTracker {
     while (i < rs.length - 1 && c > bound(i)) i++;
     const lo = i > 0 ? bound(i - 1) : -Infinity;
     const hi = i < rs.length - 1 ? bound(i) : Infinity;
-    const w = vh * 0.35;
+    const w = Math.min(vh * 0.42, (hi - lo) * 0.36 || vh * 0.42);
     let ai = i;
     let bi = i;
     let t = 0;
     if (hi - c < c - lo && hi !== Infinity) {
       bi = i + 1;
-      t = smoothstep(hi - w, hi + w, c);
+      t = clamp01((c - hi + w) / (2 * w));
     } else if (lo !== -Infinity) {
       ai = i - 1;
-      t = smoothstep(lo - w, lo + w, c);
+      t = clamp01((c - lo + w) / (2 * w));
     }
     const a = rs[ai];
     const b = rs[bi];

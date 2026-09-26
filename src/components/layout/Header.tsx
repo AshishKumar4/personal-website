@@ -2,13 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { SOCIAL_LINKS } from '@/components/config/constants';
-import { scrollToHash } from '@/lib/site-events';
+import { scrollToSection } from '@/components/site/stage';
 
 const NAV = [
-  { label: 'Story', to: '/#story' },
-  { label: 'Work', to: '/#work' },
-  { label: 'Log', to: '/#experience' },
-  { label: 'Writing', to: '/blog' },
+  { label: 'Timeline', to: '/#timeline' },
+  { label: 'Writing', to: '/#writing' },
   { label: 'About', to: '/about' },
 ];
 
@@ -41,7 +39,7 @@ export function Header() {
     if (!hash) return;
     e.preventDefault();
     setMenuOpen(false);
-    if (location.pathname === (path || '/')) scrollToHash(hash);
+    if (location.pathname === (path || '/')) scrollToSection(hash);
     else navigate(`${path || '/'}#${hash}`);
   };
 
@@ -52,7 +50,7 @@ export function Header() {
     <>
       <header
         className={cn(
-          'fade-free fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,backdrop-filter,opacity] duration-500',
+          'fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,backdrop-filter] duration-500',
           !home && scrolled && !menuOpen ? 'border-b border-foreground/[0.06] bg-background/70 backdrop-blur-xl' : 'border-b border-transparent',
         )}
       >

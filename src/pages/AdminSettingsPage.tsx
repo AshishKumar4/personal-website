@@ -5,14 +5,13 @@ import { api } from '@/lib/api-client';
 import { getToken } from '@/lib/auth';
 import { uploadImageFile } from '@/lib/upload-image';
 import { applyAccent, loadHome } from '@/lib/site-data';
-import { ACCENT_PRESETS, DEFAULT_SITE_EXTRAS, DEFAULT_STORY, type AccentPreset, type SiteConfig, type SiteFact, type StoryChapter } from '@shared/types';
+import { ACCENT_PRESETS, DEFAULT_SITE_EXTRAS, type AccentPreset, type SiteConfig, type SiteFact } from '@shared/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
-import { StoryEditor } from '@/components/admin/StoryEditor';
 import { cn } from '@/lib/utils';
 
 const ACCENT_SWATCH: Record<AccentPreset, { label: string; color: string }> = {
@@ -22,19 +21,6 @@ const ACCENT_SWATCH: Record<AccentPreset, { label: string; color: string }> = {
   acid: { label: 'Acid', color: 'hsl(74 100% 55%)' },
   amber: { label: 'Amber', color: 'hsl(40 100% 58%)' },
 };
-
-function normalizeStory(story: StoryChapter[]): StoryChapter[] {
-  return story.map(({ links, ...chapter }) => {
-    const kept = (links ?? []).filter(l => l.label.trim() || l.url.trim());
-    return { ...chapter, highlights: chapter.highlights.filter(h => h.label.trim() || h.value.trim()), ...(kept.length ? { links: kept } : {}) };
-  });
-}
-
-function storyPayload(story: StoryChapter[] | undefined): StoryChapter[] | null {
-  const cleaned = normalizeStory(story ?? []);
-  if (cleaned.length === 0 || JSON.stringify(cleaned) === JSON.stringify(normalizeStory(DEFAULT_STORY))) return null;
-  return cleaned;
-}
 
 const EMPTY: SiteConfig = { subtitle: '', bio: '', about: '', aboutStory: '', ...DEFAULT_SITE_EXTRAS };
 
@@ -119,7 +105,7 @@ export function AdminSettingsPage() {
     e?.preventDefault();
     setSaving(true);
     try {
-      const payload = { ...config, facts: facts.filter(f => f.label.trim() && f.value.trim()), story: storyPayload(config.story) };
+      const payload = { ...config, facts: facts.filter(f => f.label.trim() && f.value.trim()) };
       const next = await api<SiteConfig>('/api/config', {
         method: 'PUT',
         headers: { Authorization: `Bearer ${getToken()}` },
@@ -152,7 +138,7 @@ export function AdminSettingsPage() {
       <AdminPageHeader
         kicker="Site"
         title="Settings"
-        description="Everything the homepage shows, from the hero through the story chapters to the about section."
+        description="Everything the homepage shows, from the hero to the about section."
         actions={
           <a href="/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground">
             Preview site <ArrowUpRight className="h-3.5 w-3.5" />
@@ -183,11 +169,7 @@ export function AdminSettingsPage() {
         </Field>
       </Panel>
 
-      <Panel index="02 · Story" title="The flight" description="Each chapter is a region the night flight passes through. The scene sets how the terrain looks while the chapter is on screen.">
-        <StoryEditor story={config.story ?? DEFAULT_STORY} onChange={next => set('story', next)} />
-      </Panel>
-
-      <Panel index="03 · About" title="About" description="The statement and the facts list in the About section.">
+      <Panel index="02 · About" title="About" description="The statement and the facts list in the About section.">
         <Field id="about" label="Statement">
           <Textarea id="about" value={config.about} onChange={e => set('about', e.target.value)} rows={6} />
         </Field>
@@ -238,13 +220,13 @@ export function AdminSettingsPage() {
         </div>
       </Panel>
 
-      <Panel index="04 · About page" title="The longer story" description="Markdown rendered on /about. Each ## heading becomes a chapter.">
+      <Panel index="03 · About page" title="The longer story" description="Markdown rendered on /about. Each ## heading becomes a chapter.">
         <Field id="aboutStory" label="Markdown">
           <Textarea id="aboutStory" value={config.aboutStory} onChange={e => set('aboutStory', e.target.value)} rows={22} className="font-mono text-[13px] leading-relaxed" />
         </Field>
       </Panel>
 
-      <Panel index="05 · Appearance" title="Signal colour" description="One accent, used sparingly across the site. Previewed live, applied on save.">
+      <Panel index="04 · Appearance" title="Signal colour" description="One accent, used sparingly across the site. Previewed live, applied on save.">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           {ACCENT_PRESETS.map(key => {
             const swatch = ACCENT_SWATCH[key];
