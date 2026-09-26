@@ -95,7 +95,7 @@ Custom rules prevent common React bugs:
 ### Worker Previews
 
 - Every non-production branch builds a [Worker Preview](https://developers.cloudflare.com/workers/previews/) via Workers Builds (`npx wrangler preview`), and the URL is posted on the pull request
-- The `previews` block in `wrangler.jsonc` is intentionally empty: Previews get their own Durable Object storage (seeded with default content) and no R2 or email bindings, so nothing in a Preview can touch production data
+- The `previews` block in `wrangler.jsonc` only redeclares the `GlobalDurableObject` binding (Previews do not inherit bindings, and without it every data route returns 500). Each Preview gets its own Durable Object storage seeded with default content, and no R2 or email bindings, so nothing in a Preview can touch production data
 - Admin login stays blocked in Previews unless `TWO_FACTOR_KEY` is added to the Preview base config; do not add it, since Previews seed the default admin password
 - `bun run preview:deploy` creates a Preview for the current branch from a local machine
 
