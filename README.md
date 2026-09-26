@@ -1,91 +1,30 @@
-# CodePrint: Ashish Kumar Singh's Portfolio
+# ashishkumarsingh.com — signal from noise
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/AshishKumar4/personal-website)
+The personal site of Ashish Kumar Singh. The page samples itself from Gaussian noise: on load, a WebGL2 renderer draws the marginals q(x_t | x_0) from t = 1000 down to 0 in 60 steps on a cosine schedule (the trajectory a perfect denoiser would follow with DDIM) until his name and portrait resolve, and scrolling re-noises it. The rest of the site follows the same idea.
 
-> A visually stunning and interactive personal portfolio with a 'blueprint' theme, showcasing projects, experience, and a future-planned blog. CodePrint is designed with a modern 'blueprint' aesthetic, featuring a sophisticated dark theme, subtle animated grid background, and smooth, fluid transitions powered by Framer Motion.
+- **Hero**: a live sampler with a HUD showing `t`, `σ_t`, the step, the seed, an x̂₀ preview and the noise schedule. Move the cursor to inject noise locally; press resample for a new seed.
+- **Model card** (about): the abstract resolves as you scroll, next to an interactive forward-process widget.
+- **Training run** (experience): each role is a checkpoint on a loss curve with a warm restart per job.
+- **Samples** (projects): images denoise into view and re-noise on hover; projects without images get a generative placeholder. Live GitHub stars.
+- **Notes** (writing), a long-form `/about` story with chapters, and a contact form whose banner denoises as you scroll to it.
+- Easter eggs: `⌘K` command menu, <kbd>`</kbd> opens `aqsh`, a small shell in memory of Aqeous OS, and the favicon denoises too.
 
-## ✨ Key Features
+Content is managed from the admin panel (`/admin`): posts and notebooks, projects (with display order), experience, contact messages, hero prompt, portrait, model-card facts, accent colour, files, and 2FA security.
 
-*   **Modern & Minimalist Design:** A sophisticated dark theme with a unique 'blueprint' aesthetic.
-*   **Interactive & Animated:** Smooth, fluid animations and micro-interactions powered by Framer Motion.
-*   **Dynamic Project Showcase:** Fetches and displays real-time GitHub repository statistics (stars, forks).
-*   **Fully Responsive:** Meticulously crafted for a seamless experience on all devices, from mobile to desktop.
-*   **Built for Performance:** Serverless architecture on Cloudflare Pages and Workers for a fast, global user experience.
-*   **Scalable Backend:** Ready for future expansion with a blog and admin panel powered by Cloudflare Durable Objects.
+## Stack
 
-## 🛠️ Technology Stack
+React + Vite + Tailwind on the front end, Hono on Cloudflare Workers, Durable Objects for storage, R2 for images and files. The diffusion renderer is dependency-free WebGL2 with a Canvas2D fallback, renders only on demand, and respects `prefers-reduced-motion`.
 
-*   **Frontend:** [React](https://react.dev/), [Vite](https://vitejs.dev/), [Tailwind CSS](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/), [Framer Motion](https://www.framer.com/motion/)
-*   **Backend:** [Cloudflare Workers](https://workers.cloudflare.com/), [Hono](https://hono.dev/)
-*   **Storage:** [Cloudflare Durable Objects](https://developers.cloudflare.com/durable-objects/)
-*   **Language:** [TypeScript](https://www.typescriptlang.org/)
-*   **Deployment:** [Cloudflare Pages](https://pages.cloudflare.com/)
-
-## 🚀 Getting Started
-
-Follow these instructions to get a local copy up and running for development and testing purposes.
-
-### Prerequisites
-
-*   [Node.js](https://nodejs.org/) (v18 or later)
-*   [Bun](https://bun.sh/) package manager
-*   A [Cloudflare account](https://dash.cloudflare.com/sign-up)
-
-### Installation
-
-1.  **Clone the repository:**
-    ```sh
-    git clone https://github.com/your-username/codeprint-portfolio.git
-    cd codeprint-portfolio
-    ```
-
-2.  **Install dependencies:**
-    This project uses Bun for package management.
-    ```sh
-    bun install
-    ```
-
-## 💻 Development
-
-To start the local development server, which includes both the Vite frontend and the Hono backend worker, run:
+## Development
 
 ```sh
-bun dev
+bun install
+bun dev          # Vite + Workers on http://localhost:3000
+bun run build
+bun run lint
+bun test
 ```
 
-This will start the Vite development server, typically on `http://localhost:3000`. The server is configured to proxy API requests from `/api/*` to the local Cloudflare Worker instance, enabling seamless full-stack development.
+Optional Worker secrets: `TWO_FACTOR_KEY` (required for admin 2FA), `GITHUB_TOKEN` (raises the GitHub API rate limit for `/api/github`).
 
-## ☁️ Deployment
-
-This project is designed for one-click deployment to Cloudflare.
-
-You can deploy directly by clicking the button below:
-
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/AshishKumar4/personal-website)
-
-Alternatively, you can deploy using the Wrangler CLI after setting up your Cloudflare account.
-
-1.  **Login to Wrangler:**
-    ```sh
-    bunx wrangler login
-    ```
-
-2.  **Build and deploy the application:**
-    The `deploy` script in `package.json` handles the build and deployment process.
-    ```sh
-    bun deploy
-    ```
-
-This command will build the React application and deploy it along with the Worker to your Cloudflare account.
-
-## 📂 Project Structure
-
-The codebase is organized into three main directories:
-
--   `src/`: Contains the frontend React application, including pages, components, hooks, and styles.
--   `worker/`: Contains the backend Cloudflare Worker code, built with Hono. This is where API routes and Durable Object logic reside.
--   `shared/`: Contains shared code, primarily TypeScript types, used by both the frontend and the backend to ensure type safety.
-
-## 📄 License
-
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+Pushes to `main` deploy through Cloudflare Workers Builds.

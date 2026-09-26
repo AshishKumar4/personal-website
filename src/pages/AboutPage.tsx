@@ -1,46 +1,130 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowUpRight } from 'lucide-react';
 import { PortfolioLayout } from '@/components/layout/PortfolioLayout';
-import { ReadingSurface } from '@/components/layout/ReadingSurface';
 import { useSiteConfig } from '@/contexts/SiteConfigContext';
-import { Toaster } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft } from 'lucide-react';
 import { MarkdownContent } from '@/components/MarkdownContent';
+import { Container } from '@/components/site/SectionHeader';
+import { ResolveText } from '@/components/diffusion/ResolveText';
+import { ScrambleText } from '@/components/diffusion/ScrambleText';
+import { DenoiseImage } from '@/components/diffusion/DenoiseImage';
+import { PERSONAL_INFO } from '@/components/config/constants';
+import { cn } from '@/lib/utils';
 
-// useSiteConfig must run inside the provider, which lives in PortfolioLayout,
-// so the config-consuming content is its own component rendered as a child.
-function AboutContent() {
+interface Chapter {
+  id: string;
+  title: string;
+}
+
+function useChapters(ready: boolean) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [active, setActive] = useState<string | null>(null);
+
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!ready || !el) return;
+    const heads = Array.from(el.querySelectorAll<HTMLHeadingElement>('h2[id]'));
+    setChapters(heads.map(h => ({ id: h.id, title: h.textContent ?? '' })));
+    const io = new IntersectionObserver(entries => {
+      const hit = entries.filter(e => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+      if (hit) setActive(hit.target.id);
+    }, { rootMargin: '-20% 0px -65% 0px' });
+    heads.forEach(h => io.observe(h));
+    return () => io.disconnect();
+  }, [ready]);
+
+  return { bodyRef, chapters, active };
+}
+
+function Story() {
   const { config, loading } = useSiteConfig();
+  const story = config?.aboutStory || config?.about || '';
+  const { bodyRef, chapters, active } = useChapters(!!story);
 
   return (
-    <ReadingSurface>
-      <Link to="/" className="inline-flex items-center text-primary font-mono text-sm hover:underline mb-8">
-        <ArrowLeft size={16} className="mr-2" />
-        Home
-      </Link>
-      <h1 className="text-4xl sm:text-5xl font-bold text-foreground font-display">About Me</h1>
-      {loading ? (
-        <div className="mt-10 space-y-4">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-5/6" />
-          <Skeleton className="h-4 w-full mt-8" />
-          <Skeleton className="h-4 w-4/6" />
+    <Container className="pb-28 pt-32 md:pb-40 md:pt-40">
+      <div className="grid grid-cols-1 gap-y-8 md:grid-cols-12 md:gap-x-8">
+        <div className="md:col-span-3">
+          <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            <span className="text-signal">§</span>
+            <ScrambleText text="About · the longer story" trigger="mount" />
+          </div>
         </div>
-      ) : config?.aboutStory ? (
-        <MarkdownContent className="mt-10">{config.aboutStory}</MarkdownContent>
-      ) : (
-        <p className="mt-10 text-muted-foreground">{config?.about}</p>
-      )}
-    </ReadingSurface>
+        <div className="md:col-span-9">
+          <ResolveText as="h1" text="Built to understand." className="display block text-[clamp(3.75rem,11vw,11rem)] text-foreground" />
+        </div>
+      </div>
+
+      <div className="mt-16 grid grid-cols-1 gap-y-12 md:mt-24 md:grid-cols-12 md:gap-x-8">
+        <aside className="md:col-span-3">
+          <div className="md:sticky md:top-28">
+            <DenoiseImage
+              src={PERSONAL_INFO.profilePicture}
+              alt={`Portrait of ${PERSONAL_INFO.name}`}
+              className="aspect-[4/5] w-full max-w-[18rem] border border-line/10"
+              latentWidth={96}
+              focal={{ x: 0.45, y: 0.3 }}
+              eager
+            />
+            <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">fig. 1 — the subject, t = 0</p>
+            {chapters.length > 0 && (
+              <nav className="mt-10 hidden md:block" aria-label="Chapters">
+                <div className="label mb-4">Chapters</div>
+                <ol className="space-y-2.5 border-l border-line/15">
+                  {chapters.map((c, i) => (
+                    <li key={c.id}>
+                      <a
+                        href={`#${c.id}`}
+                        onClick={e => {
+                          e.preventDefault();
+                          document.getElementById(c.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }}
+                        className={cn(
+                          '-ml-px flex gap-3 border-l py-0.5 pl-4 text-sm transition-colors',
+                          active === c.id ? 'border-signal text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        <span className="font-mono text-[10px] leading-5 text-signal/80">{String(i + 1).padStart(2, '0')}</span>
+                        {c.title}
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              </nav>
+            )}
+          </div>
+        </aside>
+        <div ref={bodyRef} className="reading md:col-span-8 md:col-start-5 lg:col-span-7 lg:col-start-5">
+          {loading && !config ? (
+            <div className="space-y-4">
+              {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-5 w-full" />)}
+            </div>
+          ) : (
+            <MarkdownContent className="chapters story-lead">{story}</MarkdownContent>
+          )}
+          <div className="mt-16 flex flex-wrap gap-x-8 gap-y-3 border-t border-line/15 pt-8 font-mono text-[11px] uppercase tracking-[0.14em]">
+            <Link to="/#contact" className="group inline-flex items-center gap-1.5 text-foreground hover:text-signal">
+              Say hi <ArrowUpRight size={12} />
+            </Link>
+            <Link to="/#projects" className="group inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
+              See the projects <ArrowUpRight size={12} />
+            </Link>
+            <Link to="/blog" className="group inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
+              Read the notes <ArrowUpRight size={12} />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </Container>
   );
 }
 
 export function AboutPage() {
   return (
     <PortfolioLayout variant="reading">
-      <AboutContent />
-      <Toaster theme="dark" />
+      <Story />
     </PortfolioLayout>
   );
 }

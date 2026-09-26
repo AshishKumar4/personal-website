@@ -1,13 +1,67 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='15' fill='rgb(10, 25, 47)'/><text x='50%' y='50%' dominant-baseline='central' text-anchor='middle' font-family='monospace' font-size='50' fill='%2364ffda'>AKS</text></svg>" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ashish Kumar Singh - Portfolio</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Ashish Kumar Singh</title>
+    <meta name="description" content="Ashish Kumar Singh builds things from scratch to understand them: operating systems, diffusion models, distributed systems, and agents at Cloudflare." />
+    <meta name="author" content="Ashish Kumar Singh" />
+    <meta name="theme-color" content="#09090a" />
+    <link rel="canonical" href="https://ashishkumarsingh.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Ashish Kumar Singh" />
+    <meta property="og:title" content="Ashish Kumar Singh — signal from noise" />
+    <meta property="og:description" content="Systems engineer at Cloudflare. Kernels, diffusion models, distributed systems, agents. This page samples itself from noise." />
+    <meta property="og:url" content="https://ashishkumarsingh.com/" />
+    <meta property="og:image" content="https://ashishkumarsingh.com/og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@ashishkmr472" />
+    <meta name="twitter:creator" content="@ashishkmr472" />
+    <meta name="twitter:title" content="Ashish Kumar Singh — signal from noise" />
+    <meta name="twitter:description" content="Systems engineer at Cloudflare. Kernels, diffusion models, distributed systems, agents." />
+    <meta name="twitter:image" content="https://ashishkumarsingh.com/og.jpg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script>
+      (function () {
+        var d = document.documentElement;
+        try {
+          var t = localStorage.getItem('theme');
+          if (t === 'light') d.classList.remove('dark');
+          var a = localStorage.getItem('accent');
+          if (a) d.setAttribute('data-accent', a);
+        } catch (e) {}
+        var p = location.pathname;
+        if (p === '/') {
+          var i = document.createElement('link');
+          i.rel = 'preload';
+          i.as = 'image';
+          i.href = window.innerWidth < 700 ? '/portrait-640.webp' : '/portrait-1200.webp';
+          i.setAttribute('fetchpriority', 'high');
+          document.head.appendChild(i);
+        }
+        if (p === '/' || p === '/about' || p.indexOf('/blog') === 0) {
+          var l = document.createElement('link');
+          l.rel = 'preload';
+          l.as = 'fetch';
+          l.href = '/api/home';
+          l.crossOrigin = 'anonymous';
+          document.head.appendChild(l);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <main style="font-family: Georgia, serif; max-width: 40rem; margin: 4rem auto; padding: 0 1rem; color: #ede9e2; background: #09090a;">
+        <h1>Ashish Kumar Singh</h1>
+        <p>Systems engineer at Cloudflare. I build things from scratch to understand them: an x86 kernel at 15, diffusion models on TPUs, a distributed WebRTC SFU, and agent platforms on Durable Objects.</p>
+        <p><a href="https://github.com/AshishKumar4" style="color:#ff5a1f">GitHub</a> · <a href="https://www.linkedin.com/in/aksnip/" style="color:#ff5a1f">LinkedIn</a> · <a href="https://x.com/ashishkmr472" style="color:#ff5a1f">X</a></p>
+      </main>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

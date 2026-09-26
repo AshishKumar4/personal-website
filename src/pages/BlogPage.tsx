@@ -1,212 +1,99 @@
-import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { ArrowUpRight, BookOpen } from 'lucide-react';
 import { PortfolioLayout } from '@/components/layout/PortfolioLayout';
-import { BlogPost } from '@shared/types';
-import { api } from '@/lib/api-client';
-import { Toaster, toast } from '@/components/ui/sonner';
+import { useSiteConfig } from '@/contexts/SiteConfigContext';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar, User, Clock, ArrowRight, Sparkles, BookOpen } from 'lucide-react';
-import { useReducedMotion } from '@/hooks/use-reduced-motion';
-import { postExcerpt, postReadingTime } from '@/lib/post-preview';
+import { Container } from '@/components/site/SectionHeader';
+import { PostRow } from '@/components/site/PostRow';
+import { ResolveText } from '@/components/diffusion/ResolveText';
+import { ScrambleText } from '@/components/diffusion/ScrambleText';
+import type { PostSummary } from '@shared/types';
 
-function PostMeta({ post }: { post: BlogPost }) {
+function Featured({ post }: { post: PostSummary }) {
+  const date = new Date(post.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   return (
-    <span className="flex items-center text-sm font-mono text-muted-foreground">
-      <Clock size={14} className="mr-1.5" />
-      {postReadingTime(post)} min read
-    </span>
+    <Link to={`/blog/${post.slug}`} className="group relative block overflow-hidden border border-line/15 bg-card/60 p-6 transition-colors duration-500 hover:border-signal/60 md:p-12">
+      <div className="pointer-events-none absolute -right-10 -top-16 select-none font-display text-[18rem] leading-none text-foreground/[0.04] transition-transform duration-1000 ease-out-expo group-hover:-translate-x-6">
+        ∇
+      </div>
+      <div className="flex flex-wrap items-center gap-3 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+        <span className="rounded-full border border-signal/60 px-2.5 py-1 text-signal">Featured</span>
+        <span>{date}</span>
+        <span className="inline-flex items-center gap-1.5">
+          {post.format === 'notebook' ? <><BookOpen size={11} /> Notebook</> : `${post.readingTime} min read`}
+        </span>
+      </div>
+      <h2 className="relative mt-8 max-w-4xl font-display text-[clamp(2.5rem,6vw,5.5rem)] leading-[0.95] tracking-[-0.025em] text-foreground">
+        {post.title}
+      </h2>
+      <p className="relative mt-6 max-w-2xl text-[1.02rem] leading-relaxed text-foreground/65 line-clamp-3">{post.excerpt}</p>
+      <span className="relative mt-10 inline-flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.14em] text-foreground group-hover:text-signal">
+        Read it
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-line/20 transition-all duration-500 group-hover:rotate-45 group-hover:border-signal group-hover:bg-signal group-hover:text-background">
+          <ArrowUpRight size={15} />
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+function BlogIndex() {
+  const { data, loading } = useSiteConfig();
+  const posts = data?.posts ?? [];
+  const featured = posts.find(p => p.featured);
+  const rest = featured ? posts.filter(p => p.slug !== featured.slug) : posts;
+
+  return (
+    <Container className="pb-28 pt-32 md:pb-40 md:pt-40">
+      <div className="grid grid-cols-1 gap-y-6 md:grid-cols-12 md:gap-x-8">
+        <div className="md:col-span-3">
+          <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            <span className="text-signal">§</span>
+            <ScrambleText text="Writing" trigger="mount" />
+          </div>
+        </div>
+        <div className="md:col-span-9">
+          <ResolveText as="h1" text="Notes" className="display text-[clamp(4.5rem,14vw,13rem)] text-foreground" />
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-foreground/70">
+            Thoughts on machine learning, systems, and building things from first principles.
+          </p>
+          <div className="mt-4 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+            {posts.length > 0 ? `${posts.length} ${posts.length === 1 ? 'entry' : 'entries'}` : ' '}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-20 md:mt-28">
+        {loading && posts.length === 0 ? (
+          <div className="space-y-6">
+            <Skeleton className="h-72 w-full rounded-none" />
+            <Skeleton className="h-24 w-full rounded-none" />
+            <Skeleton className="h-24 w-full rounded-none" />
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="border border-dashed border-line/20 py-24 text-center">
+            <p className="font-display text-4xl text-foreground">Still sampling.</p>
+            <p className="mt-3 font-mono text-xs uppercase tracking-[0.14em] text-muted-foreground">No notes yet, check back soon.</p>
+          </div>
+        ) : (
+          <>
+            {featured && <Featured post={featured} />}
+            {rest.length > 0 && (
+              <ol className="mt-16 border-t border-line/20">
+                {rest.map((post, i) => <PostRow key={post.slug} post={post} index={i + (featured ? 2 : 1)} large />)}
+              </ol>
+            )}
+          </>
+        )}
+      </div>
+    </Container>
   );
 }
 
 export function BlogPage() {
-  const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [loading, setLoading] = useState(true);
-  const prefersReducedMotion = useReducedMotion();
-
-  useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        const response = await api<{ items: BlogPost[] }>('/api/posts');
-        setPosts([...response.items].sort((a, b) => b.createdAt - a.createdAt));
-      } catch (error) {
-        console.error("Failed to fetch posts:", error);
-        toast.error('Failed to load blog posts.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPosts();
-  }, []);
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: prefersReducedMotion ? 0 : 0.1 },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: prefersReducedMotion ? 1 : 0, y: prefersReducedMotion ? 0 : 20 },
-    visible: { opacity: 1, y: 0 },
-  };
-
-  const featured = posts.find((p) => p.featured);
-  const rest = featured ? posts.filter((p) => p.slug !== featured.slug) : posts;
-
   return (
     <PortfolioLayout variant="reading">
-      <main className="relative z-10 py-24 md:py-28">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: prefersReducedMotion ? 0 : 0.5 }}
-          >
-            <h1 className="text-4xl sm:text-5xl font-bold text-foreground font-display">Blog</h1>
-            <p className="mt-4 text-lg text-muted-foreground">
-              Thoughts on technology, machine learning, and building things.
-            </p>
-            <div className="mt-4 h-1 w-20 bg-gradient-to-r from-primary to-transparent rounded-full" />
-          </motion.div>
-
-          <div className="mt-16">
-            {loading ? (
-              <div className="space-y-8">
-                <div className="p-8 rounded-2xl border border-border bg-card">
-                  <Skeleton className="h-6 w-32 mb-4" />
-                  <Skeleton className="h-10 w-3/4 mb-4" />
-                  <Skeleton className="h-4 w-full mb-2" />
-                  <Skeleton className="h-4 w-5/6" />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {[...Array(2)].map((_, i) => (
-                    <div key={i} className="p-6 rounded-xl border border-border bg-card">
-                      <Skeleton className="h-4 w-24 mb-3" />
-                      <Skeleton className="h-6 w-full mb-2" />
-                      <Skeleton className="h-4 w-3/4" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : posts.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center py-16"
-              >
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Sparkles size={24} className="text-primary" />
-                </div>
-                <h3 className="text-xl font-bold text-foreground mb-2">No posts yet</h3>
-                <p className="text-muted-foreground">Check back soon for new content!</p>
-              </motion.div>
-            ) : (
-              <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-              >
-                {/* Featured Post */}
-                {featured && (
-                  <motion.div variants={itemVariants} className="mb-12">
-                    <div className="flex items-center gap-2 mb-6">
-                      <Sparkles size={16} className="text-primary" />
-                      <span className="text-sm font-mono text-primary">Featured Post</span>
-                    </div>
-                    <Link to={`/blog/${featured.slug}`} className="group block">
-                      <div className="relative p-[1px] rounded-2xl bg-gradient-to-r from-primary via-primary/50 to-transparent group-hover:from-primary group-hover:via-primary group-hover:to-primary/50 transition-all duration-500 shadow-lg shadow-primary/5">
-                        <div className="relative bg-card rounded-2xl p-8 md:p-10">
-                          <div className="flex flex-wrap items-center gap-4 mb-4">
-                            <span className="px-3 py-1 text-xs font-mono bg-primary/10 text-primary rounded-full inline-flex items-center gap-1.5">
-                              {featured.format === 'notebook' && <BookOpen size={12} />}
-                              {featured.format === 'notebook' ? 'Notebook' : 'Article'}
-                            </span>
-                            <PostMeta post={featured} />
-                          </div>
-                          <h2 className="text-2xl md:text-3xl font-bold text-foreground group-hover:text-primary transition-colors duration-300 mb-4">
-                            {featured.title}
-                          </h2>
-                          <p className="text-muted-foreground leading-relaxed mb-6 line-clamp-3">
-                            {postExcerpt(featured, 220)}
-                          </p>
-                          <div className="flex flex-wrap items-center justify-between gap-4">
-                            <div className="flex flex-wrap items-center gap-4 text-sm font-mono text-muted-foreground">
-                              <span className="flex items-center">
-                                <Calendar size={14} className="mr-1.5 text-primary" />
-                                {new Date(featured.createdAt).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: 'numeric',
-                                })}
-                              </span>
-                              <span className="flex items-center">
-                                <User size={14} className="mr-1.5 text-primary" />
-                                {featured.author}
-                              </span>
-                            </div>
-                            <span className="flex items-center text-primary font-mono text-sm group-hover:gap-3 gap-1 transition-all duration-300">
-                              Read more <ArrowRight size={16} />
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-                  </motion.div>
-                )}
-
-                {/* Post Grid */}
-                {rest.length > 0 && (
-                  <div>
-                    {featured && <h3 className="text-lg font-mono text-muted-foreground mb-8">More Articles</h3>}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {rest.map((post) => (
-                        <motion.div key={post.slug} variants={itemVariants}>
-                          <Link to={`/blog/${post.slug}`} className="group block h-full">
-                            <div className="flex flex-col h-full bg-card border border-border rounded-xl p-6 shadow-sm transition-all duration-300 hover:border-primary/60 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1">
-                                <div className="flex items-center gap-3 mb-3">
-                                  <span className="px-2 py-0.5 text-xs font-mono bg-primary/10 text-primary rounded inline-flex items-center gap-1">
-                                    {post.format === 'notebook' && <BookOpen size={11} />}
-                                    {post.format === 'notebook' ? 'Notebook' : 'Article'}
-                                  </span>
-                                  <span className="flex items-center text-xs font-mono text-muted-foreground">
-                                    <Clock size={12} className="mr-1" />
-                                    {postReadingTime(post)} min
-                                  </span>
-                                </div>
-                                <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors duration-300 mb-2 line-clamp-2">
-                                  {post.title}
-                                </h3>
-                                <p className="text-sm text-muted-foreground mb-4 line-clamp-2 flex-1">
-                                  {postExcerpt(post, 140)}
-                                </p>
-                                <div className="flex items-center justify-between mt-auto pt-2">
-                                  <span className="text-xs font-mono text-muted-foreground">
-                                    {new Date(post.createdAt).toLocaleDateString('en-US', {
-                                      month: 'short',
-                                      day: 'numeric',
-                                      year: 'numeric',
-                                    })}
-                                  </span>
-                                  <ArrowRight
-                                    size={16}
-                                    className="text-primary opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all duration-300"
-                                  />
-                                </div>
-                            </div>
-                          </Link>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </div>
-        </div>
-      </main>
-      <Toaster theme="dark" />
+      <BlogIndex />
     </PortfolioLayout>
   );
 }

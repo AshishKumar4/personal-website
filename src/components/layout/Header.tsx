@@ -1,157 +1,200 @@
-import React, { useState, useEffect } from 'react';
-import { motion, useScroll } from 'framer-motion';
-import { PERSONAL_INFO } from '@/components/config/constants';
-import { Menu, X, Moon, Sun } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useIsMobile } from '@/hooks/use-mobile';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Moon, Sun, Command, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/use-theme';
-import { useReducedMotion } from '@/hooks/use-reduced-motion';
-import { Link, useLocation } from 'react-router-dom';
+import { SECTIONS, SOCIAL_LINKS } from '@/components/config/constants';
+import { ScrambleText } from '@/components/diffusion/ScrambleText';
+import { openCommandMenu, scrollToHash } from '@/lib/site-events';
+import { sampler } from '@/lib/diffusion/sampler-store';
 
-const NAV_LINKS = [
-  { name: "About", href: "/about" },
-  { name: "Experience", href: "#experience" },
-  { name: "Projects", href: "#projects" },
-  { name: "Blog", href: "/blog" },
+const NAV = [
+  { label: 'Work', to: '/#work' },
+  { label: 'Projects', to: '/#projects' },
+  { label: 'Writing', to: '/blog' },
+  { label: 'About', to: '/about' },
 ];
 
-const NavLink = ({ href, children, onClick }: { href: string, children: React.ReactNode, onClick?: () => void }) => {
-  const location = useLocation();
-  const isExternalPage = href.startsWith('/');
-
-  if (isExternalPage) {
-    // If we are already on the target page, treat it as an anchor link
-    if (href.includes('#') && location.pathname === href.split('#')[0]) {
-      return <a href={href} onClick={onClick}>{children}</a>;
+function useActiveSection(enabled: boolean): string | null {
+  const [active, setActive] = useState<string | null>(null);
+  useEffect(() => {
+    if (!enabled) {
+      setActive(null);
+      return;
     }
-    return <Link to={href} onClick={onClick}>{children}</Link>;
-  }
-
-  // If on a different page (like /blog), link to home page with anchor
-  if (location.pathname !== '/') {
-    return <Link to={`/${href}`} onClick={onClick}>{children}</Link>;
-  }
-
-  // Smooth scroll on home page
-  return <a href={href} onClick={onClick}>{children}</a>;
-};
+    const els = SECTIONS.map(s => document.getElementById(s.id)).filter(Boolean) as HTMLElement[];
+    if (els.length === 0) return;
+    const io = new IntersectionObserver(entries => {
+      const visible = entries.filter(e => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+      if (visible[0]) setActive(visible[0].target.id);
+      else if (window.scrollY < window.innerHeight * 0.5) setActive(null);
+    }, { rootMargin: '-40% 0px -55% 0px', threshold: [0, 0.01] });
+    els.forEach(el => io.observe(el));
+    return () => io.disconnect();
+  }, [enabled]);
+  return active;
+}
 
 export function Header() {
-  const { scrollY } = useScroll();
-  const [hidden, setHidden] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const isMobile = useIsMobile();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { isDark, toggleTheme } = useTheme();
-  const prefersReducedMotion = useReducedMotion();
+  const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const onHome = location.pathname === '/';
+  const active = useActiveSection(onHome);
+  const activeSection = SECTIONS.find(s => s.id === active);
+  const activeIndex = activeSection ? SECTIONS.indexOf(activeSection) + 1 : 0;
+  const [heroReady, setHeroReady] = useState(() => !onHome || sampler.get().phase === 'done');
 
   useEffect(() => {
-    return scrollY.onChange((latest) => {
-      const isScrollingDown = latest > scrollY.getPrevious();
-      if (latest > 100 && isScrollingDown) {
-        setHidden(true);
-      } else {
-        setHidden(false);
-      }
-      setIsScrolled(latest > 50);
+    if (!onHome) {
+      setHeroReady(true);
+      return;
+    }
+    return sampler.subscribe(s => {
+      if (s.phase === 'done' || (s.phase === 'sampling' && s.t < 0.45)) setHeroReady(true);
     });
-  }, [scrollY]);
+  }, [onHome]);
 
-  const handleMenuToggle = () => setIsMenuOpen(!isMenuOpen);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
-  const navVariants = {
-    visible: { opacity: 1, y: 0 },
-    hidden: { opacity: prefersReducedMotion ? 1 : 0, y: prefersReducedMotion ? 0 : -25 },
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [menuOpen]);
+
+  const go = (to: string) => (e: React.MouseEvent) => {
+    const [path, hash] = to.split('#');
+    if (hash) {
+      e.preventDefault();
+      setMenuOpen(false);
+      if (location.pathname === (path || '/')) scrollToHash(hash);
+      else navigate(`${path || '/'}#${hash}`);
+    }
   };
-
-  const mobileMenuVariants = {
-    open: { opacity: 1, x: 0 },
-    closed: { opacity: prefersReducedMotion ? 0 : 0, x: prefersReducedMotion ? 0 : "100%" },
-  };
-
-  // Theme-aware classes - using semantic tokens
-  const navLinkClass = "relative text-sm font-mono text-foreground hover:text-primary transition-colors duration-300";
-  const headerBgClass = isScrolled
-    ? 'h-20 bg-background/80 shadow-md backdrop-blur-sm'
-    : 'h-24';
 
   return (
-    <motion.header
-      variants={navVariants}
-      animate={hidden ? 'hidden' : 'visible'}
-      transition={{ ease: [0.1, 0.25, 0.3, 1], duration: prefersReducedMotion ? 0 : 0.6 }}
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${headerBgClass}`}
-    >
-      <nav className="max-w-7xl mx-auto h-full flex items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link to="/" className="text-primary text-2xl font-mono font-bold z-50">AKS</Link>
-
-        {isMobile ? (
-          <>
-            <div className="flex items-center gap-2 z-50">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleTheme}
-                className="text-muted-foreground hover:text-primary hover:bg-primary/10"
-                aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-              >
-                {isDark ? <Sun size={18} /> : <Moon size={18} />}
-              </Button>
-              <Button variant="ghost" size="icon" onClick={handleMenuToggle} className="text-primary">
-                {isMenuOpen ? <X /> : <Menu />}
-              </Button>
-            </div>
-            <motion.div
-              initial="closed"
-              animate={isMenuOpen ? "open" : "closed"}
-              variants={mobileMenuVariants}
-              transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 30 }}
-              className="fixed top-0 right-0 h-screen w-3/4 bg-card p-8 shadow-xl"
-            >
-              <div className="flex flex-col items-center justify-center h-full space-y-8">
-                {NAV_LINKS.map((link, i) => (
-                  <NavLink key={link.href} href={link.href} onClick={() => setIsMenuOpen(false)}>
-                    <span className={navLinkClass}>
-                      <span className="text-primary mr-2">0{i + 1}.</span>{link.name}
-                    </span>
-                  </NavLink>
-                ))}
-                <a
-                  href={`mailto:${PERSONAL_INFO.email}`}
-                  className="font-mono text-sm border border-primary text-primary rounded-md px-6 py-3 hover:bg-primary/10 transition-colors duration-300"
-                >
-                  Contact
-                </a>
-              </div>
-            </motion.div>
-          </>
-        ) : (
-          <div className="flex items-center space-x-8">
-            {NAV_LINKS.map((link, i) => (
-              <NavLink key={link.href} href={link.href}>
-                 <span className={navLinkClass}>
-                    <span className="text-primary mr-2">0{i + 1}.</span>{link.name}
-                 </span>
-              </NavLink>
-            ))}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleTheme}
-              className="text-muted-foreground hover:text-primary hover:bg-primary/10"
-              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {isDark ? <Sun size={18} /> : <Moon size={18} />}
-            </Button>
-            <a
-              href={`mailto:${PERSONAL_INFO.email}`}
-              className="font-mono text-sm border border-primary text-primary rounded-md px-4 py-2 hover:bg-primary/10 transition-colors duration-300"
-            >
-              Contact
-            </a>
-          </div>
+    <>
+      <header
+        className={cn(
+          'fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,backdrop-filter,opacity] duration-700',
+          scrolled && !menuOpen ? 'border-b border-line/10 bg-background/70 backdrop-blur-xl' : 'border-b border-transparent',
+          heroReady ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
-      </nav>
-    </motion.header>
+      >
+        <nav className="mx-auto flex h-16 max-w-[1600px] items-center justify-between px-5 sm:px-8 lg:px-12" aria-label="Primary">
+          <Link to="/" className="group relative z-10 flex items-baseline gap-3" aria-label="Ashish Kumar Singh, home">
+            <span className="font-display text-[1.6rem] leading-none tracking-[-0.02em] text-foreground">
+              Ashish<span className="text-signal">.</span>
+            </span>
+            <span className="hidden font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground sm:inline">
+              {activeSection ? (
+                <ScrambleText key={activeSection.id} text={`§${String(activeIndex).padStart(2, '0')} ${activeSection.label}`} trigger="mount" duration={500} />
+              ) : (
+                'signal from noise'
+              )}
+            </span>
+          </Link>
+
+          <div className="hidden items-center gap-8 md:flex">
+            {NAV.map(item => (
+              <Link
+                key={item.label}
+                to={item.to}
+                onClick={go(item.to)}
+                className="link-underline font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/80 transition-colors hover:text-foreground"
+              >
+                {item.label}
+              </Link>
+            ))}
+            <div className="flex items-center gap-1 border-l border-line/15 pl-5">
+              <button
+                onClick={openCommandMenu}
+                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line/15 px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:border-line/40 hover:text-foreground"
+                aria-label="Open command menu"
+              >
+                <Command size={11} /> K
+              </button>
+              <button
+                onClick={toggleTheme}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+                aria-label={isDark ? 'Switch to paper mode' : 'Switch to ink mode'}
+              >
+                {isDark ? <Sun size={15} /> : <Moon size={15} />}
+              </button>
+            </div>
+            <Link
+              to="/#contact"
+              onClick={go('/#contact')}
+              className="group inline-flex h-9 items-center gap-2 rounded-full bg-foreground px-4 font-mono text-[11px] uppercase tracking-[0.12em] text-background transition-colors hover:bg-signal"
+            >
+              Say hi
+              <span className="inline-block transition-transform duration-300 group-hover:translate-x-0.5">→</span>
+            </Link>
+          </div>
+
+          <div className="relative z-10 flex items-center gap-1 md:hidden">
+            <button
+              onClick={toggleTheme}
+              className="inline-flex h-10 w-10 items-center justify-center text-muted-foreground"
+              aria-label={isDark ? 'Switch to paper mode' : 'Switch to ink mode'}
+            >
+              {isDark ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
+            <button
+              onClick={() => setMenuOpen(o => !o)}
+              className="inline-flex h-10 items-center gap-2 px-2 font-mono text-[11px] uppercase tracking-[0.14em] text-foreground"
+              aria-expanded={menuOpen}
+              aria-controls="mobile-menu"
+            >
+              {menuOpen ? <><X size={15} /> Close</> : 'Menu'}
+            </button>
+          </div>
+        </nav>
+      </header>
+
+      <div
+        id="mobile-menu"
+        className={cn(
+          'fixed inset-0 z-40 flex flex-col bg-background px-5 pb-10 pt-24 transition-[opacity,visibility] duration-500 md:hidden',
+          menuOpen ? 'visible opacity-100' : 'invisible opacity-0',
+        )}
+      >
+        <nav className="flex flex-1 flex-col justify-center gap-2" aria-label="Mobile">
+          {[{ label: 'Home', to: '/' }, ...NAV, { label: 'Contact', to: '/#contact' }].map((item, i) => (
+            <Link
+              key={item.label}
+              to={item.to}
+              onClick={go(item.to)}
+              className="group flex items-baseline gap-4 border-b border-line/10 py-3"
+              style={{ transitionDelay: menuOpen ? `${i * 40}ms` : '0ms' }}
+            >
+              <span className="font-mono text-[11px] text-muted-foreground">{String(i).padStart(2, '0')}</span>
+              <span className="font-display text-5xl leading-none tracking-[-0.02em] text-foreground">{item.label}</span>
+            </Link>
+          ))}
+        </nav>
+        <div className="flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+          {SOCIAL_LINKS.map(s => (
+            <a key={s.name} href={s.url} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
+              {s.name}
+            </a>
+          ))}
+          <button onClick={() => { setMenuOpen(false); openCommandMenu(); }} className="hover:text-foreground">⌘K</button>
+        </div>
+      </div>
+    </>
   );
 }

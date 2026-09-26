@@ -1,163 +1,157 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Star, GitFork, ExternalLink } from 'lucide-react';
-import { GitHubRepo, Project } from '@shared/types';
-import { api } from '@/lib/api-client';
+import React, { useCallback } from 'react';
+import { ArrowUpRight, GitFork, Star } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { GitHubSnapshot, Project } from '@shared/types';
+import { useSiteConfig } from '@/contexts/SiteConfigContext';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useReducedMotion } from '@/hooks/use-reduced-motion';
+import { Container, SectionHeader } from '@/components/site/SectionHeader';
+import { DenoiseImage } from '@/components/diffusion/DenoiseImage';
+import { formatCount, repoStats } from '@/lib/site-data';
+import { hashString } from '@/lib/diffusion/noise';
+import { MONO, SERIF } from '@/lib/diffusion/compose';
+import { bentoRows } from '@/lib/bento';
 
-const ProjectCard = ({ name, description, repo, url, imageUrl, prefersReducedMotion }: Project & { prefersReducedMotion: boolean }) => {
-  const [repoData, setRepoData] = useState<GitHubRepo | null>(null);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    const fetchRepoData = async () => {
-      try {
-        const response = await fetch(`https://api.github.com/repos/${repo}`);
-        if (response.ok) {
-          const data = await response.json();
-          setRepoData({
-            stars: data.stargazers_count,
-            forks: data.forks_count,
-          });
-        } else if (response.status === 403) {
-          console.warn("GitHub API rate limited");
-          setError(true);
-        }
-      } catch (error) {
-        console.error("Failed to fetch GitHub repo data:", error);
-        setError(true);
-      }
-    };
-    if (repo) {
-      fetchRepoData();
-    }
-  }, [repo]);
-
-  return (
-    <motion.div
-      whileHover={prefersReducedMotion ? {} : { y: -8 }}
-      transition={{ type: 'spring', stiffness: 300 }}
-      className="h-full"
-    >
-      <Card className="h-full flex flex-col justify-between transition-all duration-300 hover:border-primary/50 hover:shadow-lg overflow-hidden">
-        {imageUrl && (
-          <div className="relative aspect-video overflow-hidden border-b border-border">
-            <img
-              src={imageUrl}
-              alt={name}
-              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-              loading="lazy"
-            />
-          </div>
-        )}
-        <div className="flex-1 flex flex-col">
-          <CardHeader className={imageUrl ? 'pt-4' : ''}>
-            <div className="flex justify-between items-center">
-              <CardTitle className="text-xl font-bold text-foreground group-hover:text-primary transition-colors duration-300">{name}</CardTitle>
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary transition-colors duration-300"
-                aria-label={`View ${name} on GitHub`}
-              >
-                <ExternalLink size={20} />
-              </a>
-            </div>
-          </CardHeader>
-          <CardContent className="flex-1">
-            <CardDescription>{description}</CardDescription>
-          </CardContent>
-        </div>
-        <CardFooter>
-          {repoData ? (
-            <div className="flex items-center space-x-4 text-sm font-mono text-muted-foreground">
-              <div className="flex items-center">
-                <Star size={16} className="mr-1 text-primary" aria-hidden="true" />
-                <span aria-label={`${repoData.stars} stars`}>{repoData.stars}</span>
-              </div>
-              <div className="flex items-center">
-                <GitFork size={16} className="mr-1 text-primary" aria-hidden="true" />
-                <span aria-label={`${repoData.forks} forks`}>{repoData.forks}</span>
-              </div>
-            </div>
-          ) : error ? (
-            <div className="text-xs text-muted-foreground font-mono">Stats unavailable</div>
-          ) : (
-            <div className="h-5 w-20"></div> // Placeholder for alignment
-          )}
-        </CardFooter>
-      </Card>
-    </motion.div>
-  );
+const SPAN: Record<number, string> = {
+  4: 'lg:col-span-4',
+  5: 'lg:col-span-5',
+  6: 'lg:col-span-6',
+  7: 'lg:col-span-7',
+  12: 'lg:col-span-12',
+};
+const HEIGHT: Record<number, string> = {
+  2: 'lg:h-[min(32vw,500px)]',
+  3: 'lg:h-[min(24vw,340px)]',
+  1: 'lg:h-[min(36vw,540px)]',
 };
 
-export function ProjectsSection() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const prefersReducedMotion = useReducedMotion();
+function layoutFor(n: number): { span: string; height: string }[] {
+  return bentoRows(n).flatMap(row => row.map(span => ({ span: SPAN[span], height: HEIGHT[row.length] })));
+}
 
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const response = await api<{ items: Project[] }>('/api/projects');
-        setProjects(response.items);
-      } catch (error) {
-        console.error("Failed to fetch projects:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProjects();
-  }, []);
+function monogram(project: Project): string {
+  const slug = (project.repo.split('/')[1] || project.name).trim();
+  if (slug.length <= 8) return slug;
+  const parts = slug.split(/[-_.\s]+/).filter(Boolean);
+  return parts.length > 1 ? parts.slice(0, 2).map(p => p[0]).join('') : slug.slice(0, 2);
+}
+
+function cssColor(name: string, alpha = 1): string {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return `hsl(${v} / ${alpha})`;
+}
+
+function useProjectArt(project: Project) {
+  return useCallback((ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    const seed = hashString(project.id);
+    ctx.fillStyle = cssColor('--card');
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = cssColor('--foreground', 0.14);
+    const step = 18;
+    for (let x = step; x < w; x += step) {
+      for (let y = step; y < h; y += step) ctx.fillRect(x, y, 1, 1);
+    }
+    const probe = monogram(project);
+    ctx.font = `400 100px ${SERIF}`;
+    const size = Math.min(h * 0.62, ((w * 0.7) / Math.max(1, ctx.measureText(probe).width)) * 100);
+    ctx.font = `400 ${size}px ${SERIF}`;
+    ctx.fillStyle = cssColor('--foreground');
+    ctx.textBaseline = 'alphabetic';
+    const mono = monogram(project);
+    const mw = ctx.measureText(mono).width;
+    const x = w * 0.5 - mw * 0.5;
+    const y = h * 0.5 + size * 0.28;
+    ctx.fillText(mono, x, y);
+    ctx.fillStyle = cssColor('--signal');
+    const r = Math.max(4, size * 0.05);
+    ctx.beginPath();
+    ctx.arc(x + mw + r * 1.8, y - r, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = `400 10px ${MONO}`;
+    ctx.fillStyle = cssColor('--foreground', 0.5);
+    ctx.fillText('NO x₀ PROVIDED — SAMPLED FROM THE PRIOR', 14, 22);
+    ctx.fillText(`${project.repo || project.name}`.toUpperCase(), 14, h - 14);
+    ctx.textAlign = 'right';
+    ctx.fillText(`SEED 0x${(seed & 0xffff).toString(16).toUpperCase().padStart(4, '0')}`, w - 14, h - 14);
+    ctx.textAlign = 'left';
+  }, [project]);
+}
+
+function SampleCard({ project, index, github, span, height }: { project: Project; index: number; github: GitHubSnapshot | null; span: string; height: string }) {
+  const stats = repoStats(github, project.repo);
+  const art = useProjectArt(project);
 
   return (
-    <motion.section
-      id="projects"
-      className="py-24 md:py-32"
-      initial={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.1 }}
-      transition={{ duration: prefersReducedMotion ? 0 : 0.6 }}
-    >
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="section-heading">
-          <span className="font-mono text-accent text-xl md:text-2xl mr-3">03.</span> Things I've Built
-        </h2>
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {loading ? (
-            [...Array(5)].map((_, i) => (
-              <Card key={i} className="h-full flex flex-col justify-between">
-                <CardHeader>
-                  <Skeleton className="h-6 w-3/4" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-5/6 mt-2" />
-                </CardContent>
-                <CardFooter>
-                  <Skeleton className="h-5 w-20" />
-                </CardFooter>
-              </Card>
-            ))
-          ) : (
-            projects.map((project, index) => (
-               <motion.div
-                key={project.id}
-                initial={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.5 }}
-                transition={{ duration: prefersReducedMotion ? 0 : 0.5, delay: prefersReducedMotion ? 0 : index * 0.1 }}
-                className="h-full"
-              >
-                <ProjectCard {...project} prefersReducedMotion={prefersReducedMotion} />
-              </motion.div>
-            ))
-          )}
+    <li className={cn('md:col-span-6', span)}>
+      <a href={project.url || `https://github.com/${project.repo}`} target="_blank" rel="noopener noreferrer" className="group block">
+        <DenoiseImage
+          src={project.imageUrl || undefined}
+          draw={project.imageUrl ? undefined : art}
+          drawKey={project.id}
+          alt={project.name}
+          seed={hashString(project.id)}
+          className={cn('aspect-[16/10] w-full border border-line/10 lg:aspect-auto', height)}
+          imgClassName="transition-transform duration-[1.2s] ease-out-expo group-hover:scale-[1.03]"
+          latentWidth={112}
+          focal={{ x: 0.5, y: 0.3 }}
+        />
+        <div className="mt-5 flex items-start justify-between gap-6">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+              <span className="text-signal">S/{String(index + 1).padStart(2, '0')}</span>
+              {stats?.language && <span>{stats.language}</span>}
+            </div>
+            <h3 className="mt-2 font-display text-[clamp(1.75rem,2.4vw,2.5rem)] leading-[1.02] tracking-[-0.015em] text-foreground">
+              <span className="bg-[linear-gradient(currentColor,currentColor)] bg-[length:0%_1px] bg-left-bottom bg-no-repeat transition-[background-size] duration-700 ease-out-expo group-hover:bg-[length:100%_1px]">
+                {project.name}
+              </span>
+            </h3>
+          </div>
+          <span className="mt-6 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line/15 text-foreground transition-all duration-500 group-hover:border-signal group-hover:bg-signal group-hover:text-background">
+            <ArrowUpRight size={15} />
+          </span>
         </div>
-      </div>
-    </motion.section>
+        <p className="mt-3 max-w-xl text-[0.95rem] leading-relaxed text-foreground/65">{project.description}</p>
+        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-[11px] text-muted-foreground">
+          {stats ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 text-foreground/85"><Star size={12} className="text-signal" /> {formatCount(stats.stars)}</span>
+              <span className="inline-flex items-center gap-1.5"><GitFork size={12} /> {formatCount(stats.forks)}</span>
+            </>
+          ) : null}
+          {project.repo && <span className="truncate">{project.repo}</span>}
+        </div>
+      </a>
+    </li>
+  );
+}
+
+export function ProjectsSection() {
+  const { data, github, loading } = useSiteConfig();
+  const projects = data?.projects ?? [];
+  const layout = layoutFor(projects.length);
+  const skeleton = layoutFor(4);
+
+  return (
+    <section id="projects" className="relative z-10 bg-background pb-28 pt-12 md:pb-40" aria-label="Projects">
+      <Container>
+        <SectionHeader
+          index={3}
+          kicker="Projects"
+          title="Samples"
+          note="fig. 3 — uncurated samples at t = 0. hover any of them to inject a little noise."
+        />
+        <ul className="mt-16 grid grid-cols-1 gap-x-6 gap-y-16 md:mt-24 md:grid-cols-12 md:gap-y-20">
+          {loading && projects.length === 0
+            ? [...Array(4)].map((_, i) => (
+                <li key={i} className={cn('md:col-span-6', skeleton[i].span)}>
+                  <Skeleton className="aspect-[16/10] w-full rounded-none" />
+                  <Skeleton className="mt-5 h-8 w-2/3" />
+                  <Skeleton className="mt-3 h-4 w-full" />
+                </li>
+              ))
+            : projects.map((project, i) => <SampleCard key={project.id} project={project} index={i} github={github} span={layout[i].span} height={layout[i].height} />)}
+        </ul>
+      </Container>
+    </section>
   );
 }

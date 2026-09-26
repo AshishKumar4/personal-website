@@ -6,19 +6,16 @@ import { ExperienceSection } from '@/components/sections/ExperienceSection';
 import { ProjectsSection } from '@/components/sections/ProjectsSection';
 import { WritingSection } from '@/components/sections/WritingSection';
 import { ContactSection } from '@/components/sections/ContactSection';
-import { Toaster } from '@/components/ui/sonner';
+
 export function HomePage() {
   return (
     <PortfolioLayout>
-      <div className="relative z-10">
-        <HeroSection />
-        <AboutSection />
-        <ExperienceSection />
-        <ProjectsSection />
-        <WritingSection />
-        <ContactSection />
-      </div>
-      <Toaster theme="dark" />
+      <HeroSection />
+      <AboutSection />
+      <ExperienceSection />
+      <ProjectsSection />
+      <WritingSection />
+      <ContactSection />
     </PortfolioLayout>
   );
 }

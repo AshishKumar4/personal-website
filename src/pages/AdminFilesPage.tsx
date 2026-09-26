@@ -141,9 +141,10 @@ export function AdminFilesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold font-mono">Files</h1>
+          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">Site</div>
+          <h1 className="mt-2 font-display text-5xl leading-none tracking-[-0.02em] text-foreground">Files</h1>
           <p className="text-sm text-muted-foreground">
             Manage files in R2 storage (r2.ashishkumarsingh.com)
           </p>

@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { PortfolioLayout } from '@/components/layout/PortfolioLayout';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,8 +10,8 @@ import { login } from '@/lib/two-factor-client';
 import { TwoFactorSetup } from '@/components/auth/TwoFactorSetup';
 import { TwoFactorPrompt } from '@/components/auth/TwoFactorPrompt';
 import { getErrorMessage } from '@/lib/error-utils';
+import { ScrollField } from '@/components/diffusion/ScrollField';
 import type { LoginStep } from '@shared/types';
-import { Loader2 } from 'lucide-react';
 
 type Phase =
   | { name: 'credentials' }
@@ -27,7 +26,7 @@ export function LoginPage() {
   const navigate = useNavigate();
 
   const enterAdmin = () => {
-    toast.success('Login successful!');
+    toast.success('Welcome back.');
     navigate('/admin');
   };
 
@@ -49,48 +48,52 @@ export function LoginPage() {
   };
 
   const header = phase.name === 'setup'
-    ? { title: 'Set up two-factor auth', desc: 'One-time setup to secure your account.' }
+    ? { title: 'Set up two-factor', desc: 'One-time setup to secure your account.', step: '02' }
     : phase.name === '2fa'
-      ? { title: 'Verify your identity', desc: 'Complete the second step to sign in.' }
-      : { title: 'Admin Login', desc: 'Enter your credentials to access the dashboard.' };
+      ? { title: 'Verify it’s you', desc: 'Complete the second factor to sign in.', step: '02' }
+      : { title: 'Authenticate', desc: 'Only one person has the weights for this.', step: '01' };
 
   return (
-    <PortfolioLayout>
-      <main className="relative z-10 flex items-center justify-center min-h-screen py-24">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <Card className="w-full max-w-sm bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold text-foreground font-display">{header.title}</CardTitle>
-              <CardDescription className="text-muted-foreground">{header.desc}</CardDescription>
-            </CardHeader>
-            {phase.name === 'credentials' && (
-              <form onSubmit={handleSubmit}>
-                <CardContent className="space-y-4">
+    <PortfolioLayout footer={false}>
+      <div className="grid min-h-[100svh] grid-cols-1 lg:grid-cols-12">
+        <div className="relative hidden border-r border-line/10 lg:col-span-7 lg:block">
+          <div className="absolute inset-0 pt-16">
+            <ScrollField text="Admin" sampleOnMount seed={4242} />
+          </div>
+          <div className="absolute bottom-8 left-12 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            restricted · passkeys, totp and backup codes
+          </div>
+        </div>
+        <div className="flex items-center justify-center px-5 pb-16 pt-28 sm:px-8 lg:col-span-5 lg:px-16 lg:pt-16">
+          <div className="w-full max-w-sm">
+            <Link to="/" className="group inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground">
+              <ArrowLeft size={13} className="transition-transform group-hover:-translate-x-1" /> Back to site
+            </Link>
+            <div className="mt-12 font-mono text-[10px] uppercase tracking-[0.18em] text-signal">Step {header.step}</div>
+            <h1 className="mt-3 font-display text-6xl leading-none tracking-[-0.02em] text-foreground">{header.title}</h1>
+            <p className="mt-4 text-sm text-muted-foreground">{header.desc}</p>
+            <div className="mt-10">
+              {phase.name === 'credentials' && (
+                <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="username" className="text-muted-foreground">Username</Label>
-                    <Input id="username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} required className="bg-background border-border text-foreground" />
+                    <Label htmlFor="username" className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Username</Label>
+                    <Input id="username" type="text" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required className="h-11" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="password" className="text-muted-foreground">Password</Label>
-                    <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-background border-border text-foreground" />
+                    <Label htmlFor="password" className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Password</Label>
+                    <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-11" />
                   </div>
-                </CardContent>
-                <CardFooter>
-                  <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
-                    {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Logging in...</> : 'Login'}
+                  <Button type="submit" className="h-12 w-full rounded-full font-mono text-[11px] uppercase tracking-[0.14em]" disabled={loading}>
+                    {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying…</> : 'Continue'}
                   </Button>
-                </CardFooter>
-              </form>
-            )}
-            {phase.name === 'setup' && (
-              <CardContent><TwoFactorSetup setupToken={phase.setupToken} onDone={enterAdmin} /></CardContent>
-            )}
-            {phase.name === '2fa' && (
-              <CardContent><TwoFactorPrompt challengeToken={phase.challengeToken} methods={phase.methods} onDone={enterAdmin} /></CardContent>
-            )}
-          </Card>
-        </motion.div>
-      </main>
+                </form>
+              )}
+              {phase.name === 'setup' && <TwoFactorSetup setupToken={phase.setupToken} onDone={enterAdmin} />}
+              {phase.name === '2fa' && <TwoFactorPrompt challengeToken={phase.challengeToken} methods={phase.methods} onDone={enterAdmin} />}
+            </div>
+          </div>
+        </div>
+      </div>
       <Toaster />
     </PortfolioLayout>
   );

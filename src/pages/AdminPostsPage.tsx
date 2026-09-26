@@ -91,7 +91,10 @@ export function AdminPostsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold text-foreground font-display">Manage Posts</h1>
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">Content</div>
+          <h1 className="mt-2 font-display text-5xl leading-none tracking-[-0.02em] text-foreground">Posts</h1>
+        </div>
         <div className="flex items-center gap-2">
           <input
             ref={notebookInputRef}
