@@ -10,7 +10,7 @@ import { login } from '@/lib/two-factor-client';
 import { TwoFactorSetup } from '@/components/auth/TwoFactorSetup';
 import { TwoFactorPrompt } from '@/components/auth/TwoFactorPrompt';
 import { getErrorMessage } from '@/lib/error-utils';
-import { ScrollField } from '@/components/diffusion/ScrollField';
+import { FlightCanvas } from '@/components/flight/FlightCanvas';
 import type { LoginStep } from '@shared/types';
 
 type Phase =
@@ -48,49 +48,39 @@ export function LoginPage() {
   };
 
   const header = phase.name === 'setup'
-    ? { title: 'Set up two-factor', desc: 'One-time setup to secure your account.', step: '02' }
+    ? { title: 'Set up two-factor', desc: 'One-time setup to secure your account.' }
     : phase.name === '2fa'
-      ? { title: 'Verify it’s you', desc: 'Complete the second factor to sign in.', step: '02' }
-      : { title: 'Authenticate', desc: 'Only one person has the weights for this.', step: '01' };
+      ? { title: 'Verify it’s you', desc: 'Complete the second factor to sign in.' }
+      : { title: 'Sign in', desc: 'Admin access for ashishkumarsingh.com.' };
 
   return (
     <PortfolioLayout footer={false}>
-      <div className="grid min-h-[100svh] grid-cols-1 lg:grid-cols-12">
-        <div className="relative hidden border-r border-line/10 lg:col-span-7 lg:block">
-          <div className="absolute inset-0 pt-16">
-            <ScrollField text="Admin" sampleOnMount seed={4242} />
-          </div>
-          <div className="absolute bottom-8 left-12 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            restricted · passkeys, totp and backup codes
-          </div>
-        </div>
-        <div className="flex items-center justify-center px-5 pb-16 pt-28 sm:px-8 lg:col-span-5 lg:px-16 lg:pt-16">
-          <div className="w-full max-w-sm">
-            <Link to="/" className="group inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground">
-              <ArrowLeft size={13} className="transition-transform group-hover:-translate-x-1" /> Back to site
-            </Link>
-            <div className="mt-12 font-mono text-[10px] uppercase tracking-[0.18em] text-signal">Step {header.step}</div>
-            <h1 className="mt-3 font-display text-6xl leading-none tracking-[-0.02em] text-foreground">{header.title}</h1>
-            <p className="mt-4 text-sm text-muted-foreground">{header.desc}</p>
-            <div className="mt-10">
-              {phase.name === 'credentials' && (
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="username" className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Username</Label>
-                    <Input id="username" type="text" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required className="h-11" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password" className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Password</Label>
-                    <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-11" />
-                  </div>
-                  <Button type="submit" className="h-12 w-full rounded-full font-mono text-[11px] uppercase tracking-[0.14em]" disabled={loading}>
-                    {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying…</> : 'Continue'}
-                  </Button>
-                </form>
-              )}
-              {phase.name === 'setup' && <TwoFactorSetup setupToken={phase.setupToken} onDone={enterAdmin} />}
-              {phase.name === '2fa' && <TwoFactorPrompt challengeToken={phase.challengeToken} methods={phase.methods} onDone={enterAdmin} />}
-            </div>
+      <FlightCanvas />
+      <div className="flex min-h-[100svh] items-center justify-center px-5 py-28">
+        <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-background/70 p-8 backdrop-blur-xl">
+          <Link to="/" className="group inline-flex items-center gap-2 text-[0.875rem] text-foreground/55 hover:text-foreground">
+            <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" /> Back to site
+          </Link>
+          <h1 className="mt-10 font-display text-[2.4rem] font-[520] leading-none tracking-[-0.04em] text-foreground">{header.title}</h1>
+          <p className="mt-3 text-[0.9375rem] text-foreground/55">{header.desc}</p>
+          <div className="mt-8">
+            {phase.name === 'credentials' && (
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="username" className="text-[0.8125rem] text-foreground/60">Username</Label>
+                  <Input id="username" type="text" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required className="h-11 bg-transparent" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-[0.8125rem] text-foreground/60">Password</Label>
+                  <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-11 bg-transparent" />
+                </div>
+                <Button type="submit" className="h-11 w-full rounded-full bg-foreground text-background hover:bg-foreground/85" disabled={loading}>
+                  {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying</> : 'Continue'}
+                </Button>
+              </form>
+            )}
+            {phase.name === 'setup' && <TwoFactorSetup setupToken={phase.setupToken} onDone={enterAdmin} />}
+            {phase.name === '2fa' && <TwoFactorPrompt challengeToken={phase.challengeToken} methods={phase.methods} onDone={enterAdmin} />}
           </div>
         </div>
       </div>

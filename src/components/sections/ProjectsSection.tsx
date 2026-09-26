@@ -1,155 +1,68 @@
-import React, { useCallback } from 'react';
-import { ArrowUpRight, GitFork, Star } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ArrowUpRight } from 'lucide-react';
 import type { GitHubSnapshot, Project } from '@shared/types';
 import { useSiteConfig } from '@/contexts/SiteConfigContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Container, SectionHeader } from '@/components/site/SectionHeader';
-import { DenoiseImage } from '@/components/diffusion/DenoiseImage';
+import { Reveal } from '@/components/site/Reveal';
+import { RidgeArt } from '@/components/site/RidgeArt';
 import { formatCount, repoStats } from '@/lib/site-data';
-import { hashString } from '@/lib/diffusion/noise';
-import { MONO, SERIF } from '@/lib/diffusion/compose';
-import { bentoRows } from '@/lib/bento';
 
-const SPAN: Record<number, string> = {
-  4: 'lg:col-span-4',
-  5: 'lg:col-span-5',
-  6: 'lg:col-span-6',
-  7: 'lg:col-span-7',
-  12: 'lg:col-span-12',
-};
-const HEIGHT: Record<number, string> = {
-  2: 'lg:h-[min(32vw,500px)]',
-  3: 'lg:h-[min(24vw,340px)]',
-  1: 'lg:h-[min(36vw,540px)]',
-};
-
-function layoutFor(n: number): { span: string; height: string }[] {
-  return bentoRows(n).flatMap(row => row.map(span => ({ span: SPAN[span], height: HEIGHT[row.length] })));
-}
-
-function monogram(project: Project): string {
-  const slug = (project.repo.split('/')[1] || project.name).trim();
-  if (slug.length <= 8) return slug;
-  const parts = slug.split(/[-_.\s]+/).filter(Boolean);
-  return parts.length > 1 ? parts.slice(0, 2).map(p => p[0]).join('') : slug.slice(0, 2);
-}
-
-function cssColor(name: string, alpha = 1): string {
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return `hsl(${v} / ${alpha})`;
-}
-
-function useProjectArt(project: Project) {
-  return useCallback((ctx: CanvasRenderingContext2D, w: number, h: number) => {
-    const seed = hashString(project.id);
-    ctx.fillStyle = cssColor('--card');
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = cssColor('--foreground', 0.14);
-    const step = 18;
-    for (let x = step; x < w; x += step) {
-      for (let y = step; y < h; y += step) ctx.fillRect(x, y, 1, 1);
-    }
-    const probe = monogram(project);
-    ctx.font = `400 100px ${SERIF}`;
-    const size = Math.min(h * 0.62, ((w * 0.7) / Math.max(1, ctx.measureText(probe).width)) * 100);
-    ctx.font = `400 ${size}px ${SERIF}`;
-    ctx.fillStyle = cssColor('--foreground');
-    ctx.textBaseline = 'alphabetic';
-    const mono = monogram(project);
-    const mw = ctx.measureText(mono).width;
-    const x = w * 0.5 - mw * 0.5;
-    const y = h * 0.5 + size * 0.28;
-    ctx.fillText(mono, x, y);
-    ctx.fillStyle = cssColor('--signal');
-    const r = Math.max(4, size * 0.05);
-    ctx.beginPath();
-    ctx.arc(x + mw + r * 1.8, y - r, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.font = `400 10px ${MONO}`;
-    ctx.fillStyle = cssColor('--foreground', 0.5);
-    ctx.fillText('NO x₀ PROVIDED — SAMPLED FROM THE PRIOR', 14, 22);
-    ctx.fillText(`${project.repo || project.name}`.toUpperCase(), 14, h - 14);
-    ctx.textAlign = 'right';
-    ctx.fillText(`SEED 0x${(seed & 0xffff).toString(16).toUpperCase().padStart(4, '0')}`, w - 14, h - 14);
-    ctx.textAlign = 'left';
-  }, [project]);
-}
-
-function SampleCard({ project, index, github, span, height }: { project: Project; index: number; github: GitHubSnapshot | null; span: string; height: string }) {
+function ProjectCard({ project, github, index }: { project: Project; github: GitHubSnapshot | null; index: number }) {
   const stats = repoStats(github, project.repo);
-  const art = useProjectArt(project);
-
+  const href = project.url || (project.repo ? `https://github.com/${project.repo}` : undefined);
   return (
-    <li className={cn('md:col-span-6', span)}>
-      <a href={project.url || `https://github.com/${project.repo}`} target="_blank" rel="noopener noreferrer" className="group block">
-        <DenoiseImage
-          src={project.imageUrl || undefined}
-          draw={project.imageUrl ? undefined : art}
-          drawKey={project.id}
-          alt={project.name}
-          seed={hashString(project.id)}
-          className={cn('aspect-[16/10] w-full border border-line/10 lg:aspect-auto', height)}
-          imgClassName="transition-transform duration-[1.2s] ease-out-expo group-hover:scale-[1.03]"
-          latentWidth={112}
-          focal={{ x: 0.5, y: 0.3 }}
-        />
+    <Reveal as="li" delay={(index % 2) * 90}>
+      <a href={href} target="_blank" rel="noopener noreferrer" className="group block">
+        <div className="relative aspect-[16/10] overflow-hidden rounded-2xl bg-card ring-1 ring-white/[0.07]">
+          {project.imageUrl ? (
+            <img
+              src={project.imageUrl}
+              alt={project.name}
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover object-top transition-transform duration-[1400ms] ease-out-expo group-hover:scale-[1.035]"
+            />
+          ) : (
+            <RidgeArt seed={project.id} className="h-full w-full transition-transform duration-[1400ms] ease-out-expo group-hover:scale-[1.035]" />
+          )}
+          <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/[0.06]" />
+        </div>
         <div className="mt-5 flex items-start justify-between gap-6">
           <div className="min-w-0">
-            <div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-              <span className="text-signal">S/{String(index + 1).padStart(2, '0')}</span>
-              {stats?.language && <span>{stats.language}</span>}
-            </div>
-            <h3 className="mt-2 font-display text-[clamp(1.75rem,2.4vw,2.5rem)] leading-[1.02] tracking-[-0.015em] text-foreground">
-              <span className="bg-[linear-gradient(currentColor,currentColor)] bg-[length:0%_1px] bg-left-bottom bg-no-repeat transition-[background-size] duration-700 ease-out-expo group-hover:bg-[length:100%_1px]">
-                {project.name}
-              </span>
-            </h3>
+            <h3 className="font-display text-[1.45rem] font-[520] leading-tight tracking-[-0.025em] text-foreground">{project.name}</h3>
+            <p className="mt-2 max-w-xl text-[0.9375rem] leading-relaxed text-foreground/55">{project.description}</p>
           </div>
-          <span className="mt-6 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line/15 text-foreground transition-all duration-500 group-hover:border-signal group-hover:bg-signal group-hover:text-background">
-            <ArrowUpRight size={15} />
-          </span>
+          <ArrowUpRight size={18} className="mt-1.5 shrink-0 text-foreground/40 transition-all duration-500 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground" />
         </div>
-        <p className="mt-3 max-w-xl text-[0.95rem] leading-relaxed text-foreground/65">{project.description}</p>
-        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-[11px] text-muted-foreground">
-          {stats ? (
-            <>
-              <span className="inline-flex items-center gap-1.5 text-foreground/85"><Star size={12} className="text-signal" /> {formatCount(stats.stars)}</span>
-              <span className="inline-flex items-center gap-1.5"><GitFork size={12} /> {formatCount(stats.forks)}</span>
-            </>
-          ) : null}
-          {project.repo && <span className="truncate">{project.repo}</span>}
-        </div>
+        {(stats || project.repo) && (
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.8125rem] text-foreground/40 tabular">
+            {stats?.language && <span>{stats.language}</span>}
+            {stats && stats.stars > 0 && <span>{formatCount(stats.stars)} stars</span>}
+            {project.repo && <span className="truncate">{project.repo}</span>}
+          </div>
+        )}
       </a>
-    </li>
+    </Reveal>
   );
 }
 
 export function ProjectsSection() {
   const { data, github, loading } = useSiteConfig();
   const projects = data?.projects ?? [];
-  const layout = layoutFor(projects.length);
-  const skeleton = layoutFor(4);
 
   return (
-    <section id="projects" className="relative z-10 bg-background pb-28 pt-12 md:pb-40" aria-label="Projects">
+    <section id="work" className="relative pb-32 md:pb-48" aria-label="Selected work">
       <Container>
-        <SectionHeader
-          index={3}
-          kicker="Projects"
-          title="Samples"
-          note="fig. 3 — uncurated samples at t = 0. hover any of them to inject a little noise."
-        />
-        <ul className="mt-16 grid grid-cols-1 gap-x-6 gap-y-16 md:mt-24 md:grid-cols-12 md:gap-y-20">
+        <SectionHeader label="Selected work" title="Things I built to understand them." aside={projects.length ? `${projects.length} projects` : undefined} />
+        <ul className="mt-14 grid grid-cols-1 gap-x-8 gap-y-16 md:mt-20 md:grid-cols-2 md:gap-y-20">
           {loading && projects.length === 0
             ? [...Array(4)].map((_, i) => (
-                <li key={i} className={cn('md:col-span-6', skeleton[i].span)}>
-                  <Skeleton className="aspect-[16/10] w-full rounded-none" />
-                  <Skeleton className="mt-5 h-8 w-2/3" />
-                  <Skeleton className="mt-3 h-4 w-full" />
+                <li key={i}>
+                  <Skeleton className="aspect-[16/10] w-full rounded-2xl bg-white/5" />
+                  <Skeleton className="mt-5 h-7 w-1/2 bg-white/5" />
                 </li>
               ))
-            : projects.map((project, i) => <SampleCard key={project.id} project={project} index={i} github={github} span={layout[i].span} height={layout[i].height} />)}
+            : projects.map((p, i) => <ProjectCard key={p.id} project={p} github={github} index={i} />)}
         </ul>
       </Container>
     </section>

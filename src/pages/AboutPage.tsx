@@ -6,9 +6,6 @@ import { useSiteConfig } from '@/contexts/SiteConfigContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MarkdownContent } from '@/components/MarkdownContent';
 import { Container } from '@/components/site/SectionHeader';
-import { ResolveText } from '@/components/diffusion/ResolveText';
-import { ScrambleText } from '@/components/diffusion/ScrambleText';
-import { DenoiseImage } from '@/components/diffusion/DenoiseImage';
 import { PERSONAL_INFO } from '@/components/config/constants';
 import { cn } from '@/lib/utils';
 
@@ -44,36 +41,29 @@ function Story() {
   const { bodyRef, chapters, active } = useChapters(!!story);
 
   return (
-    <Container className="pb-28 pt-32 md:pb-40 md:pt-40">
-      <div className="grid grid-cols-1 gap-y-8 md:grid-cols-12 md:gap-x-8">
-        <div className="md:col-span-3">
-          <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-            <span className="text-signal">§</span>
-            <ScrambleText text="About · the longer story" trigger="mount" />
-          </div>
-        </div>
+    <Container className="pb-28 pt-36 md:pb-40 md:pt-48">
+      <div className="grid grid-cols-1 gap-y-6 md:grid-cols-12 md:gap-x-8">
+        <div className="text-[0.8125rem] text-foreground/50 md:col-span-3">About</div>
         <div className="md:col-span-9">
-          <ResolveText as="h1" text="Built to understand." className="display block text-[clamp(3.75rem,11vw,11rem)] text-foreground" />
+          <h1 className="font-display text-[clamp(3rem,8vw,7.5rem)] font-[540] leading-[0.92] tracking-[-0.05em] text-foreground">Built to understand.</h1>
         </div>
       </div>
 
       <div className="mt-16 grid grid-cols-1 gap-y-12 md:mt-24 md:grid-cols-12 md:gap-x-8">
         <aside className="md:col-span-3">
           <div className="md:sticky md:top-28">
-            <DenoiseImage
+            <img
               src={PERSONAL_INFO.profilePicture}
-              fallbackSrc={PERSONAL_INFO.portraitFallback}
               alt={`Portrait of ${PERSONAL_INFO.name}`}
-              className="aspect-[4/5] w-full max-w-[18rem] border border-line/10"
-              latentWidth={96}
-              focal={{ x: 0.45, y: 0.3 }}
-              eager
+              onError={e => {
+                if (!e.currentTarget.src.endsWith(PERSONAL_INFO.portraitFallback)) e.currentTarget.src = PERSONAL_INFO.portraitFallback;
+              }}
+              className="aspect-[4/5] w-full max-w-[18rem] rounded-2xl object-cover object-[45%_30%]"
             />
-            <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">fig. 1 — the subject, t = 0</p>
             {chapters.length > 0 && (
               <nav className="mt-10 hidden md:block" aria-label="Chapters">
-                <div className="label mb-4">Chapters</div>
-                <ol className="space-y-2.5 border-l border-line/15">
+                <div className="mb-4 text-[0.8125rem] text-foreground/45">Chapters</div>
+                <ol className="space-y-2.5 border-l border-white/10">
                   {chapters.map((c, i) => (
                     <li key={c.id}>
                       <a
@@ -87,7 +77,7 @@ function Story() {
                           active === c.id ? 'border-signal text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
                         )}
                       >
-                        <span className="font-mono text-[10px] leading-5 text-signal/80">{String(i + 1).padStart(2, '0')}</span>
+                        <span className="tabular text-foreground/30">{String(i + 1).padStart(2, '0')}</span>
                         {c.title}
                       </a>
                     </li>
@@ -105,7 +95,7 @@ function Story() {
           ) : (
             <MarkdownContent className="chapters story-lead">{story}</MarkdownContent>
           )}
-          <div className="mt-16 flex flex-wrap gap-x-8 gap-y-3 border-t border-line/15 pt-8 font-mono text-[11px] uppercase tracking-[0.14em]">
+          <div className="mt-16 flex flex-wrap gap-x-8 gap-y-3 border-t border-white/10 pt-8 text-[0.9375rem]">
             <Link to="/#contact" className="group inline-flex items-center gap-1.5 text-foreground hover:text-signal">
               Say hi <ArrowUpRight size={12} />
             </Link>

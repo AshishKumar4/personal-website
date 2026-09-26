@@ -116,7 +116,7 @@ export function AdminSettingsPage() {
       setSaved(merged);
       savedAccent.current = merged.accent ?? 'vermilion';
       loadHome(true).catch(() => undefined);
-      toast.success('Published. The site now samples from the new config.');
+      toast.success('Published. Changes are live.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to update configuration.');
     } finally {
@@ -138,7 +138,7 @@ export function AdminSettingsPage() {
       <AdminPageHeader
         kicker="Site"
         title="Settings"
-        description="Everything the homepage renders, from the hero sample to the model card."
+        description="Everything the homepage shows, from the hero to the about section."
         actions={
           <a href="/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground">
             Preview site <ArrowUpRight className="h-3.5 w-3.5" />
@@ -146,20 +146,17 @@ export function AdminSettingsPage() {
         }
       />
 
-      <Panel index="01 · Hero" title="The sample" description="What appears as the page generates itself from noise.">
-        <Field id="subtitle" label="Subtitle" hint="Shown in italics under your name">
+      <Panel index="01 · Hero" title="Introduction" description="The lines under your name on the homepage.">
+        <Field id="subtitle" label="Subtitle" hint="Shown after the headline">
           <Input id="subtitle" value={config.subtitle} onChange={e => set('subtitle', e.target.value)} placeholder="I love building things." />
         </Field>
         <Field id="bio" label="Bio">
           <Textarea id="bio" value={config.bio} onChange={e => set('bio', e.target.value)} rows={4} />
         </Field>
-        <Field id="heroPrompt" label="Sampler prompt" hint="The 'prompt' shown in the sampler HUD">
-          <Input id="heroPrompt" value={config.heroPrompt ?? ''} onChange={e => set('heroPrompt', e.target.value)} placeholder={DEFAULT_SITE_EXTRAS.heroPrompt} />
+        <Field id="now" label="Headline" hint="Blank = your latest role, e.g. “Systems Engineer at Cloudflare.”">
+          <Input id="now" value={config.now ?? ''} onChange={e => set('now', e.target.value)} placeholder="Systems Engineer at Cloudflare." />
         </Field>
-        <Field id="now" label="Now" hint="Blank = derived from your latest role">
-          <Input id="now" value={config.now ?? ''} onChange={e => set('now', e.target.value)} placeholder="Building Cloudflare OS" />
-        </Field>
-        <Field id="portraitUrl" label="Portrait" hint="Denoised into the hero, portrait orientation works best">
+        <Field id="portraitUrl" label="Portrait" hint="Shown in the about section, portrait orientation works best">
           <div className="flex items-center gap-4">
             {config.portraitUrl && <img src={config.portraitUrl} alt="" className="h-16 w-12 shrink-0 border border-border object-cover" />}
             <Input id="portraitUrl" value={config.portraitUrl ?? ''} onChange={e => set('portraitUrl', e.target.value)} placeholder={DEFAULT_SITE_EXTRAS.portraitUrl} />
@@ -172,8 +169,8 @@ export function AdminSettingsPage() {
         </Field>
       </Panel>
 
-      <Panel index="02 · Model card" title="About" description="The abstract and the spec table in the About section.">
-        <Field id="about" label="Abstract">
+      <Panel index="02 · About" title="About" description="The statement and the facts list in the About section.">
+        <Field id="about" label="Statement">
           <Textarea id="about" value={config.about} onChange={e => set('about', e.target.value)} rows={6} />
         </Field>
         <Field id="location" label="Based in" hint="Blank = from your latest role">
@@ -181,7 +178,7 @@ export function AdminSettingsPage() {
         </Field>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Model details</span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Facts</span>
             <Button type="button" variant="ghost" size="sm" onClick={() => setFacts([...facts, { label: '', value: '' }])}>
               <Plus className="mr-1 h-3.5 w-3.5" /> Add row
             </Button>

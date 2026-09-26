@@ -11,7 +11,6 @@ import { getReadingTime } from '@/lib/text-utils';
 import { useSiteConfig } from '@/contexts/SiteConfigContext';
 import { Container } from '@/components/site/SectionHeader';
 import { PostRow } from '@/components/site/PostRow';
-import { ResolveText } from '@/components/diffusion/ResolveText';
 import type { NotebookDoc } from '@shared/types';
 
 function notebookColab(content: string): string | undefined {
@@ -101,7 +100,7 @@ function PostBody() {
     <>
       <ReadingProgress target={articleRef} />
       <Container className="pt-28 md:pt-36">
-        <Link to="/blog" className="group inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground">
+        <Link to="/blog" className="group inline-flex items-center gap-2 text-[0.875rem] text-foreground/55 hover:text-foreground">
           <ArrowLeft size={13} className="transition-transform group-hover:-translate-x-1" /> All notes
         </Link>
       </Container>
@@ -115,22 +114,22 @@ function PostBody() {
             </div>
           ) : post ? (
             <header className="mx-auto max-w-5xl">
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[0.875rem] text-foreground/50">
                 <time dateTime={new Date(post.createdAt).toISOString()}>
                   {new Date(post.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </time>
-                <span className="h-px w-6 bg-line/30" />
+                <span className="text-foreground/25">·</span>
                 <span>{isNotebook ? 'Notebook' : `${getReadingTime(body)} min read`}</span>
-                <span className="h-px w-6 bg-line/30" />
+                <span className="text-foreground/25">·</span>
                 <span>{post.author}</span>
               </div>
-              <ResolveText as="h1" text={post.title} spread={900} className="mt-6 block font-display text-[clamp(2.75rem,6.5vw,6rem)] leading-[0.98] tracking-[-0.025em] text-foreground text-balance" />
+              <h1 className="mt-6 font-display text-[clamp(2.5rem,5.6vw,5rem)] font-[540] leading-[1] tracking-[-0.045em] text-foreground text-balance">{post.title}</h1>
               {colabUrl && (
                 <a
                   href={colabUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-8 inline-flex items-center gap-2 rounded-full border border-line/20 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.12em] text-foreground transition-colors hover:border-signal hover:text-signal"
+                  className="mt-8 inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-[0.875rem] text-foreground transition-colors hover:border-white/40"
                 >
                   <span className="text-[#e8710a]"><ColabIcon /></span>
                   Open in Colab
@@ -139,14 +138,13 @@ function PostBody() {
             </header>
           ) : (
             <div className="mx-auto max-w-3xl py-24 text-center">
-              <p className="font-display text-5xl text-foreground">{failed ? 'Post not found' : 'Nothing here'}</p>
-              <p className="mt-4 font-mono text-xs uppercase tracking-[0.14em] text-muted-foreground">This sample never converged.</p>
+              <p className="font-display text-5xl font-[500] tracking-[-0.04em] text-foreground">{failed ? 'Post not found' : 'Nothing here'}</p>
             </div>
           )}
         </Container>
         {post && (
           <Container className="mt-14 md:mt-20">
-            <div className="mx-auto max-w-[46rem] border-t border-line/15 pt-12">
+            <div className="mx-auto max-w-[44rem] border-t border-white/10 pt-12">
               {isNotebook ? <NotebookFromJson json={post.content} /> : <MarkdownContent>{body}</MarkdownContent>}
             </div>
           </Container>
@@ -154,10 +152,8 @@ function PostBody() {
       </article>
       {post && more.length > 0 && (
         <Container className="mt-28 pb-24 md:mt-36 md:pb-32">
-          <div className="mb-2 flex items-center gap-3 border-t border-line/15 pt-6 font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-            <span className="text-signal">§</span> Keep reading
-          </div>
-          <ol>
+          <div className="mb-2 text-[0.8125rem] text-foreground/50">Keep reading</div>
+          <ol className="border-b border-white/10">
             {more.map((p, i) => <PostRow key={p.slug} post={p} index={i + 1} />)}
           </ol>
         </Container>

@@ -67,7 +67,7 @@ export function AdminDashboardPage() {
       <AdminPageHeader
         kicker="Control room"
         title={`${greeting()}.`}
-        description="Everything the public site samples from lives here. Changes go live on save."
+        description="Everything on the public site lives here. Changes go live on save."
         actions={
           <Link
             to="/admin/posts/new"
@@ -84,8 +84,8 @@ export function AdminDashboardPage() {
         ) : (
           <>
             <Tile label="Posts" value={posts.length} href="/admin/posts" icon={FileText} hint={posts[0] ? `latest ${timeAgo(posts[0].createdAt)}` : 'none yet'} />
-            <Tile label="Projects" value={home?.projects.length ?? 0} href="/admin/projects" icon={Code} hint={stars !== null ? `${formatCount(stars)} stars total` : 'samples on the homepage'} />
-            <Tile label="Experience" value={home?.experiences.length ?? 0} href="/admin/experience" icon={Briefcase} hint="checkpoints in the training run" />
+            <Tile label="Projects" value={home?.projects.length ?? 0} href="/admin/projects" icon={Code} hint={stars !== null ? `${formatCount(stars)} stars total` : 'on the homepage'} />
+            <Tile label="Experience" value={home?.experiences.length ?? 0} href="/admin/experience" icon={Briefcase} hint="roles on the homepage" />
             <Tile label="Messages" value={messages?.length ?? 0} href="/admin/messages" icon={Inbox} hint={messages?.[0] ? `last ${timeAgo(messages[0].createdAt)}` : 'inbox zero'} />
           </>
         )}
@@ -175,7 +175,7 @@ export function AdminDashboardPage() {
               ['Write a post', '/admin/posts/new', PenLine],
               ['Add a project', '/admin/projects', Code],
               ['Add experience', '/admin/experience', Briefcase],
-              ['Edit hero, prompt and accent', '/admin/settings', Settings],
+              ['Edit hero, about and accent', '/admin/settings', Settings],
               ['Check stars on the homepage', '/#projects', Star],
             ].map(([label, href, Icon]) => {
               const I = Icon as typeof FileText;

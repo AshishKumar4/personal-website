@@ -5,10 +5,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Geist Variable"', '"AKS Glyphs"', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
-        display: ['"Instrument Serif"', '"AKS Glyphs"', 'ui-serif', 'Georgia', 'serif'],
-        serif: ['"Instrument Serif"', '"AKS Glyphs"', 'ui-serif', 'Georgia', 'serif'],
-        text: ['"Newsreader Variable"', '"Instrument Serif"', '"AKS Glyphs"', 'ui-serif', 'Georgia', 'serif'],
+        sans: ['"Inter Variable"', '"AKS Glyphs"', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+        display: ['"Inter Tight Variable"', '"Inter Variable"', '"AKS Glyphs"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        serif: ['"Newsreader Variable"', '"AKS Glyphs"', 'ui-serif', 'Georgia', 'serif'],
+        text: ['"Newsreader Variable"', '"AKS Glyphs"', 'ui-serif', 'Georgia', 'serif'],
         mono: ['"Geist Mono Variable"', '"AKS Glyphs"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       fontSize: {

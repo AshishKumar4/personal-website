@@ -3,12 +3,11 @@ import { useLocation } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { SiteConfigProvider } from '@/contexts/SiteConfigContext';
-import { onOpenCommandMenu, onOpenTerminal, scrollToHash } from '@/lib/site-events';
-import { greetConsole } from '@/lib/console-greeting';
+import { onOpenCommandMenu, scrollToHash } from '@/lib/site-events';
+import { useTheme } from '@/hooks/use-theme';
 import { cn } from '@/lib/utils';
 
 const CommandMenu = lazy(() => import('@/components/site/CommandMenu'));
-const Terminal = lazy(() => import('@/components/site/Terminal'));
 
 type PortfolioLayoutProps = {
   children: React.ReactNode;
@@ -17,57 +16,42 @@ type PortfolioLayoutProps = {
 };
 
 function Overlays() {
-  const [menu, setMenu] = useState(false);
-  const [terminal, setTerminal] = useState(false);
-  const [menuLoaded, setMenuLoaded] = useState(false);
-  const [terminalLoaded, setTerminalLoaded] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const openMenu = () => {
-      setMenuLoaded(true);
-      setMenu(true);
-    };
-    const openTerm = () => {
-      setTerminalLoaded(true);
-      setTerminal(true);
-    };
-    const offMenu = onOpenCommandMenu(openMenu);
-    const offTerm = onOpenTerminal(openTerm);
+    const off = onOpenCommandMenu(() => {
+      setLoaded(true);
+      setOpen(true);
+    });
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const typing = !!target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        setMenuLoaded(true);
-        setMenu(m => !m);
-      } else if (!typing && (e.key === '`' || e.key === '~')) {
-        e.preventDefault();
-        setTerminalLoaded(true);
-        setTerminal(t => !t);
+        setLoaded(true);
+        setOpen(o => !o);
       }
     };
     document.addEventListener('keydown', onKey);
     return () => {
-      offMenu();
-      offTerm();
+      off();
       document.removeEventListener('keydown', onKey);
     };
   }, []);
 
-  return (
-    <Suspense fallback={null}>
-      {menuLoaded && <CommandMenu open={menu} onOpenChange={setMenu} />}
-      {terminalLoaded && <Terminal open={terminal} onClose={() => setTerminal(false)} />}
-    </Suspense>
-  );
+  return <Suspense fallback={null}>{loaded && <CommandMenu open={open} onOpenChange={setOpen} />}</Suspense>;
 }
 
 export function PortfolioLayout({ children, variant = 'default', footer = true }: PortfolioLayoutProps) {
   const location = useLocation();
+  const { isDark } = useTheme();
 
   useEffect(() => {
-    greetConsole();
-  }, []);
+    const root = document.documentElement;
+    root.classList.add('dark');
+    return () => {
+      root.classList.toggle('dark', isDark);
+    };
+  }, [isDark]);
 
   useEffect(() => {
     if (location.hash) {
@@ -80,10 +64,10 @@ export function PortfolioLayout({ children, variant = 'default', footer = true }
 
   return (
     <SiteConfigProvider>
-      <div className={cn('grain relative flex min-h-screen flex-col', variant === 'reading' && 'reading-page')}>
+      <div className={cn('relative flex min-h-screen flex-col', variant === 'reading' && 'reading-page')}>
         <a
           href="#main"
-          className="sr-only z-[100] rounded bg-foreground px-3 py-2 font-mono text-xs text-background focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+          className="sr-only z-[100] rounded bg-foreground px-3 py-2 text-xs text-background focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
         >
           Skip to content
         </a>

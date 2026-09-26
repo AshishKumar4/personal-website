@@ -30,10 +30,3 @@ export const SOCIAL_LINKS = [
     Icon: Twitter,
   },
 ];
-export const SECTIONS = [
-  { id: "about", label: "Model card", nav: "About" },
-  { id: "work", label: "Training run", nav: "Work" },
-  { id: "projects", label: "Samples", nav: "Projects" },
-  { id: "writing", label: "Notes", nav: "Writing" },
-  { id: "contact", label: "Condition", nav: "Contact" },
-];
