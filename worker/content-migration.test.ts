@@ -62,6 +62,17 @@ class MemoryStore implements ProjectsMigrationStore {
     if (!this.docs.get(p.id)?.name) this.docs.set(p.id, p);
     this.index.add(p.id);
   }
+  experienceStories = new Map<string, string>();
+  async setStoryIfUnset(id: string, story: string) {
+    await this.tick();
+    const current = this.docs.get(id);
+    if (!current || current.story?.trim()) return;
+    this.docs.set(id, { ...current, story });
+  }
+  async setExperienceStoryIfUnset(id: string, story: string) {
+    await this.tick();
+    if (!this.experienceStories.has(id)) this.experienceStories.set(id, story);
+  }
   async setYearIfUnset(id: string, year: string) {
     await this.tick();
     const current = this.docs.get(id);
@@ -110,6 +121,11 @@ describe('planProjectsMigration', () => {
     const plan = planProjectsMigration([project('ashishkumar4-aqeous'), project('do86', { year: '2025-01' })], PROJECTS_MIGRATION);
     expect(plan.years).toEqual([{ id: 'ashishkumar4-aqeous', year: '2015-12' }]);
   });
+  test('fills missing stories without touching ones the admin wrote', () => {
+    const plan = planProjectsMigration([project('do86'), project('nimbus', { story: 'Mine.' })], PROJECTS_MIGRATION);
+    expect(plan.stories.map((s) => s.id)).toContain('do86');
+    expect(plan.stories.map((s) => s.id)).not.toContain('nimbus');
+  });
   test('keeps explicit admin ordering', () => {
     const plan = planProjectsMigration([project('do86', { order: 0 }), project('nimbus')], PROJECTS_MIGRATION);
     expect(plan.orders).toEqual([{ id: 'nimbus', order: 5 }]);
@@ -124,7 +140,7 @@ describe('planProjectsMigration', () => {
 
   test('is a no-op once applied', () => {
     const after = SEED_PROJECTS.map((p) => ({ ...p }));
-    expect(planProjectsMigration(after, PROJECTS_MIGRATION)).toEqual({ deleteIds: [], add: [], orders: [], years: [] });
+    expect(planProjectsMigration(after, PROJECTS_MIGRATION)).toEqual({ deleteIds: [], add: [], orders: [], years: [], stories: [] });
   });
 
   test('restores index entries that point at missing documents', () => {

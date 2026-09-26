@@ -63,6 +63,7 @@ Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage i
 
 - `src/components/site/timeline.ts` merges experiences (start parsed from `duration`) and projects (`year`, `YYYY-MM`) oldest first; undated projects go last
 - Each entry's scene is its `scene` field when set, otherwise a default by id in `timeline.ts`; both are editable in the admin ("Landscape", "Started")
+- Each entry shows its `story` (first-person narrative, blank lines split paragraphs) and falls back to `description`; default stories live in `worker/entry-stories.ts` and are editable per entry in the admin
 - `worker/content-migration.ts` holds the project seeds and a one-time, marker-guarded migration that runs from the public read routes
 
 ### Public data

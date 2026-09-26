@@ -542,6 +542,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       description: body.description || '',
       skills: body.skills || [],
       ...(typeof body.order === 'number' ? { order: body.order } : {}),
+      ...(typeof body.story === 'string' && body.story.trim() ? { story: body.story.trim() } : {}),
       ...fields,
     };
     const created = await ExperienceEntity.create(c.env, newExperience);
@@ -584,6 +585,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       url: body.url || '',
       ...(body.imageUrl ? { imageUrl: body.imageUrl } : {}),
       ...(typeof body.order === 'number' ? { order: body.order } : {}),
+      ...(typeof body.story === 'string' && body.story.trim() ? { story: body.story.trim() } : {}),
       ...fields,
     };
     const created = await ProjectEntity.create(c.env, newProject);

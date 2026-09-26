@@ -4,6 +4,7 @@
 import { Entity, IndexedEntity, Index } from "./core-utils";
 import type { Env } from "./core-utils";
 import { SEED_PROJECTS, EMPTY_MIGRATION_MARKER } from "./content-migration";
+import { EXPERIENCE_STORIES } from "./entry-stories";
 import type { MigrationMarker, ProjectsMigrationStore } from "./content-migration";
 import type { BlogPost, AuthUser, PendingAuth, SiteConfig, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAddress, BlockedSender, EmailFeed, ApiTokenPublic } from "@shared/types";
 import { EMAIL_DOMAIN } from "@shared/types";
@@ -25,6 +26,7 @@ export class BlogEntity extends IndexedEntity<BlogPost> {
 const SEED_EXPERIENCE: Experience[] = [
   {
     id: "cloudflare",
+    story: EXPERIENCE_STORIES["cloudflare"],
     company: "Cloudflare",
     logoUrl: "https://www.cloudflare.com/favicon.ico",
     role: "Systems Engineer, Emerging Technologies & Incubation",
@@ -36,6 +38,7 @@ const SEED_EXPERIENCE: Experience[] = [
   },
   {
     id: "umd",
+    story: EXPERIENCE_STORIES["umd"],
     company: "University of Maryland, College Park",
     logoUrl: "https://umd.edu/default/static/icons/favicon.png",
     role: "M.S. in Applied Machine Learning",
@@ -47,6 +50,7 @@ const SEED_EXPERIENCE: Experience[] = [
   },
   {
     id: "dyte",
+    story: EXPERIENCE_STORIES["dyte"],
     company: "Dyte (acquired by Cloudflare)",
     logoUrl: "https://cdn.prod.website-files.com/63ca2acc6352c221abe583d0/63cb76071fe6f5c0f6478cfa_favicon.svg",
     role: "Machine Learning and Systems Engineer",
@@ -58,6 +62,7 @@ const SEED_EXPERIENCE: Experience[] = [
   },
   {
     id: "hyperverge",
+    story: EXPERIENCE_STORIES["hyperverge"],
     company: "HyperVerge Inc.",
     logoUrl: "https://cdn.hyperverge.co/wp-content/uploads/2025/08/favicon.png",
     role: "Machine Learning Researcher",
@@ -69,6 +74,7 @@ const SEED_EXPERIENCE: Experience[] = [
   },
   {
     id: "vit",
+    story: EXPERIENCE_STORIES["vit"],
     company: "Vellore Institute of Technology",
     logoUrl: "https://www.google.com/s2/favicons?domain=vit.ac.in&sz=64",
     role: "B.Tech in Computer Science",
@@ -116,6 +122,16 @@ export function projectsMigrationStore(env: Env, migrationId: string): ProjectsM
             const entity = new ProjectEntity(env, id);
             if (!(await entity.exists())) return;
             await entity.mutate((current) => (current.name && !current.year ? { ...current, year } : current));
+        },
+        setStoryIfUnset: async (id, story) => {
+            const entity = new ProjectEntity(env, id);
+            if (!(await entity.exists())) return;
+            await entity.mutate((current) => (current.name && !current.story?.trim() ? { ...current, story } : current));
+        },
+        setExperienceStoryIfUnset: async (id, story) => {
+            const entity = new ExperienceEntity(env, id);
+            if (!(await entity.exists())) return;
+            await entity.mutate((current) => (current.company && !current.story?.trim() ? { ...current, story } : current));
         },
     };
 }

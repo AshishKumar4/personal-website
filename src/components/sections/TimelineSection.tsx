@@ -13,6 +13,11 @@ import { formatCount, repoStats } from '@/lib/site-data';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+function narrative(item: { story?: string; description: string }): string[] {
+  const text = item.story?.trim() || item.description.trim();
+  return text ? text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean) : [];
+}
+
 function yearLabel(year?: string) {
   const m = year?.trim().match(/^(\d{4})(?:-(\d{1,2}))?/);
   if (!m) return null;
@@ -59,9 +64,13 @@ function ExperienceNode({ entry, item }: { entry: TimelineEntry; item: Experienc
         <div aria-hidden="true" className="veil-left pointer-events-none absolute inset-x-0 -top-10 bottom-0" />
         <RailContainer className="relative">
           <div className="grid grid-cols-1 gap-y-10 md:grid-cols-12 md:gap-x-8">
-            {item.description && (
+            {narrative(item).length > 0 && (
               <Reveal className="md:col-span-8 lg:col-span-7">
-                <p className="t-narration legible text-[clamp(1.125rem,1.3vw,1.25rem)] leading-[1.62] text-foreground/85 text-pretty">{item.description}</p>
+                <div className="space-y-5">
+                  {narrative(item).map((para, i) => (
+                    <p key={i} className="t-narration legible text-[clamp(1.125rem,1.3vw,1.25rem)] leading-[1.62] text-foreground/85 text-pretty">{para}</p>
+                  ))}
+                </div>
               </Reveal>
             )}
             {item.skills.length > 0 && (
@@ -131,7 +140,9 @@ function ProjectNode({ entry, item, github, flip }: { entry: TimelineEntry; item
             </div>
             <Words as="h3" text={item.name} wdth="114%" className="t-name mt-4 text-[clamp(2.1rem,3.6vw,3.5rem)] leading-[1] text-foreground" />
             <div className="reveal-sub">
-              <p className="t-narration legible mt-5 text-[1.0625rem] leading-[1.6] text-foreground/80 text-pretty">{item.description}</p>
+              {narrative(item).map((para, i) => (
+                <p key={i} className="t-narration legible mt-5 text-[1.0625rem] leading-[1.6] text-foreground/80 text-pretty">{para}</p>
+              ))}
               <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
                 {(href || repoHref) && (
                   <a href={repoHref ?? href} target="_blank" rel="noopener noreferrer" className="pill group">

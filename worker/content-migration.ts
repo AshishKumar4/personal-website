@@ -1,4 +1,5 @@
 import type { Project } from "@shared/types";
+import { EXPERIENCE_STORIES, PROJECT_STORIES } from "./entry-stories";
 
 export const SEED_PROJECTS: Project[] = [
   {
@@ -9,6 +10,7 @@ export const SEED_PROJECTS: Project[] = [
     url: "https://github.com/AshishKumar4/kinu",
     order: 1,
     year: "2026-04",
+    story: PROJECT_STORIES["kinu"],
   },
   {
     id: "cloudflare-vibesdk",
@@ -18,6 +20,7 @@ export const SEED_PROJECTS: Project[] = [
     url: "https://github.com/cloudflare/vibesdk",
     order: 2,
     year: "2025-08",
+    story: PROJECT_STORIES["cloudflare-vibesdk"],
   },
   {
     id: "dew",
@@ -27,6 +30,7 @@ export const SEED_PROJECTS: Project[] = [
     url: "https://github.com/AshishKumar4/dew",
     order: 3,
     year: "2026-09",
+    story: PROJECT_STORIES["dew"],
   },
   {
     id: "do86",
@@ -36,6 +40,7 @@ export const SEED_PROJECTS: Project[] = [
     url: "https://github.com/AshishKumar4/do86",
     order: 4,
     year: "2026-03",
+    story: PROJECT_STORIES["do86"],
   },
   {
     id: "nimbus",
@@ -45,6 +50,7 @@ export const SEED_PROJECTS: Project[] = [
     url: "https://github.com/AshishKumar4/Nimbus",
     order: 5,
     year: "2026-04",
+    story: PROJECT_STORIES["nimbus"],
   },
   {
     id: "ashishkumar4-flaxdiff",
@@ -54,6 +60,7 @@ export const SEED_PROJECTS: Project[] = [
     url: "https://github.com/AshishKumar4/FlaxDiff",
     order: 6,
     year: "2024-06",
+    story: PROJECT_STORIES["ashishkumar4-flaxdiff"],
   },
   {
     id: "flydreamer",
@@ -63,6 +70,7 @@ export const SEED_PROJECTS: Project[] = [
     url: "https://github.com/AshishKumar4/FlyDreamer",
     order: 7,
     year: "2025-10",
+    story: PROJECT_STORIES["flydreamer"],
   },
   {
     id: "ashishkumar4-aqeous",
@@ -72,6 +80,7 @@ export const SEED_PROJECTS: Project[] = [
     url: "https://github.com/AshishKumar4/Aqeous",
     order: 8,
     year: "2015-12",
+    story: PROJECT_STORIES["ashishkumar4-aqeous"],
   },
 ];
 
@@ -81,16 +90,20 @@ export interface ProjectsMigrationSpec {
   add: Project[];
   order: Record<string, number>;
   year: Record<string, string>;
+  story: Record<string, string>;
+  experienceStory: Record<string, string>;
 }
 
 const seedById = new Map(SEED_PROJECTS.map((p) => [p.id, p]));
 
 export const PROJECTS_MIGRATION: ProjectsMigrationSpec = {
-  id: "2026-09-projects-v4",
+  id: "2026-09-projects-v5",
   remove: ["mossaic", "ashishkumar4-cf-git"],
   add: ["kinu", "dew"].map((id) => seedById.get(id)!),
   order: Object.fromEntries(SEED_PROJECTS.map((p) => [p.id, p.order!])),
   year: Object.fromEntries(SEED_PROJECTS.filter((p) => p.year).map((p) => [p.id, p.year!])),
+  story: PROJECT_STORIES,
+  experienceStory: EXPERIENCE_STORIES,
 };
 
 export interface ProjectsMigrationPlan {
@@ -98,6 +111,7 @@ export interface ProjectsMigrationPlan {
   add: Project[];
   orders: { id: string; order: number }[];
   years: { id: string; year: string }[];
+  stories: { id: string; story: string }[];
 }
 
 export function planProjectsMigration(existing: Project[], spec: ProjectsMigrationSpec): ProjectsMigrationPlan {
@@ -119,7 +133,13 @@ export function planProjectsMigration(existing: Project[], spec: ProjectsMigrati
       const current = byId.get(id);
       return current && !current.year ? [{ id, year }] : [];
     });
-  return { deleteIds, add, orders, years };
+  const stories = Object.entries(spec.story)
+    .filter(([id]) => !removed.has(id))
+    .flatMap(([id, story]) => {
+      const current = byId.get(id) ?? add.find((p) => p.id === id);
+      return current && !current.story?.trim() ? [{ id, story }] : [];
+    });
+  return { deleteIds, add, orders, years, stories };
 }
 
 export interface MigrationMarker {
@@ -153,6 +173,8 @@ export interface ProjectsMigrationStore {
   addProjectIfAbsent(project: Project): Promise<void>;
   setOrderIfUnset(id: string, order: number): Promise<void>;
   setYearIfUnset(id: string, year: string): Promise<void>;
+  setStoryIfUnset(id: string, story: string): Promise<void>;
+  setExperienceStoryIfUnset(id: string, story: string): Promise<void>;
 }
 
 export type MigrationOutcome = "already-done" | "applied" | "busy";
@@ -174,6 +196,8 @@ export async function runProjectsMigration(
   for (const project of plan.add) await store.addProjectIfAbsent(project);
   for (const { id, order } of plan.orders) await store.setOrderIfUnset(id, order);
   for (const { id, year } of plan.years) await store.setYearIfUnset(id, year);
+  for (const { id, story } of plan.stories) await store.setStoryIfUnset(id, story);
+  for (const [id, story] of Object.entries(spec.experienceStory)) await store.setExperienceStoryIfUnset(id, story);
   await store.updateMarker((current) => finishMarker(current, now()));
   return "applied";
 }

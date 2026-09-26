@@ -34,6 +34,7 @@ export interface Experience {
   /** Display position in the timeline (ascending). */
   order?: number;
   scene?: SceneId;
+  story?: string;
 }
 export interface Project {
   id: string;
@@ -45,6 +46,7 @@ export interface Project {
   order?: number;
   year?: string;
   scene?: SceneId;
+  story?: string;
 }
 export interface GitHubRepo {
   stars: number;

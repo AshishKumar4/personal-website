@@ -303,6 +303,19 @@ export function AdminProjectsPage() {
                   placeholder="Describe what this project does..."
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="story" className="text-muted-foreground">
+                  Story (shown on the homepage timeline in place of the description; blank lines start new paragraphs)
+                </Label>
+                <Textarea
+                  id="story"
+                  value={currentProject.story ?? ''}
+                  onChange={(e) => setCurrentProject({ ...currentProject, story: e.target.value })}
+                  className="bg-background border-border font-serif text-[15px] leading-relaxed"
+                  rows={7}
+                  placeholder="The same entry, told in your own words."
+                />
+              </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="year" className="text-muted-foreground">

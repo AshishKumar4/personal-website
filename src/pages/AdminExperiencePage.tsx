@@ -297,6 +297,19 @@ export function AdminExperiencePage() {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="story" className="text-muted-foreground">
+                  Story (shown on the homepage timeline in place of the description; blank lines start new paragraphs)
+                </Label>
+                <Textarea
+                  id="story"
+                  value={currentExperience.story ?? ''}
+                  onChange={(e) => setCurrentExperience({ ...currentExperience, story: e.target.value })}
+                  className="bg-background border-border font-serif text-[15px] leading-relaxed"
+                  rows={7}
+                  placeholder="The same entry, told in your own words."
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="skills" className="text-muted-foreground">
                   Skills (comma-separated)
                 </Label>
