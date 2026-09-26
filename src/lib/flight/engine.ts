@@ -5,7 +5,7 @@ import { applyMotif, motifCode, variation, type MotifId, type Variation } from '
 import { Post } from './post';
 import { SceneTracker, mixParams, sceneAt, type V3 } from './scenes';
 import { TerrainRenderer } from './terrain-renderer';
-import { raycast, shapeHeight, terrainBase, type TerrainShape } from './terrain-js';
+import { TerrainField, raycast } from './terrain-js';
 import { damp, hsv, invert, lerp, lookAt, multiply, pathX, perspective, project, smoothstep, unproject } from './math';
 import type { Frame } from './frame';
 
@@ -25,7 +25,6 @@ interface Ripple {
 }
 
 const mix3 = (a: V3, b: V3, t: number): V3 => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
-const shapeOf = (p: TerrainShape): TerrainShape => ({ amp: p.amp, terrace: p.terrace, terraceStep: p.terraceStep });
 
 export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null, reduced: boolean): FlightHandle | null {
   const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, stencil: false, premultipliedAlpha: false, powerPreference: 'high-performance' });
@@ -37,7 +36,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
   let post: Post;
   try {
     terrain = new TerrainRenderer(gl, small ? 0.6 : 1, FAR);
-    particles = new Particles(gl, small ? 1200 : 3200);
+    particles = new Particles(gl, small ? 980 : 2600);
     post = new Post(gl, !small || locked);
   } catch (err) {
     console.warn('flight: init failed', err);
@@ -69,10 +68,13 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
   let lanternHit = false;
   let viewProj: Float32Array = new Float32Array(16);
   let inv: Float32Array = new Float32Array(16);
-  let shapeA: TerrainShape = { amp: 1, terrace: 0, terraceStep: 16 };
-  let shapeB: TerrainShape = shapeA;
+  const field = new TerrainField(sceneAt('night', 0));
   let varA: Variation = variation(null);
   let varB: Variation = varA;
+  const beacon: [number, number, number, number] = [0, 0, 0, 0];
+  let summit: V3 | null = null;
+  let pendingSummit: V3 | null = null;
+  let lastSummit = 0;
   let prevZ: number | null = null;
   let vz = 0;
   const drone = new Float32Array((DRONE_TRAIL + 1) * 3);
@@ -87,16 +89,64 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
   let lastKey = '';
   let rect = canvas.getBoundingClientRect();
 
-  const heightAt = (x: number, z: number) => {
-    const m = smoothstep(front[0] - front[1], front[0] + front[1], Math.hypot(x - eye[0], z - eye[2]));
-    if (m <= 0) return shapeHeight(terrainBase(x, z, varA), shapeA);
-    if (m >= 1) return shapeHeight(terrainBase(x, z, varB), shapeB);
-    const base = varA === varB ? terrainBase(x, z, varA) : lerp(terrainBase(x, z, varA), terrainBase(x, z, varB), m);
-    return shapeHeight(base, {
-      amp: lerp(shapeA.amp, shapeB.amp, m),
-      terrace: lerp(shapeA.terrace, shapeB.terrace, m),
-      terraceStep: lerp(shapeA.terraceStep, shapeB.terraceStep, m),
-    });
+  const heightAt = (x: number, z: number) => field.height(x, z, smoothstep(front[0] - front[1], front[0] + front[1], Math.hypot(x - eye[0], z - eye[2])));
+
+  const inView = (p: V3) => {
+    const q = project(viewProj, p);
+    const d = Math.hypot(p[0] - eye[0], p[2] - eye[2]);
+    return q[0] > -0.3 && q[0] < 0.9 && q[1] < 0.72 && q[1] > -0.4 && d > 300 && d < 1200;
+  };
+
+  const clearTo = (p: V3) => {
+    if (!inView(p)) return false;
+    for (let k = 1; k < 24; k++) {
+      const t = k / 24;
+      if (heightAt(eye[0] + (p[0] - eye[0]) * t, eye[2] + (p[2] - eye[2]) * t) > eye[1] + (p[1] + 4 - eye[1]) * t) return false;
+    }
+    return true;
+  };
+
+  const climb = (p: V3): V3 => {
+    let [x, h, z] = p;
+    let step = 30;
+    for (let k = 0; k < 12; k++) {
+      const gx = heightAt(x + 2, z) - heightAt(x - 2, z);
+      const gz = heightAt(x, z + 2) - heightAt(x, z - 2);
+      const gl = Math.hypot(gx, gz);
+      if (gl < 1e-4) break;
+      const nx = x + (gx / gl) * step;
+      const nz = z + (gz / gl) * step;
+      const nh = heightAt(nx, nz);
+      if (nh > h) {
+        x = nx;
+        z = nz;
+        h = nh;
+      } else step *= 0.5;
+    }
+    return [x, h, z];
+  };
+
+  const findSummit = (fwd: [number, number]): V3 | null => {
+    const rx = -fwd[1];
+    const rz = fwd[0];
+    const cands: V3[] = [];
+    for (let i = 0; i < 12; i++) {
+      for (let j = 0; j < 9; j++) {
+        const dist = 340 + i * 68;
+        const lat = (j / 8 - 0.4) * dist * 0.9;
+        const x = eye[0] + fwd[0] * dist + rx * lat;
+        const z = eye[2] + fwd[1] * dist + rz * lat;
+        const p: V3 = [x, heightAt(x, z), z];
+        if (inView(p)) cands.push(p);
+      }
+    }
+    cands.sort((u, v) => v[1] - u[1]);
+    for (const c of cands.slice(0, 8)) {
+      const top = climb(c);
+      if (clearTo(top)) return top;
+      if (clearTo(c)) return c;
+    }
+    return null;
   };
 
   const droneAt = (tt: number, cz: number, out: Float32Array, o: number) => {
@@ -194,10 +244,13 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     const dip = s.a === s.b ? 0 : Math.sin(Math.PI * t);
     front[0] = lerp(FAR * 0.98, -170, Math.pow(t, 0.8));
     front[2] = Math.pow(dip, 0.7);
-    shapeA = shapeOf(A);
-    shapeB = shapeOf(B);
     varA = variation(s.sa);
     varB = s.sb === s.sa ? varA : variation(s.sb);
+    field.a = A;
+    field.b = B;
+    field.va = varA;
+    field.vb = varB;
+    field.time = time;
 
     if (animate) cruise += dt * CRUISE * lerp(A.speed, B.speed, tc) * (1 + dip * 0.8);
     scrollDist = animate ? damp(scrollDist, sy * 0.32, 3.2, dt) : sy * 0.32;
@@ -250,6 +303,31 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     const intro = reduced ? 1 : smoothstep(0, 1, (now - start) / 3200);
     const mt = smoothstep(0.05, 0.8, t);
     const weight = (id: MotifId) => (s.ma === id ? 1 - mt : 0) + (s.mb === id ? mt : 0);
+    const ctf = weight('ctf');
+    if (ctf > 0.001) {
+      if (now - lastSummit > 350 || !animate) {
+        lastSummit = now;
+        const cand = findSummit([fx / fl, -ahead / fl]);
+        const keep = summit && inView(summit) && (!cand || cand[1] < summit[1] + 24);
+        if (!keep && cand) pendingSummit = cand;
+        else if (!keep) pendingSummit = null;
+      }
+      if (pendingSummit && (beacon[3] < 0.02 || !summit || !animate)) {
+        summit = pendingSummit;
+        pendingSummit = null;
+      }
+      if (summit) {
+        beacon[0] = summit[0];
+        beacon[1] = summit[1];
+        beacon[2] = summit[2];
+      }
+      const target = summit && !pendingSummit ? ctf : 0;
+      beacon[3] = animate ? damp(beacon[3], target, pendingSummit ? 6 : 2.4, dt) : target;
+    } else {
+      beacon[3] = 0;
+      summit = null;
+      pendingSummit = null;
+    }
     if (s.ma === 'drone' || s.mb === 'drone') {
       for (let k = 0; k <= DRONE_TRAIL; k++) droneAt(time - k * 0.045, z + k * 0.045 * vz, drone, k * 3);
     }
@@ -270,7 +348,6 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       lantern,
       lanternColor: mix3(p.lantern, focusColor, focusMix * 0.85),
       ripples: ripArr,
-      seed: (1 - Math.max(A.jitter, B.jitter)) * 22 + time * 0.9,
       pxPerRad: canvas.height / fov,
       pxScale: canvas.height / (2 * Math.tan(fov / 2)),
       sunDir: [SUN_AZ, sunEl],
@@ -281,6 +358,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       mq: small ? 0.6 : 1,
       emu: weight('emulator'),
       drone,
+      beacon,
       reduced,
     };
     post.begin();
@@ -290,7 +368,6 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       time,
       bloom: p.bloom,
       warp: dip * 0.3,
-      glitch: p.glitch,
       scan: p.scanlines,
       grain: 0.05,
       exposure: p.exposure,

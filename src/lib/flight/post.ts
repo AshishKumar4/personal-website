@@ -66,7 +66,6 @@ uniform vec2 u_res;
 uniform float u_time;
 uniform float u_bloomAmt;
 uniform float u_warp;
-uniform float u_glitch;
 uniform float u_scan;
 uniform float u_grain;
 uniform float u_exposure;
@@ -86,22 +85,12 @@ vec3 tone(vec3 x) {
 }
 void main() {
   vec2 uv = v_uv;
-  float split = 0.0;
-  if (u_glitch > 0.001) {
-    float gt = floor(u_time * 7.0);
-    float burst = step(0.955, hash(vec2(gt, 3.7)));
-    float band = floor(uv.y * mix(14.0, 40.0, hash(vec2(gt, 1.1))));
-    float on = step(0.72, hash(vec2(band, gt))) * burst;
-    float off = (hash(vec2(band + 5.0, gt)) - 0.5) * 0.035 * on * u_glitch;
-    uv.x += off;
-    split = abs(off) * 0.6 + on * 0.0015 * u_glitch;
-  }
   vec2 dc = uv - 0.5;
-  float ca = (0.0006 + u_warp * 0.006) * dot(dc, dc) * 4.0 + split;
+  float ca = (0.0006 + u_warp * 0.006) * dot(dc, dc) * 4.0;
   vec3 col;
-  col.r = texture(u_scene, uv - dc * ca * 2.0 - vec2(split, 0.0)).r;
+  col.r = texture(u_scene, uv - dc * ca * 2.0).r;
   col.g = texture(u_scene, uv).g;
-  col.b = texture(u_scene, uv + dc * ca * 2.0 + vec2(split, 0.0)).b;
+  col.b = texture(u_scene, uv + dc * ca * 2.0).b;
   vec3 bl = texture(u_bloom, uv).rgb;
   if (u_warp > 0.01) {
     vec3 acc = vec3(0.0);
@@ -152,7 +141,6 @@ export interface PostUniforms {
   time: number;
   bloom: number;
   warp: number;
-  glitch: number;
   scan: number;
   grain: number;
   exposure: number;
@@ -316,7 +304,6 @@ export class Post {
       .set('u_time', u.time)
       .set('u_bloomAmt', bloom ? u.bloom : 0)
       .set('u_warp', u.warp)
-      .set('u_glitch', u.glitch)
       .set('u_scan', u.scan)
       .set('u_grain', u.grain)
       .set('u_exposure', u.exposure)

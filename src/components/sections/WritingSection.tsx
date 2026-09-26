@@ -11,20 +11,22 @@ export function WritingSection() {
   if (!loading && posts.length === 0) return null;
 
   return (
-    <Scene
-      id="writing"
-      label="Writing"
-      scene="noise"
-      aside={
-        <Link to="/blog" className="pill group">
-          All posts
-          <ArrowUpRight size={13} className="opacity-60 transition-transform duration-300 group-hover:-translate-y-px group-hover:translate-x-px" />
-        </Link>
-      }
-    >
-      <ol className="border-b border-foreground/10">
-        {posts.map((post, i) => <PostRow key={post.slug} post={post} index={i + 1} />)}
-      </ol>
-    </Scene>
+    <div data-motif="fog" className="contents">
+      <Scene
+        id="writing"
+        label="Writing"
+        scene="noise"
+        aside={
+          <Link to="/blog" className="pill group">
+            All posts
+            <ArrowUpRight size={13} className="opacity-60 transition-transform duration-300 group-hover:-translate-y-px group-hover:translate-x-px" />
+          </Link>
+        }
+      >
+        <ol className="border-b border-foreground/10">
+          {posts.map((post, i) => <PostRow key={post.slug} post={post} index={i + 1} />)}
+        </ol>
+      </Scene>
+    </div>
   );
 }

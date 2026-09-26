@@ -14,6 +14,7 @@ export interface SceneParams {
   skyHorizon: V3;
   glow: V3;
   glowAmt: number;
+  band: number;
   rim: V3;
   rimAmt: number;
   lantern: V3;
@@ -28,11 +29,16 @@ export interface SceneParams {
   terrace: number;
   terraceStep: number;
   jitter: number;
-  packets: number;
-  cities: number;
+  water: number;
+  plain: number;
+  hills: number;
+  mesa: number;
+  cloud: number;
+  build: number;
+  rise: number;
+  bank: number;
   fireflies: number;
   aurora: number;
-  glitch: number;
   scanlines: number;
   sun: number;
   altitude: number;
@@ -56,6 +62,7 @@ const NIGHT: SceneParams = {
   skyHorizon: [0.04, 0.047, 0.08],
   glow: [0.55, 0.62, 0.9],
   glowAmt: 0.14,
+  band: 0,
   rim: [0.7, 0.8, 1],
   rimAmt: 0.12,
   lantern: [0.72, 0.84, 1],
@@ -70,11 +77,16 @@ const NIGHT: SceneParams = {
   terrace: 0,
   terraceStep: 16,
   jitter: 0,
-  packets: 0,
-  cities: 0,
+  water: 0,
+  plain: 0,
+  hills: 0,
+  mesa: 0,
+  cloud: 0,
+  build: 0,
+  rise: 0,
+  bank: 0,
   fireflies: 0,
   aurora: 0,
-  glitch: 0,
   scanlines: 0,
   sun: 0,
   altitude: 0,
@@ -138,7 +150,6 @@ export const SCENES: Record<SceneId, SceneParams> = {
     clouds: 0.35,
     mist: 0.35,
     amp: 1.12,
-    glitch: 1,
     altitude: 10,
     bloom: 1.1,
   },
@@ -153,6 +164,7 @@ export const SCENES: Record<SceneId, SceneParams> = {
     skyHorizon: [0.02, 0.06, 0.095],
     glow: [0.25, 0.75, 1],
     glowAmt: 0.14,
+  band: 0,
     rim: [0.5, 0.9, 1],
     rimAmt: 0.2,
     lantern: [0.55, 0.95, 1],
@@ -162,8 +174,6 @@ export const SCENES: Record<SceneId, SceneParams> = {
     clouds: 0.3,
     mist: 0.45,
     amp: 0.85,
-    packets: 1,
-    cities: 1,
     altitude: 38,
     lookUp: -6,
     fov: 2,
@@ -345,7 +355,7 @@ export class SceneTracker {
       if (!IDS.has(id) || el.querySelector('[data-scene]')) continue;
       const r = el.getBoundingClientRect();
       if (r.height <= 0) continue;
-      const m = el.dataset.motif;
+      const m = el.dataset.motif ?? el.closest<HTMLElement>('[data-motif]')?.dataset.motif;
       next.push({ id: id as SceneId, motif: isMotif(m) ? m : null, seed: seedOf(el.dataset.seed), top: r.top + sy, bottom: r.bottom + sy });
     }
     next.sort((x, y) => x.top - y.top);

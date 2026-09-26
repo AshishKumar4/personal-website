@@ -1,12 +1,11 @@
 import { Program } from './gl';
-import { NOISE, TERRAIN } from './glsl';
+import { NOISE, TERRAIN, setTerrain } from './glsl';
 import type { Frame } from './frame';
 import { M } from './motifs';
 
 const HEAD = `#version 300 es
 precision highp float;
 uniform mat4 u_viewProj;
-uniform float u_time;
 uniform float u_far;
 uniform float u_fog;
 uniform float u_pxScale;
@@ -120,19 +119,14 @@ void main() {
   gl_PointSize = sprite(a, u_pxScale * (0.7 + r.x * 0.8) / gl_Position.w, v_a);
 }`;
 
-const HUB = [520, 390];
-const HUB_N = 5;
-const SRV_CELL = 44;
-const SRV_N = 22;
-const SRV_LEDS = 6;
-const CTF_CELL = 170;
-const CTF_N = 12;
+const PULSE = 24;
 export const DRONE_TRAIL = 28;
 
 const motifVert = (kind: number) => `${HEAD}
 #define KIND ${kind}
 uniform vec2 u_fwd;
 uniform vec3 u_drone[${DRONE_TRAIL + 1}];
+uniform vec4 u_beacon;
 out float v_a;
 out vec3 v_col;
 void hide() {
@@ -148,66 +142,46 @@ void emit(vec3 w, float a, float size, vec3 col) {
   v_col = col;
   gl_PointSize = sprite(f, u_pxScale * size / gl_Position.w, v_a);
 }
-vec2 gridCell(float ci, float n, float cell) {
-  vec2 center = u_cam.xz + u_fwd * cell * n * 0.38;
-  return vec2(mod(ci, n), floor(ci / n)) - floor(n * 0.5) + floor(center / cell);
-}
 void main() {
   float id = float(gl_VertexID);
-#if KIND == ${M.servers}
+#if KIND == ${M.ctf}
   {
-    float ci = floor(id / ${SRV_LEDS}.0);
-    float li = mod(id, ${SRV_LEDS}.0);
-    vec2 g = gridCell(ci, ${SRV_N}.0, ${SRV_CELL}.0);
-    float hs = hash12(g * 1.31 + 0.7);
-    if (hs < mix(0.76, 0.52, u_mq)) { hide(); return; }
-    vec2 c = (g + 0.2 + hash22(g + 4.1) * 0.6) * ${SRV_CELL}.0;
-    float h = groundAt(c);
-    float around = (groundAt(c + vec2(46.0, 0.0)) + groundAt(c - vec2(46.0, 0.0))) * 0.5;
-    float ex = max(1.0 - smoothstep(40.0, 80.0, h), smoothstep(4.0, 16.0, around - h));
-    if (ex < 0.01) { hide(); return; }
-    vec2 right = vec2(-u_fwd.y, u_fwd.x);
-    vec2 p = c + right * (mod(li, 3.0) - 1.0) * 1.7;
-    vec3 w = vec3(p.x, groundH(c) + 2.2 + floor(li / 3.0) * 1.7, p.y);
-    float hl = hash12(g * 3.1 + li * 7.7);
-    float amber = step(0.78, hl);
-    float rate = 1.5 + fract(hl * 37.0) * 7.0;
-    float act = step(0.38, hash12(vec2(floor(u_time * rate + hl * 9.0), hl * 91.0)));
-    float slow = step(0.45, fract(u_time * 0.45 + hl * 5.0));
-    float on = mix(mix(0.25, 1.0, act), mix(0.15, 1.0, slow), amber);
-    vec3 col = mix(vec3(0.35, 1.0, 0.5), vec3(1.0, 0.66, 0.2), amber);
-    emit(w, ex * on * amountAt(c) * 3.2, 0.6, col);
-    return;
-  }
-#elif KIND == ${M.ctf}
-  {
-    vec2 g = gridCell(id, ${CTF_N}.0, ${CTF_CELL}.0);
-    vec3 hs = hash31(g.x * 7.13 + g.y * 1.71 + 3.3);
-    vec2 p = (g + 0.15 + hs.xy * 0.7) * ${CTF_CELL}.0;
-    float stepLen = 60.0;
-    float e = 30.0;
-    for (int i = 0; i < 12; i++) {
-      vec2 gr = vec2(groundAt(p + vec2(e, 0.0)) - groundAt(p - vec2(e, 0.0)), groundAt(p + vec2(0.0, e)) - groundAt(p - vec2(0.0, e)));
-      p += gr / max(length(gr), 1e-3) * stepLen;
-      stepLen *= i < 6 ? 0.8 : 0.6;
-      e = i < 6 ? 30.0 : 4.0;
-      if (i == 6) stepLen = 10.0;
+    if (u_beacon.w < 0.003) { hide(); return; }
+    float pulse = 0.6 + 0.4 * sin(u_time * 1.3);
+    if (id < 1.5) {
+      emit(u_beacon.xyz + vec3(0.0, 3.0, 0.0), u_beacon.w * pulse * (id < 0.5 ? 6.0 : 0.3), id < 0.5 ? 8.0 : 44.0, vec3(1.0, 0.2, 0.14));
+      return;
     }
-    float h = groundAt(p);
-    float ex = smoothstep(165.0, 190.0, h) * step(0.35, hs.z);
-    if (ex < 0.01) { hide(); return; }
-    float pulse = 0.3 + 0.7 * pow(0.5 + 0.5 * sin(u_time * 0.85 + hs.z * 40.0), 3.0);
-    emit(vec3(p.x, h + 3.0, p.y), ex * pulse * amountAt(p) * 2.6, 2.6, vec3(1.0, 0.2, 0.14));
+    float k = (id - 1.0) / 40.0;
+    emit(u_beacon.xyz + vec3(0.0, 4.0 + k * 120.0, 0.0), u_beacon.w * pow(1.0 - k, 1.8) * (1.0 + 0.4 * pulse), 1.6, vec3(1.0, 0.3, 0.24));
     return;
   }
 #elif KIND == ${M.packets}
   {
-    vec2 hc = vec2(${HUB[0]}.0, ${HUB[1]}.0);
-    vec2 center = u_cam.xz + u_fwd * 700.0;
-    vec2 cell = vec2(mod(id, ${HUB_N}.0), floor(id / ${HUB_N}.0)) - floor(${HUB_N}.0 * 0.5) + floor(center / hc);
-    vec2 p = (cell + 0.25 + hash22(cell + 3.7) * 0.5) * hc;
-    float br = 0.75 + 0.25 * sin(u_time * 1.3 + hash12(cell) * 30.0);
-    emit(vec3(p.x, groundH(p) + 5.0, p.y), amountAt(p) * br * 2.6, 2.6, vec3(0.7, 0.95, 1.0));
+    vec2 hubs[3] = vec2[3](vec2(-300.0, -900.0), vec2(70.0, -600.0), vec2(330.0, -1020.0));
+    vec3 warm = vec3(1.0, 0.8, 0.5);
+    if (id < 2.5) {
+      vec2 p = u_cam.xz + hubs[int(id)];
+      emit(vec3(p.x, groundH(p) + 4.0, p.y), amountAt(p) * 2.2, 5.0, warm);
+      return;
+    }
+    float li = floor((id - 3.0) / ${PULSE}.0);
+    float j = mod(id - 3.0, ${PULSE}.0);
+    int ia = int(li);
+    int ib = int(mod(li + 1.0, 3.0));
+    vec2 pa = u_cam.xz + hubs[ia];
+    vec2 pb = u_cam.xz + hubs[ib];
+    float per = 9.0 + li * 2.7;
+    float ph = fract(u_time / per + li * 0.37);
+    float s = ph / 0.72 - j * 0.011;
+    if (s < 0.0 || s > 1.0 || ph > 0.8) { hide(); return; }
+    if (mod(li, 2.0) > 0.5) s = 1.0 - s;
+    vec2 p = mix(pa, pb, s);
+    float ya = groundH(pa) + 4.0;
+    float yb = groundH(pb) + 4.0;
+    float y = mix(ya, yb, s) + sin(s * 3.14159) * distance(pa, pb) * 0.07;
+    float a = pow(1.0 - j / ${PULSE}.0, 1.6) * (j < 0.5 ? 3.2 : 1.5) * smoothstep(0.0, 0.05, s) * smoothstep(1.0, 0.95, s);
+    emit(vec3(p.x, y, p.y), a * amountAt(p), j < 0.5 ? 4.0 : 2.6, mix(vec3(1.0, 0.95, 0.85), warm, j / ${PULSE}.0));
     return;
   }
 #else
@@ -239,101 +213,14 @@ void main() {
   o = vec4(v_col * g * v_a * 1.6, 1.0);
 }`;
 
-const CITY_CELL = 64;
-const CITY_N = 26;
-const CITY_LIGHTS = 12;
-const ARC_N = 14;
-const ARC_SEG = 12;
-
-const CITY_COMMON = `
-const float CELL = ${CITY_CELL}.0;
-vec3 city(vec2 g) {
-  float ex = step(0.52, hash12(g + 0.37));
-  vec2 c = (g + 0.2 + hash22(g) * 0.6) * CELL;
-  float mc = sweepAt(c);
-  vec3 s = mix(u_shapeA, u_shapeB, mc);
-  float h = terrainH(c, s, mc);
-  float around = (terrainH(c + vec2(55.0, 0.0), s, mc) + terrainH(c - vec2(55.0, 0.0), s, mc)) * 0.5;
-  ex *= max(1.0 - smoothstep(50.0, 90.0, h), smoothstep(2.0, 14.0, around - h));
-  return vec3(c, ex);
-}
-`;
-
-const CITY_VERT = `${HEAD}
-${CITY_COMMON}
-out float v_a;
-out vec3 v_col;
-void main() {
-  float id = float(gl_VertexID);
-  float ci = floor(id / ${CITY_LIGHTS}.0);
-  float li = mod(id, ${CITY_LIGHTS}.0);
-  vec2 g = vec2(mod(ci, ${CITY_N}.0), floor(ci / ${CITY_N}.0)) - ${CITY_N / 2}.0 + floor(u_cam.xz / CELL);
-  vec3 c = city(g);
-  vec2 o = (hash22(g * 1.7 + li * 3.1) - 0.5) * (li < 0.5 ? 2.0 : 10.0 + li * 2.4);
-  vec2 p = c.xy + o;
-  vec3 w = vec3(p.x, groundH(p) + 3.0, p.y);
-  gl_Position = u_viewProj * vec4(w, 1.0);
-  float hs = hash12(g + li * 5.3);
-  float tw = 0.75 + 0.25 * sin(u_time * (1.0 + hs * 3.0) + hs * 30.0);
-  float a = c.z * fogA(w) * amountAt(p);
-  v_a = a * tw * (li < 0.5 ? 3.0 : 1.5);
-  v_col = mix(vec3(1.0, 0.8, 0.52), vec3(0.62, 0.9, 1.0), step(0.6, hs));
-  gl_PointSize = sprite(a, u_pxScale * (li < 0.5 ? 1.3 : 0.7) / gl_Position.w, v_a);
-}`;
-
-const ARC_VERT = `${HEAD}
-${CITY_COMMON}
-out float v_a;
-out float v_t;
-out float v_seed;
-void main() {
-  float id = float(gl_VertexID);
-  float seg = ${ARC_SEG}.0;
-  float ai = floor(id / (seg * 2.0));
-  float k = mod(id, seg * 2.0);
-  float t = (floor(k / 2.0) + mod(k, 2.0)) / seg;
-  float cell = floor(ai / 2.0);
-  vec2 g = vec2(mod(cell, ${ARC_N}.0), floor(cell / ${ARC_N}.0)) - ${ARC_N / 2}.0 + floor(u_cam.xz / CELL);
-  vec2 n = g + (mod(ai, 2.0) < 0.5 ? vec2(1.0, 0.0) : vec2(1.0, -1.0));
-  vec3 a = city(g);
-  vec3 b = city(n);
-  float on = a.z * b.z * step(0.3, hash12(g * 2.3 + n));
-  vec2 p = mix(a.xy, b.xy, t);
-  float len = distance(a.xy, b.xy);
-  float ha = groundH(a.xy);
-  float hb = groundH(b.xy);
-  vec3 w = vec3(p.x, mix(ha, hb, t) + sin(t * 3.14159) * len * 0.32 + 1.5, p.y);
-  gl_Position = on < 0.5 ? vec4(2.0, 2.0, 2.0, 1.0) : u_viewProj * vec4(w, 1.0);
-  v_a = on * fogA(w) * amountAt(p);
-  v_t = t;
-  v_seed = hash12(g + n * 3.0);
-}`;
-
-const ARC_FRAG = `#version 300 es
-precision highp float;
-in float v_a;
-in float v_t;
-in float v_seed;
-uniform float u_time;
-out vec4 o;
-void main() {
-  float s = fract(v_t * 0.5 - u_time * (0.12 + v_seed * 0.2) + v_seed * 7.0);
-  float pulse = pow(s, 12.0) * 2.4 + smoothstep(0.97, 1.0, s) * 3.0;
-  vec3 c = vec3(0.45, 0.85, 1.0) * (0.2 + pulse);
-  o = vec4(c * v_a, 1.0);
-}`;
-
 const MOTIF_COUNTS: Record<number, number> = {
-  [M.servers]: SRV_N * SRV_N * SRV_LEDS,
-  [M.ctf]: CTF_N * CTF_N,
-  [M.packets]: HUB_N * HUB_N,
+  [M.ctf]: 42,
+  [M.packets]: 3 + 3 * PULSE,
   [M.drone]: DRONE_TRAIL + 2,
 };
 
 export class Particles {
   private flies!: Program;
-  private cities!: Program;
-  private arcs!: Program;
   private motifs = new Map<number, Program>();
   private vao!: WebGLVertexArrayObject;
 
@@ -344,8 +231,6 @@ export class Particles {
   init() {
     const gl = this.gl;
     this.flies = new Program(gl, FIREFLY_VERT, POINT_FRAG);
-    this.cities = new Program(gl, CITY_VERT, POINT_FRAG);
-    this.arcs = new Program(gl, ARC_VERT, ARC_FRAG);
     this.motifs.clear();
     for (const k of Object.keys(MOTIF_COUNTS).map(Number)) this.motifs.set(k, new Program(gl, motifVert(k), POINT_FRAG));
     this.vao = gl.createVertexArray()!;
@@ -354,47 +239,33 @@ export class Particles {
   private common(prog: Program, f: Frame, amount: number[]) {
     prog.use()
       .set('u_viewProj', f.viewProj)
-      .set('u_cam', f.cam)
       .set('u_time', f.time)
       .set('u_far', f.far)
       .set('u_fog', f.p.fog)
       .set('u_pxScale', f.pxScale)
       .set('u_amount', amount)
-      .set('u_minPx', 3.2 * f.dprScale)
-      .set('u_shapeA', [f.a.amp, f.a.terrace, f.a.terraceStep])
-      .set('u_shapeB', [f.b.amp, f.b.terrace, f.b.terraceStep])
-      .set('u_varA', f.varA)
-      .set('u_varB', f.varB)
-      .set('u_motif', f.motif)
-      .set('u_mq', f.mq)
-      .set('u_front', f.front)
-      .set('u_rip', f.ripples);
+      .set('u_minPx', 3.2 * f.dprScale);
+    setTerrain(prog, f);
   }
 
   render(f: Frame, cursor: [number, number, number, number]) {
     const gl = this.gl;
     const { a, b } = f;
-    const cities = [a.cities, b.cities];
     const flies = [a.fireflies, b.fireflies];
     const kinds = [...new Set(f.motif)].filter(k => MOTIF_COUNTS[k]);
-    if (Math.max(...cities, ...flies) < 0.01 && !kinds.length) return;
+    if (Math.max(...flies) < 0.01 && !kinds.length) return;
     gl.enable(gl.DEPTH_TEST);
     gl.depthMask(false);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE);
     gl.bindVertexArray(this.vao);
-    if (Math.max(...cities) > 0.01) {
-      this.common(this.arcs, f, cities);
-      gl.drawArrays(gl.LINES, 0, ARC_N * ARC_N * 2 * ARC_SEG * 2);
-      this.common(this.cities, f, cities);
-      gl.drawArrays(gl.POINTS, 0, CITY_N * CITY_N * CITY_LIGHTS);
-    }
     for (const k of kinds) {
       const amount = [f.motif[0] === k ? 1 : 0, f.motif[1] === k ? 1 : 0];
       const prog = this.motifs.get(k)!;
       this.common(prog, f, amount);
       prog.set('u_fwd', f.fwd).set('u_minPx', 2 * f.dprScale);
       if (k === M.drone) prog.set('u_drone', f.drone);
+      if (k === M.ctf) prog.set('u_beacon', f.beacon);
       gl.drawArrays(gl.POINTS, 0, k === M.drone && f.reduced ? 1 : MOTIF_COUNTS[k]);
     }
     if (Math.max(...flies) > 0.01) {
@@ -407,8 +278,6 @@ export class Particles {
 
   dispose() {
     this.flies.dispose();
-    this.cities.dispose();
-    this.arcs.dispose();
     this.motifs.forEach(p => p.dispose());
   }
 }

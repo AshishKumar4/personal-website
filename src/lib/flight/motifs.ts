@@ -1,14 +1,13 @@
 import type { SceneId } from '@shared/types';
-import type { SceneParams, V3 } from './scenes';
+import type { SceneParams } from './scenes';
 import { smoothstep } from './math';
 
-export const MOTIF_IDS = ['servers', 'boot', 'ctf', 'lab', 'packets', 'denoise', 'waveform', 'agents', 'build', 'drone', 'emulator', 'workspaces', 'clouds', 'dew'] as const;
+export const MOTIF_IDS = ['boot', 'ctf', 'lab', 'packets', 'denoise', 'waveform', 'agents', 'build', 'drone', 'emulator', 'workspaces', 'clouds', 'dew', 'fog'] as const;
 export type MotifId = typeof MOTIF_IDS[number];
 
 export const M = Object.fromEntries(MOTIF_IDS.map((id, i) => [id, i + 1])) as Record<MotifId, number>;
 
 export const MOTIF_SCENE: Record<MotifId, SceneId> = {
-  servers: 'signal',
   boot: 'kernel',
   ctf: 'breach',
   lab: 'signal',
@@ -22,6 +21,7 @@ export const MOTIF_SCENE: Record<MotifId, SceneId> = {
   workspaces: 'swarm',
   clouds: 'signal',
   dew: 'noise',
+  fog: 'night',
 };
 
 const SET = new Set<string>(MOTIF_IDS);
@@ -48,26 +48,242 @@ export function variation(seed: number | null): Variation {
   return [Math.cos(a) * r, Math.sin(a) * r, fract(s * 7.31 + 0.13) * 1.3 - 0.45, fract(s * 3.17 + 0.52) * 0.6 - 0.12];
 }
 
-const tint = (a: V3, b: V3, t: number): V3 => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+export const MOTIF_PROGRESS: Partial<Record<MotifId, number>> = { denoise: 0.45, build: 0.55, dew: 0.6 };
 
-export const MOTIF_PROGRESS: Partial<Record<MotifId, number>> = { denoise: 0.45, waveform: 0.6, dew: 0.6 };
+const WORLDS: Record<MotifId, Partial<SceneParams>> = {
+  boot: { scanlines: 0.55 },
+  ctf: {
+    line: [0.38, 0.39, 0.44],
+    lineFar: [0.5, 0.2, 0.24],
+    farMix: 0.6,
+    lineGain: 0.85,
+    fill: [0.016, 0.012, 0.016],
+    skyTop: [0.006, 0.004, 0.006],
+    skyHorizon: [0.028, 0.01, 0.014],
+    glow: [1, 0.12, 0.14],
+    glowAmt: 0.05,
+    rimAmt: 1.3,
+    stars: 0.35,
+    clouds: 0.2,
+    mist: 0.3,
+    amp: 1.22,
+  },
+  lab: {
+    line: [0.56, 0.88, 0.9],
+    lineFar: [0.62, 0.82, 0.92],
+    farMix: 0.4,
+    lineGain: 1.05,
+    fill: [0.008, 0.02, 0.025],
+    skyTop: [0.003, 0.008, 0.012],
+    skyHorizon: [0.022, 0.056, 0.07],
+    glow: [0.4, 0.82, 0.92],
+    glowAmt: 0.17,
+    rim: [0.6, 0.95, 1],
+    rimAmt: 0.25,
+    lantern: [0.6, 0.95, 1],
+    stars: 0.7,
+    moon: 0,
+    clouds: 0.15,
+    mist: 0.3,
+    amp: 1.1,
+    water: 1,
+    altitude: -120,
+    lookUp: 100,
+    fov: 0,
+    speed: 0.8,
+  },
+  packets: {
+    line: [0.5, 0.58, 0.95],
+    lineFar: [0.62, 0.64, 1],
+    farMix: 0.3,
+    lineGain: 0.7,
+    fill: [0.012, 0.014, 0.038],
+    skyTop: [0.004, 0.005, 0.018],
+    skyHorizon: [0.03, 0.035, 0.09],
+    glow: [0.45, 0.5, 1],
+    glowAmt: 0.12,
+    rim: [0.6, 0.7, 1],
+    rimAmt: 0.2,
+    lantern: [0.7, 0.78, 1],
+    stars: 1,
+    clouds: 0.25,
+    mist: 0.3,
+    amp: 1.1,
+    plain: 1,
+    altitude: -125,
+    lookUp: 150,
+    fov: 4,
+    speed: 1.2,
+  },
+  denoise: { clouds: 0.3, glowAmt: 0.14 },
+  waveform: {
+    line: [0.9, 0.7, 0.8],
+    lineFar: [1, 0.6, 0.5],
+    farMix: 0.5,
+    lineGain: 0.8,
+    fill: [0.03, 0.018, 0.03],
+    skyTop: [0.012, 0.01, 0.03],
+    skyHorizon: [0.14, 0.06, 0.07],
+    glow: [1, 0.45, 0.35],
+    glowAmt: 0.22,
+    rim: [1, 0.7, 0.6],
+    rimAmt: 0.3,
+    lantern: [1, 0.8, 0.7],
+    stars: 0.35,
+    clouds: 0.6,
+    mist: 0.4,
+    jitter: 0,
+    hills: 1,
+    altitude: -70,
+    lookUp: 60,
+    fov: 0,
+    speed: 0.8,
+  },
+  agents: {
+    line: [0.62, 0.68, 0.78],
+    lineFar: [0.8, 0.7, 0.62],
+    farMix: 0.4,
+    fill: [0.02, 0.022, 0.03],
+    skyTop: [0.004, 0.006, 0.012],
+    skyHorizon: [0.03, 0.03, 0.04],
+    glow: [1, 0.55, 0.3],
+    glowAmt: 0.05,
+    lineGain: 1,
+    rim: [0.8, 0.85, 1],
+    rimAmt: 0.3,
+    clouds: 0.15,
+    mist: 0,
+    amp: 1.3,
+    cloud: 1,
+    altitude: 110,
+    lookUp: 30,
+    fov: 2,
+  },
+  build: {
+    line: [0.62, 0.78, 1],
+    lineFar: [0.5, 0.7, 1],
+    farMix: 0.3,
+    lineGain: 0.8,
+    fill: [0.01, 0.02, 0.045],
+    skyTop: [0.003, 0.006, 0.016],
+    skyHorizon: [0.02, 0.04, 0.08],
+    glow: [0.4, 0.6, 1],
+    glowAmt: 0.12,
+    rim: [0.7, 0.85, 1],
+    rimAmt: 0.2,
+    clouds: 0.1,
+    mist: 0.15,
+    amp: 0.8,
+    build: 1,
+    altitude: 60,
+    lookUp: 6,
+  },
+  drone: {},
+  emulator: {
+    line: [0.72, 0.9, 1],
+    lineFar: [0.5, 0.8, 1],
+    farMix: 0.5,
+    lineGain: 0.95,
+    fill: [0.012, 0.02, 0.028],
+    skyTop: [0.004, 0.007, 0.012],
+    skyHorizon: [0.03, 0.05, 0.07],
+    glow: [0.5, 0.85, 1],
+    glowAmt: 0.18,
+    rim: [0.7, 0.95, 1],
+    rimAmt: 0.22,
+    lantern: [0.7, 0.95, 1],
+    stars: 0.3,
+    scanlines: 0.5,
+  },
+  workspaces: {
+    line: [0.45, 0.58, 0.85],
+    lineFar: [0.5, 0.6, 0.9],
+    farMix: 0.3,
+    lineGain: 0.7,
+    fill: [0.01, 0.016, 0.04],
+    skyTop: [0.003, 0.005, 0.016],
+    skyHorizon: [0.02, 0.03, 0.075],
+    glow: [0.35, 0.5, 1],
+    glowAmt: 0.1,
+    mist: 1.1,
+    fog: 0.3,
+    amp: 0.95,
+    altitude: 20,
+    lookUp: 0,
+  },
+  clouds: {
+    line: [1, 0.62, 0.44],
+    lineFar: [0.85, 0.6, 0.6],
+    farMix: 0.5,
+    lineGain: 0.85,
+    fill: [0.024, 0.013, 0.012],
+    skyTop: [0.005, 0.005, 0.012],
+    skyHorizon: [0.026, 0.026, 0.05],
+    glow: [1, 0.55, 0.45],
+    glowAmt: 0.06,
+    rim: [1, 0.72, 0.55],
+    rimAmt: 0.25,
+    lantern: [1, 0.8, 0.6],
+    stars: 0.8,
+    clouds: 0.3,
+    mist: 0.12,
+    mesa: 1,
+    bank: 1,
+    terrace: 0.3,
+    terraceStep: 22,
+    altitude: 25,
+    lookUp: 25,
+    speed: 0.9,
+  },
+  dew: {
+    line: [0.62, 0.7, 0.92],
+    lineFar: [0.95, 0.7, 0.6],
+    farMix: 0.45,
+    lineGain: 0.85,
+    fill: [0.018, 0.022, 0.045],
+    skyTop: [0.004, 0.008, 0.028],
+    skyHorizon: [0.04, 0.058, 0.125],
+    glow: [1, 0.62, 0.42],
+    glowAmt: 0.06,
+    band: 0.3,
+    rim: [0.8, 0.85, 1],
+    rimAmt: 0.2,
+    lantern: [0.8, 0.85, 1],
+    stars: 0.5,
+    clouds: 0.35,
+    mist: 1.7,
+    fog: 0.3,
+    jitter: 0,
+    altitude: -20,
+    lookUp: 70,
+    speed: 0.8,
+  },
+  fog: {
+    plain: 0.85,
+    mist: 1.2,
+    clouds: 0.4,
+    jitter: 0,
+    altitude: -100,
+    lookUp: 110,
+    speed: 0.7,
+  },
+};
 
 export function applyMotif(p: SceneParams, motif: MotifId | null, progress: number): SceneParams {
+  if (!motif) return p;
+  const o = { ...p, ...WORLDS[motif] };
   switch (motif) {
-    case 'servers':
-      return { ...p, cities: p.cities * 0.4, glow: tint(p.glow, [1, 0.62, 0.32], 0.4), skyHorizon: tint(p.skyHorizon, [0.07, 0.05, 0.04], 0.35) };
-    case 'packets':
-      return { ...p, packets: Math.max(p.packets, 1) };
-    case 'waveform':
-    case 'dew':
-      return { ...p, jitter: Math.min(p.jitter, 1 - smoothstep(0, 0.3, progress)) };
     case 'denoise':
-      return { ...p, jitter: 1 - smoothstep(0, 0.85, progress) };
-    case 'agents':
+      o.jitter = 1 - smoothstep(0, 0.85, progress);
+      break;
     case 'build':
+      o.rise = smoothstep(0.05, 0.85, progress);
+      o.fireflies = Math.max(o.fireflies, 0.85);
+      break;
+    case 'agents':
     case 'workspaces':
-      return { ...p, fireflies: Math.max(p.fireflies, 0.85) };
-    default:
-      return p;
+      o.fireflies = Math.max(o.fireflies, 0.85);
+      break;
   }
+  return o;
 }

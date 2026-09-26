@@ -26,11 +26,9 @@ const DEFAULT_SCENES: Record<string, SceneId> = {
   nimbus: 'signal',
   kinu: 'swarm',
   dew: 'noise',
-  'game-servers': 'signal',
 };
 
 const DEFAULT_MOTIFS: Record<string, string> = {
-  'game-servers': 'servers',
   aqeous: 'boot',
   vit: 'ctf',
   'eaf0515c-3715-4c2c-a138-38540c251a0d': 'ctf',

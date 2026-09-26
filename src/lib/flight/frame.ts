@@ -18,7 +18,6 @@ export interface Frame {
   lantern: [number, number, number, number];
   lanternColor: V3;
   ripples: Float32Array;
-  seed: number;
   pxPerRad: number;
   pxScale: number;
   sunDir: [number, number];
@@ -29,5 +28,6 @@ export interface Frame {
   mq: number;
   emu: number;
   drone: Float32Array;
+  beacon: [number, number, number, number];
   reduced: boolean;
 }
