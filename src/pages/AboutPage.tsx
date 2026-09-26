@@ -62,6 +62,7 @@ function Story() {
           <div className="md:sticky md:top-28">
             <DenoiseImage
               src={PERSONAL_INFO.profilePicture}
+              fallbackSrc={PERSONAL_INFO.portraitFallback}
               alt={`Portrait of ${PERSONAL_INFO.name}`}
               className="aspect-[4/5] w-full max-w-[18rem] border border-line/10"
               latentWidth={96}

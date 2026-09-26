@@ -14,7 +14,7 @@ function Featured({ post }: { post: PostSummary }) {
   return (
     <Link to={`/blog/${post.slug}`} className="group relative block overflow-hidden border border-line/15 bg-card/60 p-6 transition-colors duration-500 hover:border-signal/60 md:p-12">
       <div className="pointer-events-none absolute -right-10 -top-16 select-none font-display text-[18rem] leading-none text-foreground/[0.04] transition-transform duration-1000 ease-out-expo group-hover:-translate-x-6">
-        ∇
+        ¶
       </div>
       <div className="flex flex-wrap items-center gap-3 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
         <span className="rounded-full border border-signal/60 px-2.5 py-1 text-signal">Featured</span>

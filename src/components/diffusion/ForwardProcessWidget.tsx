@@ -3,6 +3,7 @@ import { Play, Pause } from 'lucide-react';
 import { alphaBar, snr, TIMESTEPS } from '@/lib/diffusion/schedule';
 import { gaussianBuffer, renderNoisy } from '@/lib/diffusion/noise';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
+import { PERSONAL_INFO } from '@/components/config/constants';
 
 interface ForwardProcessWidgetProps {
   src: string;
@@ -95,6 +96,9 @@ export function ForwardProcessWidget({ src, alt, seed = 42 }: ForwardProcessWidg
         stateRef.current.x0 = null;
       }
     };
+    img.onerror = () => {
+      if (alive && !img.src.endsWith(PERSONAL_INFO.portraitFallback)) img.src = PERSONAL_INFO.portraitFallback;
+    };
     img.src = src;
     return () => {
       alive = false;
@@ -184,8 +188,8 @@ export function ForwardProcessWidget({ src, alt, seed = 42 }: ForwardProcessWidg
       </div>
       <dl className="mt-4 grid grid-cols-3 gap-px border border-line/10 bg-line/10 font-mono text-[10.5px]">
         {[
-          ['√ᾱ · signal', Math.sqrt(ab).toFixed(3)],
-          ['√(1−ᾱ) · noise', Math.sqrt(1 - ab).toFixed(3)],
+          ['√ᾱ · signal', Math.sqrt(ab).toFixed(3)],
+          ['√(1−ᾱ) · noise', Math.sqrt(1 - ab).toFixed(3)],
           ['SNR', Number.isFinite(snrDb) ? `${snrDb.toFixed(1)} dB` : '∞'],
         ].map(([k, v]) => (
           <div key={k} className="bg-background px-3 py-2">

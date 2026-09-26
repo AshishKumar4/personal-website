@@ -106,7 +106,7 @@ export function Footer() {
       </div>
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 border-t border-line/10 px-5 py-5 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground sm:px-8 lg:px-12">
         <span>© {YEAR} {PERSONAL_INFO.name}</span>
-        <span className="hidden normal-case tracking-normal sm:inline">x<sub>t</sub> = √ᾱ<sub>t</sub>·x<sub>0</sub> + √(1−ᾱ<sub>t</sub>)·ε</span>
+        <span className="hidden normal-case tracking-normal sm:inline">x<sub>t</sub> = √ᾱ<sub>t</sub>·x<sub>0</sub> + √(1−ᾱ<sub>t</sub>)·ε</span>
         <button onClick={openTerminal} className="transition-colors hover:text-foreground">
           Press <kbd className="rounded border border-line/20 px-1.5 py-0.5 text-foreground/80">`</kbd> for a shell
         </button>

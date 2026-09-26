@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Moon, Sun, Command, X } from 'lucide-react';
+import { ArrowRight, Moon, Sun, Command, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/use-theme';
 import { SECTIONS, SOCIAL_LINKS } from '@/components/config/constants';
@@ -141,7 +141,7 @@ export function Header() {
               className="group inline-flex h-9 items-center gap-2 rounded-full bg-foreground px-4 font-mono text-[11px] uppercase tracking-[0.12em] text-background transition-colors hover:bg-signal"
             >
               Say hi
-              <span className="inline-block transition-transform duration-300 group-hover:translate-x-0.5">→</span>
+              <ArrowRight size={13} className="transition-transform duration-300 group-hover:translate-x-0.5" />
             </Link>
           </div>
 

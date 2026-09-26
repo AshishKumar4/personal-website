@@ -16,6 +16,7 @@ interface DenoiseImageProps {
   hoverNoise?: number;
   eager?: boolean;
   focal?: { x: number; y: number };
+  fallbackSrc?: string;
 }
 
 function isSameOrigin(src: string): boolean {
@@ -47,6 +48,7 @@ export function DenoiseImage({
   hoverNoise = 0.42,
   eager = false,
   focal = { x: 0.5, y: 0.5 },
+  fallbackSrc,
 }: DenoiseImageProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -201,6 +203,14 @@ export function DenoiseImage({
 
     prepare();
     if (reduced) setOverlay(false);
+    if (drawRef.current && 'fonts' in document) {
+      document.fonts.ready.then(() => {
+        if (disposed || busy) return;
+        drawCrisp();
+        extract();
+        paint(current);
+      });
+    }
 
     const io = new IntersectionObserver(([entry]) => {
       inView = entry.isIntersecting;
@@ -244,6 +254,9 @@ export function DenoiseImage({
           alt={alt}
           loading={eager ? 'eager' : 'lazy'}
           decoding="async"
+          onError={e => {
+            if (fallbackSrc && !e.currentTarget.src.endsWith(fallbackSrc)) e.currentTarget.src = fallbackSrc;
+          }}
           className={cn('absolute inset-0 h-full w-full object-cover', imgClassName)}
           style={{ objectPosition: `${fx * 100}% ${fy * 100}%` }}
         />

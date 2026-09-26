@@ -27,7 +27,7 @@ export interface HeroLayout {
 }
 
 export const SERIF = '"Instrument Serif", Georgia, serif';
-export const MONO = '"Geist Mono Variable", ui-monospace, monospace';
+export const MONO = '"Geist Mono Variable", "AKS Glyphs", ui-monospace, monospace';
 const TRACKING = -0.02;
 
 let measureCtx: CanvasRenderingContext2D | null = null;
@@ -223,6 +223,7 @@ export async function fontsReady(timeoutMs = 2500): Promise<void> {
   const load = Promise.all([
     document.fonts.load(`400 100px ${SERIF}`),
     document.fonts.load(`400 12px ${MONO}`),
+    document.fonts.load('400 12px "AKS Glyphs"', 'σ₀√'),
   ]).then(() => undefined).catch(() => undefined);
   await Promise.race([load, new Promise<void>(r => setTimeout(r, timeoutMs))]);
 }

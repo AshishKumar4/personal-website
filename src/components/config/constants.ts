@@ -6,6 +6,7 @@ export const PERSONAL_INFO = {
   email: "ashishkmr472@gmail.com",
   profilePicture: "/portrait-640.webp",
   portrait: "/portrait-1200.webp",
+  portraitFallback: "/profile.jpeg",
   site: "https://ashishkumarsingh.com",
   github: "AshishKumar4",
 };

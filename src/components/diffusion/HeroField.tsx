@@ -4,6 +4,7 @@ import { composeHero, fontsReady, heroLayout, loadImage, readPalette, type HeroL
 import { clamp01, quantize } from '@/lib/diffusion/schedule';
 import { sampler } from '@/lib/diffusion/sampler-store';
 import { heroX0 } from '@/lib/diffusion/hero-x0';
+import { PERSONAL_INFO } from '@/components/config/constants';
 
 interface HeroFieldProps {
   name: string[];
@@ -238,7 +239,10 @@ export function HeroField({ name, portraitUrl, reducedMotion, onLayout }: HeroFi
 
     (async () => {
       if (portraitUrl === null) return;
-      const [img] = await Promise.all([loadImage(portraitUrl), fontsReady()]);
+      const [img] = await Promise.all([
+        loadImage(portraitUrl).then(i => i ?? (portraitUrl !== PERSONAL_INFO.portraitFallback ? loadImage(PERSONAL_INFO.portraitFallback) : null)),
+        fontsReady(),
+      ]);
       if (disposed) return;
       portrait = img;
       ready = true;

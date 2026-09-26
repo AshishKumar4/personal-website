@@ -96,7 +96,9 @@ export function SamplerHud({ prompt, compact = false, className }: SamplerHudPro
       <div className="flex gap-3 px-3 pt-3">
         <div className="relative shrink-0">
           <canvas ref={thumbRef} width={112} height={72} className="block h-[72px] w-[112px] border border-line/10 bg-black" aria-hidden="true" />
-          <span className="absolute -bottom-4 left-0 text-[9px] uppercase tracking-[0.14em]">x̂₀ prediction</span>
+          <span className="absolute -bottom-4 left-0 text-[9px] tracking-[0.14em]">
+            <span className="relative inline-block">x<span className="absolute -top-[0.38em] left-0 w-full text-center">ˆ</span></span><sub>0</sub> PREDICTION
+          </span>
         </div>
         <dl className="grid flex-1 grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
           <dt>t</dt>
@@ -118,7 +120,7 @@ export function SamplerHud({ prompt, compact = false, className }: SamplerHudPro
         <div className="text-right text-[9.5px] leading-tight">
           <div>DDIM · 60 steps</div>
           <div>cosine schedule</div>
-          <div>ε-pred · η 0.4→0</div>
+          <div>ε-pred · η 0.4 → 0</div>
         </div>
       </div>
       <div className="mt-3 h-px w-full bg-line/10">

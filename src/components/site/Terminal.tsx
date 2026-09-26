@@ -122,7 +122,7 @@ export default function Terminal({ open, onClose }: TerminalProps) {
       case 'projects':
         projects.forEach((p, i) => {
           const s = repoStats(github, p.repo);
-          print(L('out', `[${i + 1}] ${p.name.padEnd(34, ' ')} ${s ? `★ ${formatCount(s.stars)}` : ''}`));
+          print(L('out', `[${i + 1}] ${p.name.padEnd(34, ' ')} ${s ? `${formatCount(s.stars)} stars` : ''}`));
         });
         print(L('out', "open one with 'open <n>'"));
         break;
@@ -168,7 +168,7 @@ export default function Terminal({ open, onClose }: TerminalProps) {
         print(
           L('out', (
             <div className="flex flex-col gap-4 sm:flex-row">
-              <pre className="text-signal">{LOGO.join('\n')}</pre>
+              <pre className="text-signal" style={{ fontFamily: '"AKS Glyphs", "Geist Mono Variable", monospace', lineHeight: 1 }}>{LOGO.join('\n')}</pre>
               <div>
                 <div className="text-foreground">visitor<span className="text-muted-foreground">@</span>ashish</div>
                 <div className="text-muted-foreground">-----------------</div>
