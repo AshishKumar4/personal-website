@@ -7,19 +7,26 @@ export function Container({ children, className }: { children: React.ReactNode; 
 
 interface SectionHeaderProps {
   label: string;
+  mark?: string;
   title?: React.ReactNode;
   aside?: React.ReactNode;
   className?: string;
 }
 
-export function SectionHeader({ label, title, aside, className }: SectionHeaderProps) {
+export function SectionHeader({ label, mark, title, aside, className }: SectionHeaderProps) {
   return (
-    <div className={cn('grid grid-cols-1 gap-y-5 border-t border-white/10 pt-6 md:grid-cols-12 md:gap-x-8', className)}>
-      <div className="text-[0.8125rem] text-foreground/50 md:col-span-3">{label}</div>
-      <div className="flex items-end justify-between gap-6 md:col-span-9">
-        {title && <h2 className="max-w-3xl font-display text-[clamp(1.9rem,3.6vw,3.3rem)] font-[480] leading-[1.04] tracking-[-0.035em] text-foreground text-balance">{title}</h2>}
-        {aside && <div className="shrink-0 text-[0.8125rem] text-foreground/50">{aside}</div>}
+    <div className={cn('grid grid-cols-1 gap-y-7 md:grid-cols-12 md:gap-x-8', className)}>
+      <div className="t-kicker flex items-center gap-4 text-foreground/55 md:col-span-12">
+        {mark && <span className="text-[hsl(var(--tone))]">{mark}</span>}
+        {mark && <span aria-hidden="true" className="h-px w-10 bg-foreground/25" />}
+        <span>{label}</span>
       </div>
+      {title && (
+        <h2 className="t-section legible max-w-[16ch] text-[clamp(2.25rem,5vw,4.75rem)] text-foreground text-balance md:col-span-9">
+          {title}
+        </h2>
+      )}
+      {aside && <div className="self-end text-[0.875rem] text-foreground/60 md:col-span-3 md:justify-self-end">{aside}</div>}
     </div>
   );
 }

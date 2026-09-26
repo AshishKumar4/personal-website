@@ -175,8 +175,8 @@ export function AdminDashboardPage() {
               ['Write a post', '/admin/posts/new', PenLine],
               ['Add a project', '/admin/projects', Code],
               ['Add experience', '/admin/experience', Briefcase],
-              ['Edit hero, about and accent', '/admin/settings', Settings],
-              ['Check stars on the homepage', '/#projects', Star],
+              ['Edit hero, story and accent', '/admin/settings', Settings],
+              ['Check stars on the homepage', '/#work', Star],
             ].map(([label, href, Icon]) => {
               const I = Icon as typeof FileText;
               const external = (href as string).startsWith('/#');

@@ -12,6 +12,9 @@ import { useSiteConfig } from '@/contexts/SiteConfigContext';
 import { Container } from '@/components/site/SectionHeader';
 import { PostRow } from '@/components/site/PostRow';
 import type { NotebookDoc } from '@shared/types';
+import { cn } from '@/lib/utils';
+import { Horizon, MonoMeta, NightSky } from '@/components/reading/NightMasthead';
+import { DISPLAY_TITLE, MONO_LABEL, POST_PROSE, READING_MEASURE } from '@/components/reading/styles';
 
 function notebookColab(content: string): string | undefined {
   try {
@@ -85,7 +88,7 @@ function PostBody() {
   }, [slug]);
 
   useEffect(() => {
-    if (post) document.title = `${post.title} — Ashish Kumar Singh`;
+    if (post) document.title = `${post.title} · Ashish Kumar Singh`;
     return () => {
       document.title = 'Ashish Kumar Singh';
     };
@@ -96,63 +99,81 @@ function PostBody() {
   const body = post && !isNotebook ? post.content : '';
   const more = (data?.posts ?? []).filter(p => p.slug !== slug).slice(0, 3);
 
+  const date = post ? new Date(post.createdAt) : null;
+
   return (
     <>
       <ReadingProgress target={articleRef} />
-      <Container className="pt-28 md:pt-36">
-        <Link to="/blog" className="group inline-flex items-center gap-2 text-[0.875rem] text-foreground/55 hover:text-foreground">
-          <ArrowLeft size={13} className="transition-transform group-hover:-translate-x-1" /> All notes
-        </Link>
-      </Container>
       <article ref={articleRef} className="reading">
-        <Container className="mt-10 md:mt-14">
-          {loading ? (
-            <div className="mx-auto max-w-4xl space-y-5">
-              <Skeleton className="h-4 w-48" />
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-3/4" />
+        <header className="relative isolate">
+          <NightSky />
+          <Container className="pt-28 md:pt-36">
+            <div className="mx-auto max-w-5xl">
+              <Link to="/blog" className={cn(MONO_LABEL, 'group inline-flex items-center gap-2 text-foreground/50 transition-colors hover:text-foreground')}>
+                <ArrowLeft size={13} className="transition-transform group-hover:-translate-x-1" /> All notes
+              </Link>
             </div>
-          ) : post ? (
-            <header className="mx-auto max-w-5xl">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[0.875rem] text-foreground/50">
-                <time dateTime={new Date(post.createdAt).toISOString()}>
-                  {new Date(post.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                </time>
-                <span className="text-foreground/25">·</span>
-                <span>{isNotebook ? 'Notebook' : `${getReadingTime(body)} min read`}</span>
-                <span className="text-foreground/25">·</span>
-                <span>{post.author}</span>
+            {loading ? (
+              <div className="mx-auto mt-16 max-w-5xl space-y-5 md:mt-24">
+                <Skeleton className="h-4 w-48 bg-white/5" />
+                <Skeleton className="h-20 w-full bg-white/5" />
+                <Skeleton className="h-20 w-3/4 bg-white/5" />
               </div>
-              <h1 className="mt-6 font-display text-[clamp(2.5rem,5.6vw,5rem)] font-[540] leading-[1] tracking-[-0.045em] text-foreground text-balance">{post.title}</h1>
-              {colabUrl && (
-                <a
-                  href={colabUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-8 inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-[0.875rem] text-foreground transition-colors hover:border-white/40"
-                >
-                  <span className="text-[#e8710a]"><ColabIcon /></span>
-                  Open in Colab
-                </a>
-              )}
-            </header>
-          ) : (
-            <div className="mx-auto max-w-3xl py-24 text-center">
-              <p className="font-display text-5xl font-[500] tracking-[-0.04em] text-foreground">{failed ? 'Post not found' : 'Nothing here'}</p>
+            ) : post && date ? (
+              <div className="mx-auto mt-16 max-w-5xl md:mt-24">
+                <MonoMeta
+                  items={[
+                    <time key="d" dateTime={date.toISOString()}>{date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</time>,
+                    isNotebook ? 'Notebook' : `${getReadingTime(body)} min read`,
+                    post.author,
+                  ]}
+                />
+                <h1 className={cn(DISPLAY_TITLE, 'mt-8 text-[clamp(2.4rem,5.4vw,5rem)] leading-[1.02] md:mt-10')}>{post.title}</h1>
+                {colabUrl && (
+                  <a
+                    href={colabUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(MONO_LABEL, 'mt-10 inline-flex items-center gap-2.5 rounded-full border border-white/15 px-4 py-2.5 text-foreground/80 transition-colors hover:border-white/40 hover:text-foreground')}
+                  >
+                    <span className="text-[#e8710a]"><ColabIcon /></span>
+                    Open in Colab
+                  </a>
+                )}
+              </div>
+            ) : (
+              <div className="mx-auto max-w-3xl py-32 text-center">
+                <div className={cn(MONO_LABEL, 'text-foreground/40')}>{failed ? 'Error 404' : 'Empty'}</div>
+                <p className={cn(DISPLAY_TITLE, 'mt-6 text-[clamp(2.4rem,5vw,4rem)] leading-none')}>{failed ? 'Lost in the clouds.' : 'Nothing here.'}</p>
+                <p className="mt-6 font-serif text-[1.125rem] italic text-foreground/55">{failed ? 'This note does not exist, or it has moved.' : 'This note is empty.'}</p>
+              </div>
+            )}
+          </Container>
+          {post && (
+            <div className="mt-14 h-20 md:mt-20 md:h-28">
+              <Horizon seed={post.slug} />
             </div>
           )}
-        </Container>
+        </header>
         {post && (
-          <Container className="mt-14 md:mt-20">
-            <div className="mx-auto max-w-[44rem] border-t border-white/10 pt-12">
-              {isNotebook ? <NotebookFromJson json={post.content} /> : <MarkdownContent>{body}</MarkdownContent>}
+          <Container className="mt-10 md:mt-14">
+            <div className="mx-auto max-w-5xl">
+              <div className={cn(isNotebook ? 'w-full max-w-[52rem]' : cn(READING_MEASURE, 'mx-0'))}>
+                {isNotebook ? <NotebookFromJson json={post.content} /> : <MarkdownContent className={POST_PROSE}>{body}</MarkdownContent>}
+                <div className="mt-20 flex items-center justify-between gap-6 border-t border-white/10 pt-8">
+                  <span className={cn(MONO_LABEL, 'text-foreground/35')}>End of note</span>
+                  <Link to="/blog" className={cn(MONO_LABEL, 'group inline-flex items-center gap-2 text-foreground/60 transition-colors hover:text-foreground')}>
+                    <ArrowLeft size={13} className="transition-transform group-hover:-translate-x-1" /> All notes
+                  </Link>
+                </div>
+              </div>
             </div>
           </Container>
         )}
       </article>
       {post && more.length > 0 && (
         <Container className="mt-28 pb-24 md:mt-36 md:pb-32">
-          <div className="mb-2 text-[0.8125rem] text-foreground/50">Keep reading</div>
+          <div className={cn(MONO_LABEL, 'mb-4 text-foreground/40')}>Keep reading</div>
           <ol className="border-b border-white/10">
             {more.map((p, i) => <PostRow key={p.slug} post={p} index={i + 1} />)}
           </ol>
