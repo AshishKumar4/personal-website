@@ -1,12 +1,14 @@
 import { Hono } from "hono";
 import type { Env, Entity } from './core-utils';
-import { BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEntity, ContactEntity, EmailEntity, EmailThreadEntity, EmailLabelEntity, EmailDraftEntity, EmailAddressEntity, BlockedSenderEntity, EmailFeedEntity, ApiTokenEntity, hashPasswordPBKDF2, hashPasswordLegacySHA256, generateSalt } from "./entities";
+import { BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEntity, projectsMigrationStore, ContactEntity, EmailEntity, EmailThreadEntity, EmailLabelEntity, EmailDraftEntity, EmailAddressEntity, BlockedSenderEntity, EmailFeedEntity, ApiTokenEntity, hashPasswordPBKDF2, hashPasswordLegacySHA256, generateSalt } from "./entities";
 import { generateApiToken, parseApiToken, isApiTokenString, hashSecret, timingSafeEqualHex } from './api-token';
 import * as twoFactor from './two-factor';
 import { TwoFactorError, type TwoFactorEnv } from './two-factor';
 import type { AuthUser } from '@shared/types';
 import { ok, bad, notFound, isStr, mergeUnique, Index } from './core-utils';
-import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, ApiTokenPublic, ApiTokenCreated, R2FileItem, MultipartUploadPart, SiteFact, PostSummary, HomePayload, GitHubSnapshot, RepoStats } from "@shared/types";
+import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, ApiTokenPublic, ApiTokenCreated, R2FileItem, MultipartUploadPart, SiteFact, PostSummary, HomePayload, GitHubSnapshot, RepoStats, StoryChapter } from "@shared/types";
+import { runProjectsMigration, PROJECTS_MIGRATION } from './content-migration';
+import { parseStory } from './story';
 import { EMAIL_DOMAIN, clampTtlMinutes, ACCENT_PRESETS, DEFAULT_SITE_EXTRAS } from "@shared/types";
 import { postExcerpt, postReadingTime } from '@shared/post-preview';
 import { getEmailRaw, getAttachment, generateThreadId } from './email-utils';
@@ -194,6 +196,19 @@ function pickOptionalStrings<K extends keyof SiteConfig>(body: Partial<SiteConfi
     if (typeof value === 'string') (out as Record<string, string>)[key] = value.trim();
   }
   return out;
+}
+
+let projectsMigrated = false;
+
+async function ensureContentMigrations(env: Env): Promise<void> {
+  if (projectsMigrated) return;
+  try {
+    const outcome = await runProjectsMigration(projectsMigrationStore(env, PROJECTS_MIGRATION.id), PROJECTS_MIGRATION);
+    if (outcome !== 'busy') projectsMigrated = true;
+    if (outcome === 'applied') console.log(`Content migration ${PROJECTS_MIGRATION.id} applied.`);
+  } catch (error) {
+    console.error(`Content migration ${PROJECTS_MIGRATION.id} failed`, error);
+  }
 }
 
 function summarizePost(post: BlogPost): PostSummary {
@@ -385,6 +400,15 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     }
     if (body.accent !== undefined && !ACCENT_PRESETS.includes(body.accent)) return bad(c, 'Invalid accent preset.');
     if (body.facts !== undefined && !isFactList(body.facts)) return bad(c, 'facts must be a list of { label, value } strings');
+    let story: StoryChapter[] | undefined;
+    const resetStory = (body as { story?: unknown }).story === null;
+    if (body.story !== undefined && !resetStory) {
+      try {
+        story = parseStory(body.story);
+      } catch (error) {
+        return bad(c, error instanceof Error ? error.message : 'Invalid story.');
+      }
+    }
     const config = new SiteConfigEntity(c.env, "main");
     const current = await config.getState();
     const next: SiteConfig = {
@@ -398,13 +422,16 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       ...pickOptionalStrings(body, ['heroPrompt', 'portraitUrl', 'now', 'location']),
       ...(body.accent ? { accent: body.accent } : {}),
       ...(body.facts ? { facts: body.facts.map(f => ({ label: f.label.trim(), value: f.value.trim() })).filter(f => f.label && f.value).slice(0, 12) } : {}),
+      ...(story ? { story } : {}),
     };
+    if (resetStory) delete next.story;
     await config.save(next);
     return ok(c, await readSiteConfig(c.env));
   });
   // HOME (Public, aggregated for a single round trip)
   app.get('/api/home', async (c) => {
     await Promise.all([BlogEntity.ensureSeed(c.env), ExperienceEntity.ensureSeed(c.env), ProjectEntity.ensureSeed(c.env)]);
+    await ensureContentMigrations(c.env);
     const [config, experiences, projects, posts] = await Promise.all([
       readSiteConfig(c.env),
       listAllEntities(c.env, ExperienceEntity),
@@ -424,6 +451,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const hit = cache ? await cache.match(cacheKey).catch(() => undefined) : undefined;
     if (hit) return new Response(hit.body, hit);
     await ProjectEntity.ensureSeed(c.env);
+    await ensureContentMigrations(c.env);
     const projects = await listAllEntities(c.env, ProjectEntity);
     const token = (c.env as ExtendedEnv).GITHUB_TOKEN;
     const snapshot = await fetchGitHubSnapshot(projects.map(p => p.repo).filter(isStr), token);
@@ -520,7 +548,10 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // PROJECTS (Public)
   app.get('/api/projects', async (c) => {
     await ProjectEntity.ensureSeed(c.env);
-    return ok(c, { items: await listAllEntities(c.env, ProjectEntity), next: null });
+    await ensureContentMigrations(c.env);
+    const items = await listAllEntities(c.env, ProjectEntity);
+    items.sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+    return ok(c, { items, next: null });
   });
   // PROJECTS (Protected Admin Routes)
   app.post('/api/projects', adminAuthMiddleware, async (c) => {
@@ -539,10 +570,14 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
   app.put('/api/projects/:id', adminAuthMiddleware, async (c) => {
     const id = c.req.param('id');
-    const body = await c.req.json() as Partial<Project>;
+    const { order, ...body } = await c.req.json() as Omit<Partial<Project>, 'order'> & { order?: number | null };
     const proj = new ProjectEntity(c.env, id);
     if (!await proj.exists()) return notFound(c, 'project not found');
-    const updated = await proj.mutate(s => ({ ...s, ...body, id: s.id }));
+    const updated = await proj.mutate(s => {
+      const { order: currentOrder, ...rest } = { ...s, ...body, id: s.id };
+      const nextOrder = order === null ? undefined : typeof order === 'number' && Number.isFinite(order) ? order : currentOrder;
+      return nextOrder === undefined ? rest : { ...rest, order: nextOrder };
+    });
     return ok(c, updated);
   });
   app.delete('/api/projects/:id', adminAuthMiddleware, async (c) => {
