@@ -97,7 +97,7 @@ void main() {
     split = abs(off) * 0.6 + on * 0.0015 * u_glitch;
   }
   vec2 dc = uv - 0.5;
-  float ca = (0.001 + u_warp * 0.012) * dot(dc, dc) * 4.0 + split;
+  float ca = (0.0006 + u_warp * 0.006) * dot(dc, dc) * 4.0 + split;
   vec3 col;
   col.r = texture(u_scene, uv - dc * ca * 2.0 - vec2(split, 0.0)).r;
   col.g = texture(u_scene, uv).g;

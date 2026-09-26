@@ -54,7 +54,7 @@ export function ContactSection() {
           </div>
         </Reveal>
         <Reveal delay={100} className="md:col-span-7 md:col-start-6">
-          <form onSubmit={submit} noValidate className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
+          <form onSubmit={submit} noValidate className="grid grid-cols-1 gap-x-8 gap-y-6 rounded-[20px] border border-white/10 bg-[#07080c]/55 p-6 backdrop-blur-xl sm:grid-cols-2 md:p-8">
             <label className="block">
               <span className="sr-only">Name</span>
               <input autoComplete="name" value={name} onChange={e => setName(e.target.value)} disabled={sending} placeholder="Name" className={inputClass} />

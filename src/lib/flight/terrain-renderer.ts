@@ -236,7 +236,7 @@ void main() {
     float rays = 0.45 + 0.55 * smoothstep(-0.4, 0.9, snoise(vec2(az * 55.0 + fold * 6.0, t * 0.12)));
     float breath = 0.55 + 0.45 * snoise(vec2(x * 0.9 - t * 0.02, 9.0));
     vec3 ac = mix(vec3(0.25, 1.0, 0.62), vec3(0.55, 0.35, 1.0), smoothstep(0.0, 0.14, e));
-    col += ac * band * rays * breath * u_aurora * 0.42;
+    col += ac * band * rays * breath * u_aurora * 0.55;
   }
   if (u_clouds > 0.001 && el > -0.01) {
     float y = max(el, 0.0) + 0.04;

@@ -132,7 +132,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     onFlight('focus', e => {
       if (e.hue === null || e.hue === undefined) focusTarget = 0;
       else {
-        focusColor = hsv(((e.hue % 1) + 1) % 1, 0.62, 1);
+        focusColor = hsv(((e.hue % 1) + 1) % 1, 0.78, 1);
         focusTarget = e.strength ?? 1;
       }
       kick();
@@ -213,7 +213,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     }
     lanternHit = !!hit;
     focusMix = animate ? damp(focusMix, focusTarget, 4, dt) : focusTarget;
-    lantern[3] = damp(lantern[3], hit ? p.lanternAmt * (1 + focusMix * 0.35) : 0, hit ? 5 : 3, dt);
+    lantern[3] = damp(lantern[3], hit ? p.lanternAmt * (1 + focusMix * 0.15) : 0, hit ? 5 : 3, dt);
 
     for (let i = ripples.length - 1; i >= 0; i--) if (time - ripples[i].t0 > 2.8) ripples.splice(i, 1);
     ripArr.fill(0);

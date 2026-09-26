@@ -133,7 +133,3 @@ export function hsv(h: number, s: number, v: number): [number, number, number] {
   };
   return [f(5), f(3), f(1)];
 }
-
-export function wrapAngle(a: number): number {
-  return a - Math.round(a / (Math.PI * 2)) * Math.PI * 2;
-}

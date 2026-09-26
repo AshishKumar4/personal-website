@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A personal site built around a night flight: the homepage background is a raw WebGL2 hidden-line mountain range that the camera flies through as you scroll, ending at dawn by the contact section. It features a React frontend with a Cloudflare Workers backend using Durable Objects for persistent storage. The site includes a public portfolio, blog system, and admin panel.
+A personal site built around a night flight: the homepage is one chronological story (experiences and projects interleaved by start date) flown over a raw WebGL2 hidden-line mountain range whose landscape morphs per entry, ending at dawn by the contact section. It features a React frontend with a Cloudflare Workers backend using Durable Objects for persistent storage. The site includes a public portfolio, blog system, and admin panel.
 
 ## Commands
 
@@ -46,16 +46,24 @@ Routes are added in `worker/user-routes.ts`. Do NOT modify `worker/index.ts` or 
 ### Frontend Routing
 
 Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage is in the entry chunk; every other route is lazy-loaded.
-- `/` - Homepage (Hero, About, Selected work, Experience, Writing, Contact sections)
+- `/` - Homepage (Hero, chronological Timeline, Writing, Contact)
 - `/about` - Long-form story rendered from `aboutStory` markdown
 - `/blog`, `/blog/:slug` - Blog pages
 - `/admin/*` - Admin panel (protected routes, includes `/admin/messages` for contact form submissions)
 
 ### Flight scene
 
-- `src/lib/flight/` - camera math and the WebGL2 `TerrainRenderer` (procedural terrain in the vertex shader, depth-filled mesh plus row lines for hidden-line removal, sky with dawn glow)
-- `src/components/flight/FlightCanvas.tsx` - fixed background; flight distance = cruise over time + scroll, mouse steers, a veil dims it behind content and lifts at the end
-- Respects `prefers-reduced-motion` (static frame) and lowers density on small screens
+- `src/lib/flight/` - lazy-loaded WebGL2 engine: `engine.ts` (loop, camera choreography), `scenes.ts` (7 scenes and the `[data-scene]` region tracker), `terrain-renderer.ts` + `glsl.ts` (procedural terrain, hidden-line fill plus row lines, sky), `particles.ts` (fireflies, city lights), `post.ts` (bloom, grain), `input.ts` (cursor lantern, click ripple), `terrain-js.ts` (CPU terrain height for picking), `bus.ts` (`pulse`, `focus`, `telemetry` events)
+- `src/components/flight/FlightCanvas.tsx` - fixed background; every story region in the DOM declares `data-scene="<SceneId>"` and the engine sweeps between scenes as they cross the viewport centre; adjacent regions with the same scene merge
+- Scenes: `night`, `kernel`, `breach`, `signal`, `noise`, `swarm`, `dawn` (`SCENE_IDS` in `shared/types.ts`)
+- Debug params: `?scene=<id>&progress=0..1` forces a scene, `?flightq=hi` pins quality
+- Respects `prefers-reduced-motion` (static frames) and adapts resolution to frame time; small screens get lower density and no bloom
+
+### Timeline
+
+- `src/components/site/timeline.ts` merges experiences (start parsed from `duration`) and projects (`year`, `YYYY-MM`) oldest first; undated projects go last
+- Each entry's scene is its `scene` field when set, otherwise a default by id in `timeline.ts`; both are editable in the admin ("Landscape", "Started")
+- `worker/content-migration.ts` holds the project seeds and a one-time, marker-guarded migration that runs from the public read routes
 
 ### Public data
 
@@ -67,7 +75,8 @@ Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage i
 
 - `src/components/ui/` - shadcn/ui primitives (excluded from react-refresh lint rule)
 - `src/components/sections/` - Portfolio page sections
-- `src/components/site/` - Shared site pieces (section header, reveal, post row, ridgeline art, command menu)
+- `src/components/site/` - Shared site pieces (timeline model, scroll stage, year rail, word reveals, post row, command menu)
+- `src/components/reading/` - Masthead and type styles shared by About, Writing and post pages
 - `src/components/layout/` - Layout wrappers (Header, Footer, PortfolioLayout, AdminLayout)
 
 ## Key Configuration
