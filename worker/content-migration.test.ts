@@ -110,7 +110,7 @@ describe('planProjectsMigration', () => {
   test('plans deletes, additions and orders against the live project list', () => {
     const plan = planProjectsMigration(LIVE_IDS.map((id) => project(id)), PROJECTS_MIGRATION);
     expect(plan.deleteIds.sort()).toEqual(['ashishkumar4-cf-git', 'mossaic']);
-    expect(plan.add.map((p) => p.id)).toEqual(['kinu', 'dew', 'game-servers']);
+    expect(plan.add.map((p) => p.id)).toEqual(['kinu', 'dew']);
     expect(plan.orders).toContainEqual({ id: 'cloudflare-vibesdk', order: 2 });
     expect(plan.orders).toContainEqual({ id: 'do86', order: 4 });
     expect(plan.orders.map((o) => o.id)).not.toContain('mossaic');
@@ -140,7 +140,7 @@ describe('planProjectsMigration', () => {
   test('does not re-add projects that already exist', () => {
     const kinu = project('kinu', { description: 'owner copy' });
     const plan = planProjectsMigration([kinu], PROJECTS_MIGRATION);
-    expect(plan.add.map((p) => p.id)).toEqual(['dew', 'game-servers']);
+    expect(plan.add.map((p) => p.id)).toEqual(['dew']);
     expect(plan.orders).toEqual([{ id: 'kinu', order: 1 }]);
   });
 
@@ -178,7 +178,7 @@ describe('runProjectsMigration', () => {
   test('migrates production content in one pass', async () => {
     const store = new MemoryStore(LIVE_IDS.map((id) => project(id)));
     expect(await runProjectsMigration(store)).toBe('applied');
-    expect(store.sorted()).toEqual(['kinu', 'cloudflare-vibesdk', 'dew', 'do86', 'nimbus', 'ashishkumar4-flaxdiff', 'flydreamer', 'ashishkumar4-aqeous', 'game-servers']);
+    expect(store.sorted()).toEqual(['kinu', 'cloudflare-vibesdk', 'dew', 'do86', 'nimbus', 'ashishkumar4-flaxdiff', 'flydreamer', 'ashishkumar4-aqeous']);
     expect(store.marker.status).toBe('done');
   });
 
@@ -212,7 +212,7 @@ describe('runProjectsMigration', () => {
     await store.addProjectIfAbsent(SEED_PROJECTS[0]);
     expect(await runProjectsMigration(store, PROJECTS_MIGRATION, () => 10_000)).toBe('busy');
     expect(await runProjectsMigration(store, PROJECTS_MIGRATION, () => 120_000)).toBe('applied');
-    expect(store.sorted()).toEqual(['kinu', 'cloudflare-vibesdk', 'dew', 'do86', 'nimbus', 'ashishkumar4-flaxdiff', 'flydreamer', 'ashishkumar4-aqeous', 'game-servers']);
+    expect(store.sorted()).toEqual(['kinu', 'cloudflare-vibesdk', 'dew', 'do86', 'nimbus', 'ashishkumar4-flaxdiff', 'flydreamer', 'ashishkumar4-aqeous']);
   });
 
   test('does not clobber an order the admin sets mid-flight', async () => {

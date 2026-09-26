@@ -82,16 +82,6 @@ export const SEED_PROJECTS: Project[] = [
     year: "2015-12",
     story: PROJECT_STORIES["ashishkumar4-aqeous"],
   },
-  {
-    id: "game-servers",
-    name: "Game servers",
-    description: "cPanel and game server setups for Indian game-server hosts, custom modded Counter-Strike 1.6 servers, and one of the more popular CS 1.6 and CS:GO community servers in India.",
-    repo: "",
-    url: "",
-    order: 9,
-    year: "2011",
-    story: PROJECT_STORIES["game-servers"],
-  },
 ];
 
 export interface ProjectsMigrationSpec {
@@ -107,9 +97,9 @@ export interface ProjectsMigrationSpec {
 const seedById = new Map(SEED_PROJECTS.map((p) => [p.id, p]));
 
 export const PROJECTS_MIGRATION: ProjectsMigrationSpec = {
-  id: "2026-09-projects-v6",
-  remove: ["mossaic", "ashishkumar4-cf-git"],
-  add: ["kinu", "dew", "game-servers"].map((id) => seedById.get(id)!),
+  id: "2026-09-projects-v7",
+  remove: ["mossaic", "ashishkumar4-cf-git", "game-servers"],
+  add: ["kinu", "dew"].map((id) => seedById.get(id)!),
   order: Object.fromEntries(SEED_PROJECTS.map((p) => [p.id, p.order!])),
   year: Object.fromEntries(SEED_PROJECTS.filter((p) => p.year).map((p) => [p.id, p.year!])),
   story: PROJECT_STORIES,
