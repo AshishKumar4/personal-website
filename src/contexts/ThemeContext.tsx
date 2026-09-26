@@ -8,36 +8,28 @@ type ThemeContextType = {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+function readInitialTheme(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    return localStorage.getItem('theme') !== 'light';
+  } catch {
+    return true;
+  }
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('theme');
-      if (savedTheme) return savedTheme === 'dark';
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return false;
-  });
+  const [isDark, setIsDark] = useState(readInitialTheme);
 
   useEffect(() => {
     const root = document.documentElement;
-    if (isDark) {
-      root.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      root.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
+    root.classList.toggle('dark', isDark);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#09090a' : '#f0ede6');
+    try {
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    } catch {
+      return;
     }
   }, [isDark]);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e: MediaQueryListEvent) => {
-      const savedTheme = localStorage.getItem('theme');
-      if (!savedTheme) setIsDark(e.matches);
-    };
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
 
   const toggleTheme = useCallback(() => setIsDark(prev => !prev), []);
   const setTheme = useCallback((dark: boolean) => setIsDark(dark), []);

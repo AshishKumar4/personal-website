@@ -1,114 +1,95 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { useReducedMotion } from '@/hooks/use-reduced-motion';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { ArrowUpRight, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { api } from '@/lib/api-client';
-import { toast } from 'sonner';
-import { Send, Loader2 } from 'lucide-react';
+import { PERSONAL_INFO } from '@/components/config/constants';
+import { Container } from '@/components/site/SectionHeader';
+import { Reveal } from '@/components/site/Reveal';
+
+type Status = { kind: 'idle' } | { kind: 'sending' } | { kind: 'sent' } | { kind: 'error'; message: string };
+
+const inputClass =
+  'block w-full rounded-none border-0 border-b border-white/15 bg-transparent px-0 py-3 text-[1rem] text-foreground placeholder:text-foreground/30 transition-colors focus:border-white/60 focus:outline-none focus:ring-0 focus-visible:outline-none disabled:opacity-60';
 
 export function ContactSection() {
-  const prefersReducedMotion = useReducedMotion();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
-  const [sending, setSending] = useState(false);
+  const [status, setStatus] = useState<Status>({ kind: 'idle' });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim() || !message.trim()) {
-      toast.error('Please fill in all fields');
+      setStatus({ kind: 'error', message: 'Please fill in all three fields.' });
       return;
     }
-    setSending(true);
+    setStatus({ kind: 'sending' });
     try {
-      await api('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), email: email.trim(), message: message.trim() }),
-      });
-      toast.success('Message sent! I\'ll get back to you soon.');
+      await api('/api/contact', { method: 'POST', body: JSON.stringify({ name: name.trim(), email: email.trim(), message: message.trim() }) });
+      setStatus({ kind: 'sent' });
       setName('');
       setEmail('');
       setMessage('');
-    } catch {
-      toast.error('Failed to send message. Please try again.');
-    } finally {
-      setSending(false);
+    } catch (err) {
+      setStatus({ kind: 'error', message: err instanceof Error ? err.message : 'Something went wrong. Email works too.' });
     }
   };
 
+  const sending = status.kind === 'sending';
+
   return (
-    <motion.section
-      id="contact"
-      className="py-24 md:py-32"
-      initial={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: prefersReducedMotion ? 0 : 0.6 }}
-    >
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <h2 className="text-3xl md:text-4xl font-bold text-foreground font-display">
-          Get In Touch
-        </h2>
-        <p className="mt-4 text-muted-foreground">
-          Have a question or want to work together? Drop me a message!
-        </p>
-        <form onSubmit={handleSubmit} className="mt-10 space-y-6 text-left">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your name"
-                required
-                disabled={sending}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                required
-                disabled={sending}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="message">Message</Label>
-            <Textarea
-              id="message"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="What would you like to say?"
-              rows={5}
-              required
-              disabled={sending}
-            />
-          </div>
-          <Button type="submit" size="lg" disabled={sending} className="w-full sm:w-auto">
-            {sending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" />
-                Send Message
-              </>
-            )}
-          </Button>
-        </form>
-      </div>
-    </motion.section>
+    <section id="contact" className="relative flex min-h-[100svh] flex-col justify-end pb-16 pt-40" aria-label="Contact">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-[-6rem] h-[62%] bg-gradient-to-t from-background via-background/85 to-transparent" />
+      <Container className="relative">
+        <Reveal>
+          <h2 className="font-display text-[clamp(3rem,8.5vw,9.5rem)] font-[540] leading-[0.9] tracking-[-0.05em] text-foreground">
+            Let&rsquo;s build
+            <br />
+            something.
+          </h2>
+        </Reveal>
+        <div className="mt-14 grid grid-cols-1 gap-12 border-t border-white/15 pt-8 md:mt-20 md:grid-cols-12 md:gap-x-8">
+          <Reveal className="md:col-span-4">
+            <p className="max-w-sm text-[1rem] leading-relaxed text-foreground/65">
+              Working on something ambitious, or want to talk kernels, diffusion or drones? I read everything.
+            </p>
+            <a href={`mailto:${PERSONAL_INFO.email}`} className="group mt-6 inline-flex items-center gap-1.5 text-[1.05rem] text-foreground transition-colors hover:text-signal">
+              {PERSONAL_INFO.email}
+              <ArrowUpRight size={16} className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+            </a>
+          </Reveal>
+          <Reveal delay={100} className="md:col-span-7 md:col-start-6">
+            <form onSubmit={submit} noValidate className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
+              <label className="block">
+                <span className="sr-only">Name</span>
+                <input autoComplete="name" value={name} onChange={e => setName(e.target.value)} disabled={sending} placeholder="Name" className={inputClass} />
+              </label>
+              <label className="block">
+                <span className="sr-only">Email</span>
+                <input type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} disabled={sending} placeholder="Email" className={inputClass} />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="sr-only">Message</span>
+                <textarea rows={3} maxLength={5000} value={message} onChange={e => setMessage(e.target.value)} disabled={sending} placeholder="What are you working on?" className={cn(inputClass, 'resize-none')} />
+              </label>
+              <div className="flex flex-wrap items-center justify-between gap-4 sm:col-span-2">
+                <p role="status" aria-live="polite" className={cn('text-[0.875rem]', status.kind === 'error' ? 'text-destructive' : 'text-foreground/55')}>
+                  {status.kind === 'sent' && 'Thank you. I’ll get back to you soon.'}
+                  {status.kind === 'error' && status.message}
+                </p>
+                <button
+                  type="submit"
+                  disabled={sending}
+                  className="inline-flex h-11 items-center gap-2 rounded-full bg-foreground px-6 text-[0.9375rem] font-medium text-background transition-opacity hover:opacity-85 disabled:opacity-60"
+                >
+                  {sending && <Loader2 size={15} className="animate-spin" />}
+                  {sending ? 'Sending' : 'Send message'}
+                </button>
+              </div>
+            </form>
+          </Reveal>
+        </div>
+      </Container>
+    </section>
   );
 }

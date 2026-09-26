@@ -6,8 +6,9 @@ import * as twoFactor from './two-factor';
 import { TwoFactorError, type TwoFactorEnv } from './two-factor';
 import type { AuthUser } from '@shared/types';
 import { ok, bad, notFound, isStr, mergeUnique, Index } from './core-utils';
-import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, ApiTokenPublic, ApiTokenCreated, R2FileItem, MultipartUploadPart } from "@shared/types";
-import { EMAIL_DOMAIN, clampTtlMinutes } from "@shared/types";
+import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, ApiTokenPublic, ApiTokenCreated, R2FileItem, MultipartUploadPart, SiteFact, PostSummary, HomePayload, GitHubSnapshot, RepoStats } from "@shared/types";
+import { EMAIL_DOMAIN, clampTtlMinutes, ACCENT_PRESETS, DEFAULT_SITE_EXTRAS } from "@shared/types";
+import { postExcerpt, postReadingTime } from '@shared/post-preview';
 import { getEmailRaw, getAttachment, generateThreadId } from './email-utils';
 import { arrayBufferToBase64, isSafeMessageIdHeader, contentDispositionHeader } from './mail-encoding';
 import { generateThrowawayLocalPart, getActiveFromAddress } from './address-utils';
@@ -21,6 +22,7 @@ interface ExtendedEnv extends Env {
   EMAIL_BUCKET?: R2Bucket;
   FILES_BUCKET?: R2Bucket;
   EMAIL_SENDER?: any;
+  GITHUB_TOKEN?: string;
 }
 
 function generateMessageId(): string {
@@ -172,6 +174,66 @@ async function run2FA(c: any, fn: () => Promise<unknown>) {
     return c.json({ success: false, error: 'Two-factor operation failed' }, 500);
   }
 }
+const BACKGROUND_EFFECTS: NonNullable<SiteConfig['backgroundEffect']>[] = ['grid', 'particles', 'aurora', 'matrix', 'neural'];
+const GITHUB_USER = 'AshishKumar4';
+
+async function readSiteConfig(env: Env): Promise<SiteConfig> {
+  await SiteConfigEntity.seedData(env);
+  const stored = await new SiteConfigEntity(env, "main").getState();
+  return { ...SiteConfigEntity.initialState, ...DEFAULT_SITE_EXTRAS, ...stored };
+}
+
+function isFactList(value: unknown): value is SiteFact[] {
+  return Array.isArray(value) && value.every(f => f && typeof f.label === 'string' && typeof f.value === 'string');
+}
+
+function pickOptionalStrings<K extends keyof SiteConfig>(body: Partial<SiteConfig>, keys: K[]): Partial<SiteConfig> {
+  const out: Partial<SiteConfig> = {};
+  for (const key of keys) {
+    const value = body[key];
+    if (typeof value === 'string') (out as Record<string, string>)[key] = value.trim();
+  }
+  return out;
+}
+
+function summarizePost(post: BlogPost): PostSummary {
+  const { content: _content, ...rest } = post;
+  return { ...rest, excerpt: postExcerpt(post, 220), readingTime: postReadingTime(post) };
+}
+
+async function fetchGitHubSnapshot(repos: string[], token?: string): Promise<GitHubSnapshot> {
+  const headers: Record<string, string> = { 'User-Agent': 'ashishkumarsingh.com', Accept: 'application/vnd.github+json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const get = async <T,>(path: string): Promise<T | null> => {
+    try {
+      const res = await fetch(`https://api.github.com${path}`, { headers });
+      return res.ok ? (await res.json()) as T : null;
+    } catch {
+      return null;
+    }
+  };
+  const unique = [...new Set(repos.map(r => r.trim()).filter(r => /^[\w.-]+\/[\w.-]+$/.test(r)))].slice(0, 24);
+  type RepoJson = { stargazers_count: number; forks_count: number; language: string | null; pushed_at: string | null };
+  type EventJson = { type: string; repo: { name: string }; created_at: string; payload?: { commits?: { message: string }[] } };
+  const [user, events, ...repoData] = await Promise.all([
+    get<{ login: string; followers: number; public_repos: number }>(`/users/${GITHUB_USER}`),
+    get<EventJson[]>(`/users/${GITHUB_USER}/events/public?per_page=30`),
+    ...unique.map(r => get<RepoJson>(`/repos/${r}`)),
+  ]) as [{ login: string; followers: number; public_repos: number } | null, EventJson[] | null, ...(RepoJson | null)[]];
+  const stats: Record<string, RepoStats> = {};
+  unique.forEach((repo, i) => {
+    const data = repoData[i];
+    if (data) stats[repo.toLowerCase()] = { stars: data.stargazers_count, forks: data.forks_count, language: data.language, pushedAt: data.pushed_at };
+  });
+  const push = events?.find(e => e.type === 'PushEvent');
+  const message = push?.payload?.commits?.[push.payload.commits.length - 1]?.message?.split('\n')[0];
+  return {
+    repos: stats,
+    user: user ? { login: user.login, followers: user.followers, publicRepos: user.public_repos } : null,
+    lastPush: push ? { repo: push.repo.name, at: push.created_at, ...(message ? { message } : {}) } : null,
+    fetchedAt: Date.now(),
+  };
+}
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/test', (c) => c.json({ success: true, data: { name: 'CF Workers Demo' }}));
   // AUTH
@@ -312,27 +374,71 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
   // SITE CONFIG
   app.get('/api/config', async (c) => {
-    await SiteConfigEntity.seedData(c.env);
-    const config = new SiteConfigEntity(c.env, "main");
-    // Configs saved before aboutStory existed lack the field; normalize here.
-    return ok(c, { ...SiteConfigEntity.initialState, ...(await config.getState()) });
+    return ok(c, await readSiteConfig(c.env));
   });
   app.put('/api/config', adminAuthMiddleware, async (c) => {
-    const { subtitle, bio, about, aboutStory, backgroundEffect } = await c.req.json() as Partial<SiteConfig>;
+    const body = await c.req.json() as Partial<SiteConfig>;
+    const { subtitle, bio, about, aboutStory, backgroundEffect } = body;
     if (!isStr(subtitle) || !isStr(bio) || !isStr(about)) return bad(c, 'subtitle, bio, and about are required');
-    if (!isStr(backgroundEffect) || !['grid', 'particles', 'aurora', 'vortex', 'matrix', 'neural'].includes(backgroundEffect)) {
-      return bad(c, 'A valid background effect is required.');
+    if (backgroundEffect !== undefined && !BACKGROUND_EFFECTS.includes(backgroundEffect)) {
+      return bad(c, 'Invalid background effect.');
     }
+    if (body.accent !== undefined && !ACCENT_PRESETS.includes(body.accent)) return bad(c, 'Invalid accent preset.');
+    if (body.facts !== undefined && !isFactList(body.facts)) return bad(c, 'facts must be a list of { label, value } strings');
     const config = new SiteConfigEntity(c.env, "main");
     const current = await config.getState();
-    await config.save({ subtitle, bio, about, aboutStory: isStr(aboutStory) ? aboutStory : (current.aboutStory ?? ''), backgroundEffect });
-    return ok(c, await config.getState());
+    const next: SiteConfig = {
+      ...SiteConfigEntity.initialState,
+      ...current,
+      subtitle,
+      bio,
+      about,
+      aboutStory: typeof aboutStory === 'string' ? aboutStory : (current.aboutStory ?? ''),
+      ...(backgroundEffect ? { backgroundEffect } : {}),
+      ...pickOptionalStrings(body, ['heroPrompt', 'portraitUrl', 'now', 'location']),
+      ...(body.accent ? { accent: body.accent } : {}),
+      ...(body.facts ? { facts: body.facts.map(f => ({ label: f.label.trim(), value: f.value.trim() })).filter(f => f.label && f.value).slice(0, 12) } : {}),
+    };
+    await config.save(next);
+    return ok(c, await readSiteConfig(c.env));
+  });
+  // HOME (Public, aggregated for a single round trip)
+  app.get('/api/home', async (c) => {
+    await Promise.all([BlogEntity.ensureSeed(c.env), ExperienceEntity.ensureSeed(c.env), ProjectEntity.ensureSeed(c.env)]);
+    const [config, experiences, projects, posts] = await Promise.all([
+      readSiteConfig(c.env),
+      listAllEntities(c.env, ExperienceEntity),
+      listAllEntities(c.env, ProjectEntity),
+      listAllEntities(c.env, BlogEntity),
+    ]);
+    experiences.sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+    projects.sort((a, b) => (a.order ?? 99) - (b.order ?? 99) || Number(!!b.imageUrl) - Number(!!a.imageUrl));
+    posts.sort((a, b) => b.createdAt - a.createdAt);
+    const payload: HomePayload = { config, experiences, projects, posts: posts.map(summarizePost) };
+    return ok(c, payload);
+  });
+  // GITHUB SNAPSHOT (Public, edge-cached)
+  app.get('/api/github', async (c) => {
+    const cache = (globalThis as unknown as { caches?: { default?: Cache } }).caches?.default;
+    const cacheKey = new Request(new URL('/api/github?v=1', c.req.url).toString());
+    const hit = cache ? await cache.match(cacheKey).catch(() => undefined) : undefined;
+    if (hit) return new Response(hit.body, hit);
+    await ProjectEntity.ensureSeed(c.env);
+    const projects = await listAllEntities(c.env, ProjectEntity);
+    const token = (c.env as ExtendedEnv).GITHUB_TOKEN;
+    const snapshot = await fetchGitHubSnapshot(projects.map(p => p.repo).filter(isStr), token);
+    const complete = snapshot.user !== null && Object.keys(snapshot.repos).length > 0;
+    const res = c.json({ success: true, data: snapshot });
+    res.headers.set('Cache-Control', `public, max-age=${complete ? 3600 : 300}`);
+    if (cache) c.executionCtx.waitUntil(cache.put(cacheKey, res.clone()).catch(() => {}));
+    return res;
   });
   // BLOG POSTS (Public)
   app.get('/api/posts', async (c) => {
     await BlogEntity.ensureSeed(c.env);
     const items = await listAllEntities(c.env, BlogEntity);
     items.sort((a, b) => b.createdAt - a.createdAt);
+    if (c.req.query('summary') === '1') return ok(c, { items: items.map(summarizePost), next: null });
     return ok(c, { items, next: null });
   });
   app.get('/api/posts/:slug', async (c) => {
@@ -426,6 +532,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       repo: body.repo || '',
       url: body.url || '',
       ...(body.imageUrl ? { imageUrl: body.imageUrl } : {}),
+      ...(typeof body.order === 'number' ? { order: body.order } : {}),
     };
     const created = await ProjectEntity.create(c.env, newProject);
     return ok(c, created);

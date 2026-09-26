@@ -1,17 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { ArrowLeft } from 'lucide-react';
 import { PortfolioLayout } from '@/components/layout/PortfolioLayout';
-import { ReadingSurface } from '@/components/layout/ReadingSurface';
 import { BlogPost } from '@shared/types';
 import { api } from '@/lib/api-client';
-import { Toaster, toast } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Calendar, User, Clock } from 'lucide-react';
 import { MarkdownContent } from '@/components/MarkdownContent';
 import { NotebookFromJson } from '@/components/NotebookRenderer';
-import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { getReadingTime } from '@/lib/text-utils';
+import { useSiteConfig } from '@/contexts/SiteConfigContext';
+import { Container } from '@/components/site/SectionHeader';
+import { PostRow } from '@/components/site/PostRow';
 import type { NotebookDoc } from '@shared/types';
 
 function notebookColab(content: string): string | undefined {
@@ -28,110 +27,145 @@ const ColabIcon = () => (
   </svg>
 );
 
-export function BlogPostPage() {
+function ReadingProgress({ target }: { target: RefObject<HTMLElement> }) {
+  const barRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const el = target.current;
+      const bar = barRef.current;
+      if (!el || !bar) return;
+      const rect = el.getBoundingClientRect();
+      const total = rect.height - window.innerHeight * 0.6;
+      const p = total > 0 ? Math.min(1, Math.max(0, -rect.top / total)) : 0;
+      bar.style.transform = `scaleX(${p})`;
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [target]);
+  return <div ref={barRef} className="fixed inset-x-0 top-0 z-[70] h-[2px] origin-left bg-signal" style={{ transform: 'scaleX(0)' }} aria-hidden="true" />;
+}
+
+function PostBody() {
   const { slug } = useParams<{ slug: string }>();
+  const { data } = useSiteConfig();
   const [post, setPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
-  const prefersReducedMotion = useReducedMotion();
+  const [failed, setFailed] = useState(false);
+  const articleRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!slug) return;
-    const fetchPost = async () => {
-      try {
-        const response = await api<BlogPost>(`/api/posts/${slug}`);
-        setPost(response);
-      } catch (error) {
-        console.error(`Failed to fetch post with slug ${slug}:`, error);
-        toast.error('Failed to load blog post.');
-      } finally {
-        setLoading(false);
-      }
+    let alive = true;
+    setLoading(true);
+    setFailed(false);
+    api<BlogPost>(`/api/posts/${slug}`)
+      .then(p => {
+        if (alive) setPost(p);
+      })
+      .catch(() => {
+        if (alive) setFailed(true);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
     };
-    fetchPost();
   }, [slug]);
+
+  useEffect(() => {
+    if (post) document.title = `${post.title} — Ashish Kumar Singh`;
+    return () => {
+      document.title = 'Ashish Kumar Singh';
+    };
+  }, [post]);
 
   const isNotebook = post?.format === 'notebook';
   const colabUrl = post && isNotebook ? notebookColab(post.content) : undefined;
   const body = post && !isNotebook ? post.content : '';
+  const more = (data?.posts ?? []).filter(p => p.slug !== slug).slice(0, 3);
 
   return (
-    <PortfolioLayout variant="reading">
-      <div className="relative z-10 px-4 pt-8">
-        <div className="mx-auto w-full max-w-4xl">
-          <Link to="/blog" className="inline-flex items-center text-primary font-mono text-sm hover:underline">
-            <ArrowLeft size={16} className="mr-2" />
-            All Posts
-          </Link>
-        </div>
-      </div>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: prefersReducedMotion ? 0 : 0.5 }}
-      >
-        <ReadingSurface>
+    <>
+      <ReadingProgress target={articleRef} />
+      <Container className="pt-28 md:pt-36">
+        <Link to="/blog" className="group inline-flex items-center gap-2 text-[0.875rem] text-foreground/55 hover:text-foreground">
+          <ArrowLeft size={13} className="transition-transform group-hover:-translate-x-1" /> All notes
+        </Link>
+      </Container>
+      <article ref={articleRef} className="reading">
+        <Container className="mt-10 md:mt-14">
           {loading ? (
-            <div className="space-y-4">
-              <Skeleton className="h-12 w-3/4" />
-              <Skeleton className="h-6 w-1/2" />
-              <Skeleton className="h-4 w-full mt-8" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
+            <div className="mx-auto max-w-4xl space-y-5">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-3/4" />
             </div>
           ) : post ? (
-            <>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground font-display leading-tight">
-                {post.title}
-              </h1>
-              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-mono text-muted-foreground">
-                <span className="flex items-center">
-                  <Calendar size={14} className="mr-2 text-primary" />
+            <header className="mx-auto max-w-5xl">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[0.875rem] text-foreground/50">
+                <time dateTime={new Date(post.createdAt).toISOString()}>
                   {new Date(post.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                </span>
-                <span className="flex items-center">
-                  <User size={14} className="mr-2 text-primary" />
-                  {post.author}
-                </span>
-                {!isNotebook && (
-                  <span className="flex items-center">
-                    <Clock size={14} className="mr-2 text-primary" />
-                    {getReadingTime(body)} min read
-                  </span>
-                )}
-                {isNotebook && (
-                  <span className="flex items-center">
-                    <Clock size={14} className="mr-2 text-primary" />
-                    Notebook
-                  </span>
-                )}
+                </time>
+                <span className="text-foreground/25">·</span>
+                <span>{isNotebook ? 'Notebook' : `${getReadingTime(body)} min read`}</span>
+                <span className="text-foreground/25">·</span>
+                <span>{post.author}</span>
               </div>
+              <h1 className="mt-6 font-display text-[clamp(2.5rem,5.6vw,5rem)] font-[540] leading-[1] tracking-[-0.045em] text-foreground text-balance">{post.title}</h1>
               {colabUrl && (
                 <a
                   href={colabUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-6 inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm font-mono text-foreground hover:border-primary hover:text-primary transition-colors"
+                  className="mt-8 inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-[0.875rem] text-foreground transition-colors hover:border-white/40"
                 >
                   <span className="text-[#e8710a]"><ColabIcon /></span>
-                  Open in Google Colab
+                  Open in Colab
                 </a>
               )}
-              <hr className="my-8 border-border" />
-              {isNotebook ? (
-                <NotebookFromJson json={post.content} />
-              ) : (
-                <MarkdownContent>{body}</MarkdownContent>
-              )}
-            </>
+            </header>
           ) : (
-            <div className="text-center py-10">
-              <h2 className="text-2xl font-bold text-foreground">Post not found</h2>
-              <p className="mt-4 text-muted-foreground">The post you are looking for does not exist.</p>
+            <div className="mx-auto max-w-3xl py-24 text-center">
+              <p className="font-display text-5xl font-[500] tracking-[-0.04em] text-foreground">{failed ? 'Post not found' : 'Nothing here'}</p>
             </div>
           )}
-        </ReadingSurface>
-      </motion.div>
-      <Toaster theme="dark" />
+        </Container>
+        {post && (
+          <Container className="mt-14 md:mt-20">
+            <div className="mx-auto max-w-[44rem] border-t border-white/10 pt-12">
+              {isNotebook ? <NotebookFromJson json={post.content} /> : <MarkdownContent>{body}</MarkdownContent>}
+            </div>
+          </Container>
+        )}
+      </article>
+      {post && more.length > 0 && (
+        <Container className="mt-28 pb-24 md:mt-36 md:pb-32">
+          <div className="mb-2 text-[0.8125rem] text-foreground/50">Keep reading</div>
+          <ol className="border-b border-white/10">
+            {more.map((p, i) => <PostRow key={p.slug} post={p} index={i + 1} />)}
+          </ol>
+        </Container>
+      )}
+    </>
+  );
+}
+
+export function BlogPostPage() {
+  return (
+    <PortfolioLayout variant="reading">
+      <PostBody />
     </PortfolioLayout>
   );
 }

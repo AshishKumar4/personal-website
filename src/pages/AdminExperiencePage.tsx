@@ -111,7 +111,10 @@ export function AdminExperiencePage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold text-foreground font-display">Manage Experience</h1>
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">Content</div>
+          <h1 className="mt-2 font-display text-5xl leading-none tracking-[-0.02em] text-foreground">Experience</h1>
+        </div>
         <Button onClick={handleCreateNew} className="bg-primary text-primary-foreground hover:bg-primary/90">
           <PlusCircle className="mr-2 h-4 w-4" /> Add Experience
         </Button>

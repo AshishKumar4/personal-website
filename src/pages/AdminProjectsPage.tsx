@@ -25,7 +25,7 @@ export function AdminProjectsPage() {
     setLoading(true);
     try {
       const response = await api<{ items: Project[] }>('/api/projects');
-      setProjects(response.items);
+      setProjects([...response.items].sort((a, b) => (a.order ?? 99) - (b.order ?? 99)));
     } catch (error) {
       toast.error('Failed to fetch projects.');
     } finally {
@@ -111,7 +111,10 @@ export function AdminProjectsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold text-foreground font-display">Manage Projects</h1>
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">Content</div>
+          <h1 className="mt-2 font-display text-5xl leading-none tracking-[-0.02em] text-foreground">Projects</h1>
+        </div>
         <Button onClick={handleCreateNew} className="bg-primary text-primary-foreground hover:bg-primary/90">
           <PlusCircle className="mr-2 h-4 w-4" /> Add Project
         </Button>
@@ -137,6 +140,7 @@ export function AdminProjectsPage() {
             <Table>
               <TableHeader>
                 <TableRow className="border-border hover:bg-muted/50">
+                  <TableHead className="w-16 text-muted-foreground">Order</TableHead>
                   <TableHead className="text-muted-foreground">Name</TableHead>
                   <TableHead className="text-muted-foreground">Repo</TableHead>
                   <TableHead className="text-right text-muted-foreground">Actions</TableHead>
@@ -145,7 +149,7 @@ export function AdminProjectsPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center py-8">
+                    <TableCell colSpan={4} className="text-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
                       <p className="text-muted-foreground mt-2">Loading projects...</p>
                     </TableCell>
@@ -153,6 +157,7 @@ export function AdminProjectsPage() {
                 ) : filteredProjects.length > 0 ? (
                   filteredProjects.map((proj) => (
                     <TableRow key={proj.id} className="border-border hover:bg-muted/50">
+                      <TableCell className="font-mono text-xs text-muted-foreground">{proj.order ?? '—'}</TableCell>
                       <TableCell className="font-medium text-foreground">{proj.name}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {proj.repo && (
@@ -205,7 +210,7 @@ export function AdminProjectsPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                       {search ? 'No projects match your search.' : 'No projects found. Add your first project!'}
                     </TableCell>
                   </TableRow>
@@ -272,6 +277,19 @@ export function AdminProjectsPage() {
                   className="bg-background border-border"
                   rows={4}
                   placeholder="Describe what this project does..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="order" className="text-muted-foreground">
+                  Display order (lower comes first, optional)
+                </Label>
+                <Input
+                  id="order"
+                  type="number"
+                  value={currentProject.order ?? ''}
+                  onChange={(e) => setCurrentProject({ ...currentProject, order: e.target.value === '' ? undefined : Number(e.target.value) })}
+                  className="bg-background border-border"
+                  placeholder="1"
                 />
               </div>
               <div className="space-y-2">

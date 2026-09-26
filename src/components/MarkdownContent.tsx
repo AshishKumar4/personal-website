@@ -6,6 +6,8 @@ import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
 import rehypeSlug from 'rehype-slug';
 import 'katex/dist/katex.min.css';
+import '@fontsource-variable/newsreader/wght.css';
+import '@fontsource-variable/newsreader/wght-italic.css';
 
 interface MarkdownContentProps {
   children: string;

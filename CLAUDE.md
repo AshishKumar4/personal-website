@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CodePrint is a personal portfolio website with a "blueprint" theme. It features a React frontend with a Cloudflare Workers backend using Durable Objects for persistent storage. The site includes a public portfolio, blog system, and admin panel.
+A personal site built around a night flight: the homepage background is a raw WebGL2 hidden-line mountain range that the camera flies through as you scroll, ending at dawn by the contact section. It features a React frontend with a Cloudflare Workers backend using Durable Objects for persistent storage. The site includes a public portfolio, blog system, and admin panel.
 
 ## Commands
 
@@ -45,15 +45,29 @@ Routes are added in `worker/user-routes.ts`. Do NOT modify `worker/index.ts` or 
 
 ### Frontend Routing
 
-Uses react-router-dom with routes defined in `src/main.tsx`:
-- `/` - Homepage (Hero, About, Experience, Projects sections)
+Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage is in the entry chunk; every other route is lazy-loaded.
+- `/` - Homepage (Hero, About, Selected work, Experience, Writing, Contact sections)
+- `/about` - Long-form story rendered from `aboutStory` markdown
 - `/blog`, `/blog/:slug` - Blog pages
-- `/admin/*` - Admin panel (protected routes)
+- `/admin/*` - Admin panel (protected routes, includes `/admin/messages` for contact form submissions)
+
+### Flight scene
+
+- `src/lib/flight/` - camera math and the WebGL2 `TerrainRenderer` (procedural terrain in the vertex shader, depth-filled mesh plus row lines for hidden-line removal, sky with dawn glow)
+- `src/components/flight/FlightCanvas.tsx` - fixed background; flight distance = cruise over time + scroll, mouse steers, a veil dims it behind content and lifts at the end
+- Respects `prefers-reduced-motion` (static frame) and lowers density on small screens
+
+### Public data
+
+- `GET /api/home` returns config, experiences, projects and post summaries in one request (preloaded from `index.html`)
+- `GET /api/github` returns repo stars/forks, follower count and the last push, cached at the edge for an hour; an optional `GITHUB_TOKEN` secret raises the rate limit
+- `SiteConfig` optional fields (`portraitUrl`, `now` (hero headline), `location`, `facts`, `accent`) fall back to `DEFAULT_SITE_EXTRAS` in `shared/types.ts`
 
 ### UI Components
 
 - `src/components/ui/` - shadcn/ui primitives (excluded from react-refresh lint rule)
 - `src/components/sections/` - Portfolio page sections
+- `src/components/site/` - Shared site pieces (section header, reveal, post row, ridgeline art, command menu)
 - `src/components/layout/` - Layout wrappers (Header, Footer, PortfolioLayout, AdminLayout)
 
 ## Key Configuration
@@ -68,5 +82,12 @@ Custom rules prevent common React bugs:
 
 - Single `GlobalDurableObject` class handles all entity storage
 - Assets serve as SPA with worker-first routing for `/api/*`
+
+### Worker Previews
+
+- Every non-production branch builds a [Worker Preview](https://developers.cloudflare.com/workers/previews/) via Workers Builds (`npx wrangler preview`), and the URL is posted on the pull request
+- The `previews` block in `wrangler.jsonc` is intentionally empty: Previews get their own Durable Object storage (seeded with default content) and no R2 or email bindings, so nothing in a Preview can touch production data
+- Admin login stays blocked in Previews unless `TWO_FACTOR_KEY` is added to the Preview base config; do not add it, since Previews seed the default admin password
+- `bun run preview:deploy` creates a Preview for the current branch from a local machine
 
 Please dont add comments in any of the code files.

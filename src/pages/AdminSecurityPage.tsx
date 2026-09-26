@@ -56,7 +56,10 @@ export function AdminSecurityPage() {
   };
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-foreground font-display">Security</h1>
+      <div>
+        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">Site</div>
+        <h1 className="mt-2 font-display text-5xl leading-none tracking-[-0.02em] text-foreground">Security</h1>
+      </div>
       <Card className="bg-card border-border max-w-2xl">
         <CardHeader>
           <CardTitle className="text-foreground">Change Password</CardTitle>

@@ -1,94 +1,47 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Experience } from '@shared/types';
-import { api } from '@/lib/api-client';
-import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
+import { useSiteConfig } from '@/contexts/SiteConfigContext';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useReducedMotion } from '@/hooks/use-reduced-motion';
+import { Container, SectionHeader } from '@/components/site/SectionHeader';
+import { Reveal } from '@/components/site/Reveal';
+import { yearsFromDuration } from '@/lib/site-data';
 
 export function ExperienceSection() {
-  const [experiences, setExperiences] = useState<Experience[]>([]);
-  const [loading, setLoading] = useState(true);
-  const prefersReducedMotion = useReducedMotion();
-
-  useEffect(() => {
-    const fetchExperiences = async () => {
-      try {
-        const response = await api<{ items: Experience[] }>('/api/experiences');
-        setExperiences([...response.items].sort((a, b) => (a.order ?? 99) - (b.order ?? 99)));
-      } catch (error) {
-        console.error("Failed to fetch experiences:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchExperiences();
-  }, []);
+  const { data, loading } = useSiteConfig();
+  const experiences = data?.experiences ?? [];
 
   return (
-    <motion.section
-      id="experience"
-      className="py-24 md:py-32"
-      initial={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: prefersReducedMotion ? 0 : 0.6 }}
-    >
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="section-heading">
-          <span className="font-mono text-accent text-xl md:text-2xl mr-3">02.</span> Where I've Been
-        </h2>
-        <div className="mt-12 space-y-8">
-          {loading ? (
-            [...Array(3)].map((_, i) => (
-              <Card key={i}>
-                <CardHeader className="flex flex-row items-start gap-4">
-                  <Skeleton className="w-10 h-10 rounded-full mt-1" />
-                  <div className="w-full space-y-2">
-                    <Skeleton className="h-6 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-5/6 mt-2" />
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            experiences.map((exp, index) => (
-              <motion.div
-                key={exp.id}
-                initial={prefersReducedMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -50 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, amount: 0.5 }}
-                transition={{ duration: prefersReducedMotion ? 0 : 0.5, delay: prefersReducedMotion ? 0 : index * 0.1 }}
-              >
-                <Card className="transition-shadow duration-300 hover:shadow-lg">
-                  <CardHeader className="flex flex-row items-start gap-4">
-                    <img src={exp.logoUrl} alt={`${exp.company} logo`} className="w-10 h-10 rounded-full mt-1 bg-[#ffffff] p-1 object-contain" />
-                    <div>
-                      <CardTitle className="text-lg font-bold text-foreground">{exp.role} @ <span className="text-primary">{exp.company}</span></CardTitle>
-                      <p className="text-sm font-mono text-muted-foreground">{exp.duration}</p>
-                      <p className="text-xs font-mono text-muted-foreground">{exp.location}</p>
+    <section id="experience" className="relative pb-32 md:pb-48" aria-label="Experience">
+      <Container>
+        <SectionHeader label="Experience" title="A decade of building, from kernels to agents." />
+        <ol className="mt-14 md:mt-20">
+          {loading && experiences.length === 0
+            ? [...Array(3)].map((_, i) => (
+                <li key={i} className="grid gap-4 border-t border-white/10 py-8 md:grid-cols-12">
+                  <Skeleton className="h-4 w-24 bg-white/5 md:col-span-3" />
+                  <Skeleton className="h-8 w-2/3 bg-white/5 md:col-span-6" />
+                </li>
+              ))
+            : experiences.map(exp => {
+                const y = yearsFromDuration(exp.duration);
+                const range = y.start ? `${y.start} — ${y.current ? 'Now' : y.end ?? ''}` : exp.duration;
+                return (
+                  <Reveal as="li" key={exp.id} className="group grid grid-cols-1 gap-y-3 border-t border-white/10 py-9 md:grid-cols-12 md:gap-x-8 md:py-11">
+                    <div className="text-[0.875rem] text-foreground/45 tabular md:col-span-3">{range}</div>
+                    <div className="md:col-span-6">
+                      <h3 className="font-display text-[1.5rem] font-[500] leading-snug tracking-[-0.02em] text-foreground">
+                        {exp.role}
+                      </h3>
+                      <div className="mt-1 text-[0.9375rem] text-foreground/60">{exp.company}</div>
+                      <p className="mt-5 max-w-2xl text-[0.9375rem] leading-relaxed text-foreground/55">{exp.description}</p>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="mb-4">{exp.description}</CardDescription>
-                    <div className="flex flex-wrap gap-2">
-                      {exp.skills.map(skill => (
-                        <span key={skill} className="bg-primary/10 text-primary text-xs font-mono px-2 py-1 rounded-full">
-                          {skill}
-                        </span>
-                      ))}
+                    <div className="text-[0.875rem] text-foreground/45 md:col-span-3 md:text-right">
+                      <div>{exp.location.split('·')[0].trim()}</div>
+                      {exp.skills.length > 0 && <div className="mt-3 leading-relaxed text-foreground/35">{exp.skills.join(' · ')}</div>}
                     </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))
-          )}
-        </div>
-      </div>
-    </motion.section>
+                  </Reveal>
+                );
+              })}
+        </ol>
+      </Container>
+    </section>
   );
 }

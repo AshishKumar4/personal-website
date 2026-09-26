@@ -1,157 +1,109 @@
-import React, { useState, useEffect } from 'react';
-import { motion, useScroll } from 'framer-motion';
-import { PERSONAL_INFO } from '@/components/config/constants';
-import { Menu, X, Moon, Sun } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { useTheme } from '@/hooks/use-theme';
-import { useReducedMotion } from '@/hooks/use-reduced-motion';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { cn } from '@/lib/utils';
+import { SOCIAL_LINKS } from '@/components/config/constants';
+import { scrollToHash } from '@/lib/site-events';
 
-const NAV_LINKS = [
-  { name: "About", href: "/about" },
-  { name: "Experience", href: "#experience" },
-  { name: "Projects", href: "#projects" },
-  { name: "Blog", href: "/blog" },
+const NAV = [
+  { label: 'Work', to: '/#work' },
+  { label: 'Experience', to: '/#experience' },
+  { label: 'Writing', to: '/blog' },
+  { label: 'About', to: '/about' },
 ];
 
-const NavLink = ({ href, children, onClick }: { href: string, children: React.ReactNode, onClick?: () => void }) => {
-  const location = useLocation();
-  const isExternalPage = href.startsWith('/');
-
-  if (isExternalPage) {
-    // If we are already on the target page, treat it as an anchor link
-    if (href.includes('#') && location.pathname === href.split('#')[0]) {
-      return <a href={href} onClick={onClick}>{children}</a>;
-    }
-    return <Link to={href} onClick={onClick}>{children}</Link>;
-  }
-
-  // If on a different page (like /blog), link to home page with anchor
-  if (location.pathname !== '/') {
-    return <Link to={`/${href}`} onClick={onClick}>{children}</Link>;
-  }
-
-  // Smooth scroll on home page
-  return <a href={href} onClick={onClick}>{children}</a>;
-};
-
 export function Header() {
-  const { scrollY } = useScroll();
-  const [hidden, setHidden] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const isMobile = useIsMobile();
-  const { isDark, toggleTheme } = useTheme();
-  const prefersReducedMotion = useReducedMotion();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    return scrollY.onChange((latest) => {
-      const isScrollingDown = latest > scrollY.getPrevious();
-      if (latest > 100 && isScrollingDown) {
-        setHidden(true);
-      } else {
-        setHidden(false);
-      }
-      setIsScrolled(latest > 50);
-    });
-  }, [scrollY]);
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
-  const handleMenuToggle = () => setIsMenuOpen(!isMenuOpen);
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
 
-  const navVariants = {
-    visible: { opacity: 1, y: 0 },
-    hidden: { opacity: prefersReducedMotion ? 1 : 0, y: prefersReducedMotion ? 0 : -25 },
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [menuOpen]);
+
+  const go = (to: string) => (e: React.MouseEvent) => {
+    const [path, hash] = to.split('#');
+    if (!hash) return;
+    e.preventDefault();
+    setMenuOpen(false);
+    if (location.pathname === (path || '/')) scrollToHash(hash);
+    else navigate(`${path || '/'}#${hash}`);
   };
 
-  const mobileMenuVariants = {
-    open: { opacity: 1, x: 0 },
-    closed: { opacity: prefersReducedMotion ? 0 : 0, x: prefersReducedMotion ? 0 : "100%" },
-  };
-
-  // Theme-aware classes - using semantic tokens
-  const navLinkClass = "relative text-sm font-mono text-foreground hover:text-primary transition-colors duration-300";
-  const headerBgClass = isScrolled
-    ? 'h-20 bg-background/80 shadow-md backdrop-blur-sm'
-    : 'h-24';
+  const linkClass = 'text-[0.875rem] text-foreground/65 transition-colors duration-300 hover:text-foreground';
 
   return (
-    <motion.header
-      variants={navVariants}
-      animate={hidden ? 'hidden' : 'visible'}
-      transition={{ ease: [0.1, 0.25, 0.3, 1], duration: prefersReducedMotion ? 0 : 0.6 }}
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${headerBgClass}`}
-    >
-      <nav className="max-w-7xl mx-auto h-full flex items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link to="/" className="text-primary text-2xl font-mono font-bold z-50">AKS</Link>
-
-        {isMobile ? (
-          <>
-            <div className="flex items-center gap-2 z-50">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleTheme}
-                className="text-muted-foreground hover:text-primary hover:bg-primary/10"
-                aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-              >
-                {isDark ? <Sun size={18} /> : <Moon size={18} />}
-              </Button>
-              <Button variant="ghost" size="icon" onClick={handleMenuToggle} className="text-primary">
-                {isMenuOpen ? <X /> : <Menu />}
-              </Button>
-            </div>
-            <motion.div
-              initial="closed"
-              animate={isMenuOpen ? "open" : "closed"}
-              variants={mobileMenuVariants}
-              transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 30 }}
-              className="fixed top-0 right-0 h-screen w-3/4 bg-card p-8 shadow-xl"
-            >
-              <div className="flex flex-col items-center justify-center h-full space-y-8">
-                {NAV_LINKS.map((link, i) => (
-                  <NavLink key={link.href} href={link.href} onClick={() => setIsMenuOpen(false)}>
-                    <span className={navLinkClass}>
-                      <span className="text-primary mr-2">0{i + 1}.</span>{link.name}
-                    </span>
-                  </NavLink>
-                ))}
-                <a
-                  href={`mailto:${PERSONAL_INFO.email}`}
-                  className="font-mono text-sm border border-primary text-primary rounded-md px-6 py-3 hover:bg-primary/10 transition-colors duration-300"
-                >
-                  Contact
-                </a>
-              </div>
-            </motion.div>
-          </>
-        ) : (
-          <div className="flex items-center space-x-8">
-            {NAV_LINKS.map((link, i) => (
-              <NavLink key={link.href} href={link.href}>
-                 <span className={navLinkClass}>
-                    <span className="text-primary mr-2">0{i + 1}.</span>{link.name}
-                 </span>
-              </NavLink>
+    <>
+      <header
+        className={cn(
+          'fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,backdrop-filter] duration-500',
+          scrolled && !menuOpen ? 'border-b border-white/[0.06] bg-background/60 backdrop-blur-xl' : 'border-b border-transparent',
+        )}
+      >
+        <nav className="mx-auto flex h-16 max-w-[1480px] items-center justify-between px-5 sm:px-8 lg:px-12" aria-label="Primary">
+          <Link to="/" className="relative z-10 text-[0.9375rem] font-medium tracking-[-0.01em] text-foreground" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            Ashish Kumar Singh
+          </Link>
+          <div className="hidden items-center gap-8 md:flex">
+            {NAV.map(item => (
+              <Link key={item.label} to={item.to} onClick={go(item.to)} className={linkClass}>
+                {item.label}
+              </Link>
             ))}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleTheme}
-              className="text-muted-foreground hover:text-primary hover:bg-primary/10"
-              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {isDark ? <Sun size={18} /> : <Moon size={18} />}
-            </Button>
-            <a
-              href={`mailto:${PERSONAL_INFO.email}`}
-              className="font-mono text-sm border border-primary text-primary rounded-md px-4 py-2 hover:bg-primary/10 transition-colors duration-300"
+            <Link
+              to="/#contact"
+              onClick={go('/#contact')}
+              className="rounded-full border border-white/15 px-4 py-1.5 text-[0.875rem] text-foreground transition-colors duration-300 hover:border-white/40 hover:bg-white/[0.04]"
             >
               Contact
-            </a>
+            </Link>
           </div>
+          <button
+            onClick={() => setMenuOpen(o => !o)}
+            className="relative z-10 text-[0.875rem] text-foreground md:hidden"
+            aria-expanded={menuOpen}
+            aria-controls="mobile-menu"
+          >
+            {menuOpen ? 'Close' : 'Menu'}
+          </button>
+        </nav>
+      </header>
+      <div
+        id="mobile-menu"
+        className={cn(
+          'fixed inset-0 z-40 flex flex-col bg-background px-5 pb-10 pt-28 transition-[opacity,visibility] duration-500 md:hidden',
+          menuOpen ? 'visible opacity-100' : 'invisible opacity-0',
         )}
-      </nav>
-    </motion.header>
+      >
+        <nav className="flex flex-1 flex-col gap-1" aria-label="Mobile">
+          {[{ label: 'Home', to: '/' }, ...NAV, { label: 'Contact', to: '/#contact' }].map(item => (
+            <Link key={item.label} to={item.to} onClick={go(item.to)} className="py-2 font-display text-[2.6rem] font-[480] leading-none tracking-[-0.04em] text-foreground">
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="flex gap-6 text-[0.875rem] text-foreground/60">
+          {SOCIAL_LINKS.map(s => (
+            <a key={s.name} href={s.url} target="_blank" rel="noopener noreferrer">
+              {s.name}
+            </a>
+          ))}
+        </div>
+      </div>
+    </>
   );
 }

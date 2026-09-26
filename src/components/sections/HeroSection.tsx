@@ -1,121 +1,68 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { PERSONAL_INFO } from '@/components/config/constants';
+import { useEffect, useState } from 'react';
+import { ArrowDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { PERSONAL_INFO, SOCIAL_LINKS } from '@/components/config/constants';
 import { useSiteConfig } from '@/contexts/SiteConfigContext';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useReducedMotion } from '@/hooks/use-reduced-motion';
-
-function useTypewriter(text: string, speed: number = 50, delay: number = 800, enabled: boolean = true) {
-  const [displayText, setDisplayText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-
-  useEffect(() => {
-    if (!enabled || !text) {
-      setDisplayText(text);
-      return;
-    }
-
-    setDisplayText('');
-    setIsTyping(true);
-    let index = 0;
-
-    const startTimeout = setTimeout(() => {
-      const interval = setInterval(() => {
-        if (index < text.length) {
-          setDisplayText(text.slice(0, index + 1));
-          index++;
-        } else {
-          setIsTyping(false);
-          clearInterval(interval);
-        }
-      }, speed);
-
-      return () => clearInterval(interval);
-    }, delay);
-
-    return () => clearTimeout(startTimeout);
-  }, [text, speed, delay, enabled]);
-
-  return { displayText, isTyping };
-}
+import { scrollToHash } from '@/lib/site-events';
 
 export function HeroSection() {
-  const { config, loading } = useSiteConfig();
-  const prefersReducedMotion = useReducedMotion();
-  const subtitle = config?.subtitle || "I build things for the web.";
-  const { displayText, isTyping } = useTypewriter(subtitle, 40, 1000, !prefersReducedMotion && !loading);
+  const { config, data } = useSiteConfig();
+  const [shown, setShown] = useState(false);
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: prefersReducedMotion ? 0 : 0.1,
-        delayChildren: prefersReducedMotion ? 0 : 0.3,
-      },
-    },
-  };
+  useEffect(() => {
+    const t = window.setTimeout(() => setShown(true), 350);
+    return () => window.clearTimeout(t);
+  }, []);
 
-  const itemVariants = {
-    hidden: { opacity: prefersReducedMotion ? 1 : 0, y: prefersReducedMotion ? 0 : 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: prefersReducedMotion ? 0 : 0.5,
-        ease: "easeOut" as const,
-      },
-    },
-  };
+  const current = data?.experiences?.[0];
+  const role = current ? current.role.split(',')[0] : null;
+  const headline = config?.now || (current ? `${role} at ${current.company.replace(/\s*\(.*\)$/, '')}.` : '');
+  const location = config?.location || current?.location?.split('·')[0].replace(/, United States$/, '').trim() || '';
 
   return (
-    <section id="hero" className="min-h-screen flex items-center">
-      <motion.div
-        className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <motion.p variants={itemVariants} className="text-primary font-mono mb-4">
-          Hi, my name is
-        </motion.p>
-        <motion.h1 variants={itemVariants} className="text-4xl sm:text-6xl lg:text-7xl font-bold text-foreground font-display">
-          {PERSONAL_INFO.name}.
-        </motion.h1>
-        <motion.div variants={itemVariants} className="mt-2">
-          {loading ? (
-            <Skeleton className="h-12 w-3/4" />
-          ) : (
-            <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-muted-foreground font-display">
-              {prefersReducedMotion ? subtitle : displayText}
-              {!prefersReducedMotion && (
-                <span className={`inline-block w-[3px] h-[0.9em] ml-1 align-middle bg-primary ${isTyping ? 'animate-pulse' : 'animate-blink'}`} />
-              )}
-            </h2>
+    <section id="top" className="relative flex h-[100svh] min-h-[560px] flex-col justify-end" aria-label="Introduction">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-[70%] bg-gradient-to-t from-background/95 via-background/55 to-transparent" />
+      <div className="relative mx-auto w-full max-w-[1480px] px-5 pb-10 sm:px-8 md:pb-14 lg:px-12">
+        <h1
+          className={cn(
+            'font-display text-[clamp(3.4rem,10.2vw,11.5rem)] font-[560] leading-[0.86] tracking-[-0.055em] text-foreground transition-[opacity,transform,filter] duration-[1600ms] ease-out-expo',
+            shown ? 'translate-y-0 opacity-100 blur-0' : 'translate-y-6 opacity-0 blur-md',
           )}
-        </motion.div>
-        <motion.div variants={itemVariants} className="mt-6 max-w-xl">
-          {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
-            </div>
-          ) : (
-            <p className="text-muted-foreground leading-relaxed">
-              {config?.bio}
-            </p>
+        >
+          Ashish Kumar
+          <br />
+          Singh
+        </h1>
+        <div
+          className={cn(
+            'mt-8 grid grid-cols-1 gap-6 border-t border-white/15 pt-6 transition-opacity delay-700 duration-1000 md:mt-12 md:grid-cols-12',
+            shown ? 'opacity-100' : 'opacity-0',
           )}
-        </motion.div>
-        <motion.div variants={itemVariants} className="mt-12">
-          <a
-            href={`mailto:${PERSONAL_INFO.email}`}
-            className="inline-block font-mono text-lg border border-primary text-primary rounded-md px-8 py-4 hover:bg-primary/10 transition-colors duration-300"
-          >
-            Get In Touch
-          </a>
-        </motion.div>
-      </motion.div>
+        >
+          <p className="max-w-md text-[1.05rem] leading-snug text-foreground/85 md:col-span-5">
+            {headline && <span className="text-foreground">{headline} </span>}
+            <span className="text-foreground/60">{config?.subtitle}</span>
+          </p>
+          <div className="flex flex-wrap gap-x-6 gap-y-2 text-[0.95rem] text-foreground/60 md:col-span-4 md:col-start-7">
+            {location && <span>{location}</span>}
+            {SOCIAL_LINKS.map(s => (
+              <a key={s.name} href={s.url} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
+                {s.name}
+              </a>
+            ))}
+            <a href={`mailto:${PERSONAL_INFO.email}`} className="transition-colors hover:text-foreground">Email</a>
+          </div>
+          <div className="hidden justify-end md:col-span-2 md:col-start-11 md:flex">
+            <button
+              onClick={() => scrollToHash('#about')}
+              className="group inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/20 text-foreground/70 transition-colors hover:border-white/50 hover:text-foreground"
+              aria-label="Scroll to content"
+            >
+              <ArrowDown size={16} className="transition-transform duration-500 group-hover:translate-y-0.5" />
+            </button>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }

@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { PortfolioLayout } from '@/components/layout/PortfolioLayout';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,8 +10,8 @@ import { login } from '@/lib/two-factor-client';
 import { TwoFactorSetup } from '@/components/auth/TwoFactorSetup';
 import { TwoFactorPrompt } from '@/components/auth/TwoFactorPrompt';
 import { getErrorMessage } from '@/lib/error-utils';
+import { FlightCanvas } from '@/components/flight/FlightCanvas';
 import type { LoginStep } from '@shared/types';
-import { Loader2 } from 'lucide-react';
 
 type Phase =
   | { name: 'credentials' }
@@ -27,7 +26,7 @@ export function LoginPage() {
   const navigate = useNavigate();
 
   const enterAdmin = () => {
-    toast.success('Login successful!');
+    toast.success('Welcome back.');
     navigate('/admin');
   };
 
@@ -49,48 +48,42 @@ export function LoginPage() {
   };
 
   const header = phase.name === 'setup'
-    ? { title: 'Set up two-factor auth', desc: 'One-time setup to secure your account.' }
+    ? { title: 'Set up two-factor', desc: 'One-time setup to secure your account.' }
     : phase.name === '2fa'
-      ? { title: 'Verify your identity', desc: 'Complete the second step to sign in.' }
-      : { title: 'Admin Login', desc: 'Enter your credentials to access the dashboard.' };
+      ? { title: 'Verify it’s you', desc: 'Complete the second factor to sign in.' }
+      : { title: 'Sign in', desc: 'Admin access for ashishkumarsingh.com.' };
 
   return (
-    <PortfolioLayout>
-      <main className="relative z-10 flex items-center justify-center min-h-screen py-24">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <Card className="w-full max-w-sm bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold text-foreground font-display">{header.title}</CardTitle>
-              <CardDescription className="text-muted-foreground">{header.desc}</CardDescription>
-            </CardHeader>
+    <PortfolioLayout footer={false}>
+      <FlightCanvas />
+      <div className="flex min-h-[100svh] items-center justify-center px-5 py-28">
+        <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-background/70 p-8 backdrop-blur-xl">
+          <Link to="/" className="group inline-flex items-center gap-2 text-[0.875rem] text-foreground/55 hover:text-foreground">
+            <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" /> Back to site
+          </Link>
+          <h1 className="mt-10 font-display text-[2.4rem] font-[520] leading-none tracking-[-0.04em] text-foreground">{header.title}</h1>
+          <p className="mt-3 text-[0.9375rem] text-foreground/55">{header.desc}</p>
+          <div className="mt-8">
             {phase.name === 'credentials' && (
-              <form onSubmit={handleSubmit}>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="username" className="text-muted-foreground">Username</Label>
-                    <Input id="username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} required className="bg-background border-border text-foreground" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password" className="text-muted-foreground">Password</Label>
-                    <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-background border-border text-foreground" />
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
-                    {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Logging in...</> : 'Login'}
-                  </Button>
-                </CardFooter>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="username" className="text-[0.8125rem] text-foreground/60">Username</Label>
+                  <Input id="username" type="text" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required className="h-11 bg-transparent" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-[0.8125rem] text-foreground/60">Password</Label>
+                  <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-11 bg-transparent" />
+                </div>
+                <Button type="submit" className="h-11 w-full rounded-full bg-foreground text-background hover:bg-foreground/85" disabled={loading}>
+                  {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying</> : 'Continue'}
+                </Button>
               </form>
             )}
-            {phase.name === 'setup' && (
-              <CardContent><TwoFactorSetup setupToken={phase.setupToken} onDone={enterAdmin} /></CardContent>
-            )}
-            {phase.name === '2fa' && (
-              <CardContent><TwoFactorPrompt challengeToken={phase.challengeToken} methods={phase.methods} onDone={enterAdmin} /></CardContent>
-            )}
-          </Card>
-        </motion.div>
-      </main>
+            {phase.name === 'setup' && <TwoFactorSetup setupToken={phase.setupToken} onDone={enterAdmin} />}
+            {phase.name === '2fa' && <TwoFactorPrompt challengeToken={phase.challengeToken} methods={phase.methods} onDone={enterAdmin} />}
+          </div>
+        </div>
+      </div>
       <Toaster />
     </PortfolioLayout>
   );

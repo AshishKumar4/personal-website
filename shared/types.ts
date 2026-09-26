@@ -39,6 +39,7 @@ export interface Project {
   repo: string;
   url: string;
   imageUrl?: string;
+  order?: number;
 }
 export interface GitHubRepo {
   stars: number;
@@ -154,13 +155,59 @@ export function clampTtlMinutes(minutes: number): number {
     return Math.min(Math.floor(minutes), API_TOKEN_MAX_TTL_MINUTES);
 }
 // Site Config type
+export interface SiteFact {
+  label: string;
+  value: string;
+}
+export const ACCENT_PRESETS = ['vermilion', 'ultraviolet', 'cobalt', 'acid', 'amber'] as const;
+export type AccentPreset = typeof ACCENT_PRESETS[number];
 export interface SiteConfig {
   subtitle: string;
   bio: string;
   about: string;
   /** Long-form markdown rendered on the dedicated /about page */
   aboutStory: string;
-  backgroundEffect: 'grid' | 'particles' | 'aurora' | 'matrix' | 'neural';
+  backgroundEffect?: 'grid' | 'particles' | 'aurora' | 'matrix' | 'neural';
+  heroPrompt?: string;
+  portraitUrl?: string;
+  now?: string;
+  location?: string;
+  facts?: SiteFact[];
+  accent?: AccentPreset;
+}
+export const DEFAULT_SITE_EXTRAS: Required<Pick<SiteConfig, 'heroPrompt' | 'portraitUrl' | 'now' | 'location' | 'facts' | 'accent'>> = {
+  heroPrompt: 'a person who builds things from scratch to understand them, first principles, high detail',
+  portraitUrl: '/portrait-1200.webp',
+  now: '',
+  location: '',
+  accent: 'vermilion',
+  facts: [
+    { label: 'First kernel', value: 'Aqeous, written at 15, mostly from a smartphone over remote desktop' },
+    { label: 'Compute budget', value: '1 hour a day, rationed. Later: 128 TPUv4s' },
+    { label: 'Security', value: 'GreyFang CTF, once #7 in India. Nullcon Goa hardware CTF winners, 2022' },
+    { label: 'Interests', value: 'Diffusion, world models, reinforcement learning' },
+    { label: 'Off-screen', value: 'FPV drones, Valorant, Minecraft, open-source microscopy' },
+    { label: 'Open question', value: 'Can intelligence actually be built?' },
+  ],
+};
+export type PostSummary = Omit<BlogPost, 'content'> & { excerpt: string; readingTime: number };
+export interface HomePayload {
+  config: SiteConfig;
+  experiences: Experience[];
+  projects: Project[];
+  posts: PostSummary[];
+}
+export interface RepoStats {
+  stars: number;
+  forks: number;
+  language: string | null;
+  pushedAt: string | null;
+}
+export interface GitHubSnapshot {
+  repos: Record<string, RepoStats>;
+  user: { login: string; followers: number; publicRepos: number } | null;
+  lastPush: { repo: string; at: string; message?: string } | null;
+  fetchedAt: number;
 }
 // Password Change type
 export interface ChangePasswordPayload {

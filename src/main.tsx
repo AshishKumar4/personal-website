@@ -1,6 +1,4 @@
 import '@/lib/errorReporter';
-import { enableMapSet } from "immer";
-enableMapSet();
 
 const isMailSubdomain = window.location.hostname.startsWith('mail.');
 const isMailRoute = window.location.pathname.startsWith('/mail');
@@ -9,7 +7,7 @@ const isApiRoute = window.location.pathname.startsWith('/api');
 if (isMailSubdomain && !isMailRoute && !isApiRoute) {
   window.location.replace('/mail/inbox');
 }
-import { StrictMode } from 'react'
+import { StrictMode, Suspense, lazy, type ComponentType } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   createBrowserRouter,
@@ -17,27 +15,45 @@ import {
   RouterProvider,
 } from "react-router-dom";
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
+import { RouteFallback } from '@/components/RouteFallback';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import '@/index.css'
 import { HomePage } from '@/pages/HomePage'
-import { BlogPage } from '@/pages/BlogPage';
-import { BlogPostPage } from '@/pages/BlogPostPage';
-import { AboutPage } from '@/pages/AboutPage';
-import { LoginPage } from '@/pages/LoginPage';
-import { AdminLayout } from '@/components/layout/AdminLayout';
-import { AdminPostsPage } from '@/pages/AdminPostsPage';
-import { AdminSettingsPage } from '@/pages/AdminSettingsPage';
-import { AdminSecurityPage } from '@/pages/AdminSecurityPage';
-import { AdminExperiencePage } from '@/pages/AdminExperiencePage';
-import { AdminProjectsPage } from '@/pages/AdminProjectsPage';
-import { AdminFilesPage } from '@/pages/AdminFilesPage';
-import { AdminDashboardPage } from '@/pages/AdminDashboardPage';
-import { AdminPostEditorPage } from '@/pages/AdminPostEditorPage';
-import { MailLayout } from '@/components/mail/MailLayout';
-import { MailInboxPage } from '@/pages/MailInboxPage';
-import { MailThreadPage } from '@/pages/MailThreadPage';
-import { MailComposePage } from '@/pages/MailComposePage';
-import { MailSettingsPage } from '@/pages/MailSettingsPage';
+import { loadHome } from '@/lib/site-data';
+
+const path = window.location.pathname;
+if (path === '/' || path === '/about' || path.startsWith('/blog')) {
+  loadHome().catch(() => undefined);
+}
+
+function named<T extends Record<string, unknown>>(loader: () => Promise<T>, key: keyof T) {
+  return lazy(() => loader().then(m => ({ default: m[key] as ComponentType })));
+}
+
+const BlogPage = named(() => import('@/pages/BlogPage'), 'BlogPage');
+const BlogPostPage = named(() => import('@/pages/BlogPostPage'), 'BlogPostPage');
+const AboutPage = named(() => import('@/pages/AboutPage'), 'AboutPage');
+const LoginPage = named(() => import('@/pages/LoginPage'), 'LoginPage');
+const AdminLayout = named(() => import('@/components/layout/AdminLayout'), 'AdminLayout');
+const AdminPostsPage = named(() => import('@/pages/AdminPostsPage'), 'AdminPostsPage');
+const AdminSettingsPage = named(() => import('@/pages/AdminSettingsPage'), 'AdminSettingsPage');
+const AdminSecurityPage = named(() => import('@/pages/AdminSecurityPage'), 'AdminSecurityPage');
+const AdminExperiencePage = named(() => import('@/pages/AdminExperiencePage'), 'AdminExperiencePage');
+const AdminProjectsPage = named(() => import('@/pages/AdminProjectsPage'), 'AdminProjectsPage');
+const AdminFilesPage = named(() => import('@/pages/AdminFilesPage'), 'AdminFilesPage');
+const AdminDashboardPage = named(() => import('@/pages/AdminDashboardPage'), 'AdminDashboardPage');
+const AdminPostEditorPage = named(() => import('@/pages/AdminPostEditorPage'), 'AdminPostEditorPage');
+const AdminMessagesPage = named(() => import('@/pages/AdminMessagesPage'), 'AdminMessagesPage');
+const MailLayout = named(() => import('@/components/mail/MailLayout'), 'MailLayout');
+const MailInboxPage = named(() => import('@/pages/MailInboxPage'), 'MailInboxPage');
+const MailThreadPage = named(() => import('@/pages/MailThreadPage'), 'MailThreadPage');
+const MailComposePage = named(() => import('@/pages/MailComposePage'), 'MailComposePage');
+const MailSettingsPage = named(() => import('@/pages/MailSettingsPage'), 'MailSettingsPage');
+
+function page(element: JSX.Element) {
+  return <Suspense fallback={<RouteFallback />}>{element}</Suspense>;
+}
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -46,62 +62,63 @@ const router = createBrowserRouter([
   },
   {
     path: "/about",
-    element: <AboutPage />,
+    element: page(<AboutPage />),
     errorElement: <RouteErrorBoundary />,
   },
   {
     path: "/blog",
-    element: <BlogPage />,
+    element: page(<BlogPage />),
     errorElement: <RouteErrorBoundary />,
   },
   {
     path: "/blog/:slug",
-    element: <BlogPostPage />,
+    element: page(<BlogPostPage />),
     errorElement: <RouteErrorBoundary />,
   },
   {
     path: "/admin/login",
-    element: <LoginPage />,
+    element: page(<LoginPage />),
     errorElement: <RouteErrorBoundary />,
   },
   {
     path: "/admin",
-    element: <AdminLayout />,
+    element: page(<AdminLayout />),
     errorElement: <RouteErrorBoundary />,
     children: [
-      { index: true, element: <AdminDashboardPage /> },
-      { path: "posts", element: <AdminPostsPage /> },
-      { path: "posts/new", element: <AdminPostEditorPage /> },
-      { path: "posts/:slug/edit", element: <AdminPostEditorPage /> },
-      { path: "experience", element: <AdminExperiencePage /> },
-      { path: "projects", element: <AdminProjectsPage /> },
-      { path: "files", element: <AdminFilesPage /> },
-      { path: "settings", element: <AdminSettingsPage /> },
-      { path: "security", element: <AdminSecurityPage /> },
+      { index: true, element: page(<AdminDashboardPage />) },
+      { path: "posts", element: page(<AdminPostsPage />) },
+      { path: "posts/new", element: page(<AdminPostEditorPage />) },
+      { path: "posts/:slug/edit", element: page(<AdminPostEditorPage />) },
+      { path: "experience", element: page(<AdminExperiencePage />) },
+      { path: "projects", element: page(<AdminProjectsPage />) },
+      { path: "messages", element: page(<AdminMessagesPage />) },
+      { path: "files", element: page(<AdminFilesPage />) },
+      { path: "settings", element: page(<AdminSettingsPage />) },
+      { path: "security", element: page(<AdminSecurityPage />) },
     ]
   },
   {
     path: "/mail",
-    element: <MailLayout />,
+    element: page(<MailLayout />),
     errorElement: <RouteErrorBoundary />,
     children: [
       { index: true, element: <Navigate to="/mail/inbox" replace /> },
-      { path: "compose", element: <MailComposePage /> },
+      { path: "compose", element: page(<MailComposePage />) },
       { path: "settings", element: <Navigate to="/mail/settings/addresses" replace /> },
-      { path: "settings/:tab", element: <MailSettingsPage /> },
+      { path: "settings/:tab", element: page(<MailSettingsPage />) },
       { path: "feeds", element: <Navigate to="/mail/inbox" replace /> },
       {
         path: "feeds/:feedId",
-        element: <MailInboxPage />,
+        element: page(<MailInboxPage />),
         children: [
-          { path: ":threadId", element: <MailThreadPage /> },
+          { path: ":threadId", element: page(<MailThreadPage />) },
         ],
       },
       {
         path: ":label",
-        element: <MailInboxPage />,
+        element: page(<MailInboxPage />),
         children: [
-          { path: ":threadId", element: <MailThreadPage /> },
+          { path: ":threadId", element: page(<MailThreadPage />) },
         ],
       },
     ]
