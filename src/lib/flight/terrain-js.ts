@@ -133,8 +133,8 @@ function hillsH(qx: number, qz: number, d: number): number {
 }
 
 function mesaH(qx: number, qz: number): number {
-  const wx = qx + snoise(qx * 0.006 + 1.3, qz * 0.006 + 1.3) * 12;
-  const wz = qz + snoise(qx * 0.006 + 7.9, qz * 0.006 + 7.9) * 12;
+  const wx = qx + snoise(qx * 0.006 + 1.3, qz * 0.006 + 1.3) * 7;
+  const wz = qz + snoise(qx * 0.006 + 7.9, qz * 0.006 + 7.9) * 7;
   const cx = Math.floor(wx / 260);
   const cz = Math.floor(wz / 260);
   const j = hash22(cx + 0.5, cz + 0.5);
@@ -143,9 +143,9 @@ function mesaH(qx: number, qz: number): number {
   const hs = hash22(cx + 3.3, cz + 3.3);
   const sd = Math.max(Math.abs(wx - ox) - (40 + hs[0] * 55), Math.abs(wz - oz) - (40 + hs[1] * 55));
   const on = (hash12(cx + 7.1, cz + 7.1) >= 0.42 ? 1 : 0) * (Math.abs(ox - pathX(oz)) >= 250 ? 1 : 0);
-  const top = 58 + Math.floor(hash12(cx + 9.4, cz + 9.4) * 4) * 22 + snoise(qx * 0.03, qz * 0.03) * 1.5;
+  const top = 58 + Math.floor(hash12(cx + 9.4, cz + 9.4) * 4) * 22;
   const h = top * Math.max(1 - smoothstep(-2, 4, sd), (1 - smoothstep(2, 24, sd)) * 0.3) * on;
-  return h + fbm(qx * 0.009, qz * 0.009) * 7;
+  return h + fbm(qx * 0.006, qz * 0.006) * 4;
 }
 
 function cloudTop(qx: number, qz: number): number {

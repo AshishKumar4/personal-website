@@ -57,6 +57,7 @@ void main() {
   lambert = clamp(dot(n, moon), 0.0, 1.0);
   vec3 v = normalize(u_cam - world);
   rim = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 3.0) * smoothstep(15.0, 110.0, h0);
+  lambert += fm.w * smoothstep(0.93, 0.995, n.y) * smoothstep(40.0, 56.0, h0) * (1.0 - v_cloud) * 0.5;
 #endif
 #ifdef MIRROR
   world.y = -h;
@@ -166,7 +167,7 @@ void main() {
     alpha *= 1.0 - v_cloud * 0.72;
   }
 #ifdef MIRROR
-  col *= vec3(0.62, 0.74, 0.78);
+  col *= vec3(0.9, 0.97, 1.0);
 #else
   if (v_water > 0.001) {
     alpha *= 1.0 - v_water * 0.9;
@@ -216,7 +217,7 @@ ${ATMOS}
 vec3 waterAt(vec3 p) {
   vec3 d = normalize(p - u_cam);
   vec3 r = vec3(d.x, max(-d.y, 0.0), d.z);
-  vec3 c = atmos(r) * 1.15;
+  vec3 c = atmos(r) * 1.25 + u_horizon * 0.5 * exp(-r.y * 10.0);
   float daz = atan(r.x, -r.z) - 0.42;
   float del = r.y - 0.048;
   c += vec3(0.8, 0.88, 1.0) * u_moon * exp(-daz * daz / 0.00035 - del * del / 0.006) * 0.35;
@@ -245,7 +246,7 @@ void main() {
     float n = snoise(v_world.xz * 0.0024 + vec2(u_time * 0.004, 1.3)) * 0.5 + 0.5;
     float pocket = smoothstep(0.38, 0.92, n);
     float billow = snoise(v_world.xz * 0.012 + vec2(3.7, u_time * 0.01)) * 0.5 + 0.5;
-    vec3 top = mix(vec3(0.048, 0.053, 0.072) * (0.75 + 0.5 * billow) + vec3(0.018, 0.017, 0.02) * motifW(${M.clouds}.0, v_mix), fogc * 1.3, v_fog * 0.85);
+    vec3 top = mix(vec3(0.048, 0.053, 0.072) * (0.75 + 0.5 * billow) + vec3(0.085, 0.068, 0.085) * motifW(${M.clouds}.0, v_mix), fogc * 1.3, v_fog * 0.85);
     vec3 under = vec3(1.0, 0.45, 0.14) * (0.008 + 0.1 * pocket * pocket) * (1.0 - v_fog * 0.5) * motifW(${M.agents}.0, v_mix);
     col = mix(col, top + under, v_cloud);
   }

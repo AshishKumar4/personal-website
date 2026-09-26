@@ -110,15 +110,15 @@ float hillsH(vec2 q, float d) {
   return (pow(smoothstep(0.22, 0.86, n), 1.5) * 150.0 + 5.0) * mix(0.3, 1.0, smoothstep(30.0, 280.0, d));
 }
 float mesaH(vec2 q) {
-  vec2 w = q + vec2(snoise(q * 0.006 + 1.3), snoise(q * 0.006 + 7.9)) * 12.0;
+  vec2 w = q + vec2(snoise(q * 0.006 + 1.3), snoise(q * 0.006 + 7.9)) * 7.0;
   vec2 c = floor(w / 260.0);
   vec2 ctr = (c + 0.5 + (hash22(c + 0.5) - 0.5) * 0.08) * 260.0;
   vec2 k = abs(w - ctr) - (40.0 + hash22(c + 3.3) * 55.0);
   float sd = max(k.x, k.y);
   float on = step(0.42, hash12(c + 7.1)) * step(250.0, abs(ctr.x - pathX(ctr.y)));
-  float top = 58.0 + floor(hash12(c + 9.4) * 4.0) * 22.0 + snoise(q * 0.03) * 1.5;
+  float top = 58.0 + floor(hash12(c + 9.4) * 4.0) * 22.0;
   float h = top * max(1.0 - smoothstep(-2.0, 4.0, sd), (1.0 - smoothstep(2.0, 24.0, sd)) * 0.3) * on;
-  return h + fbm(q * 0.009) * 7.0;
+  return h + fbm(q * 0.006) * 4.0;
 }
 float cloudTop(vec2 q) {
   return 92.0 + snoise(q * 0.0032 + vec2(4.1, 1.7)) * 16.0 + snoise(q * 0.011 + vec2(9.3, 3.1)) * 5.0;
