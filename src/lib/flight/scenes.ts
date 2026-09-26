@@ -1,5 +1,6 @@
 import type { SceneId } from '@shared/types';
 import { clamp01, smoothstep } from './math';
+import { M, MOTIF_PROGRESS, MOTIF_SCENE, isMotif, type MotifId } from './motifs';
 
 export type V3 = [number, number, number];
 
@@ -278,6 +279,8 @@ export function mixParams(a: SceneParams, b: SceneParams, t: number): SceneParam
 
 interface Region {
   id: SceneId;
+  motif: MotifId | null;
+  seed: number | null;
   top: number;
   bottom: number;
 }
@@ -288,26 +291,45 @@ export interface SceneSample {
   t: number;
   pa: number;
   pb: number;
+  ma: MotifId | null;
+  mb: MotifId | null;
+  sa: number | null;
+  sb: number | null;
   dominant: SceneId;
   legacy: boolean;
 }
 
 const IDS = new Set<string>(Object.keys(SCENES));
 
+const seedOf = (v: string | undefined): number | null => {
+  if (v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+const sameRegion = (x: Region, y: Region) => x.id === y.id && x.motif === y.motif && x.seed === y.seed;
+
 export class SceneTracker {
   private regions: Region[] = [];
   private lastRefresh = 0;
   private forced: SceneId | null = null;
   private forcedProgress = 0.35;
+  private forcedMotif: MotifId | null = null;
+  private forcedSeed: number | null = null;
 
   constructor() {
     try {
       const q = new URLSearchParams(window.location.search);
       const s = q.get('scene');
-      if (s && IDS.has(s)) {
-        this.forced = s as SceneId;
+      const m = q.get('motif');
+      const motif = isMotif(m) ? m : null;
+      const scene = s && IDS.has(s) ? (s as SceneId) : motif ? MOTIF_SCENE[motif] : null;
+      if (scene) {
+        this.forced = scene;
+        this.forcedMotif = motif;
+        this.forcedSeed = seedOf(q.get('seed') ?? undefined) ?? (motif ? (M[motif] * 0.618034) % 1 : null);
         const p = Number(q.get('progress'));
-        this.forcedProgress = q.has('progress') && Number.isFinite(p) ? clamp01(p) : s === 'dawn' ? 0.8 : 0.3;
+        this.forcedProgress = q.has('progress') && Number.isFinite(p) ? clamp01(p) : scene === 'dawn' ? 0.8 : (motif && MOTIF_PROGRESS[motif]) || 0.3;
       }
     } catch {
       this.forced = null;
@@ -323,13 +345,14 @@ export class SceneTracker {
       if (!IDS.has(id) || el.querySelector('[data-scene]')) continue;
       const r = el.getBoundingClientRect();
       if (r.height <= 0) continue;
-      next.push({ id: id as SceneId, top: r.top + sy, bottom: r.bottom + sy });
+      const m = el.dataset.motif;
+      next.push({ id: id as SceneId, motif: isMotif(m) ? m : null, seed: seedOf(el.dataset.seed), top: r.top + sy, bottom: r.bottom + sy });
     }
     next.sort((x, y) => x.top - y.top);
     const merged: Region[] = [];
     for (const r of next) {
       const prev = merged[merged.length - 1];
-      if (prev && prev.id === r.id) prev.bottom = Math.max(prev.bottom, r.bottom);
+      if (prev && sameRegion(prev, r)) prev.bottom = Math.max(prev.bottom, r.bottom);
       else merged.push({ ...r });
     }
     this.regions = merged;
@@ -342,14 +365,18 @@ export class SceneTracker {
 
   sample(scrollY: number, vh: number, docHeight: number): SceneSample {
     if (this.forced) {
-      return { a: this.forced, b: this.forced, t: 0, pa: this.forcedProgress, pb: this.forcedProgress, dominant: this.forced, legacy: false };
+      const f = this.forced;
+      const p = this.forcedProgress;
+      const m = this.forcedMotif;
+      const sd = this.forcedSeed;
+      return { a: f, b: f, t: 0, pa: p, pb: p, ma: m, mb: m, sa: sd, sb: sd, dominant: f, legacy: false };
     }
     const rs = this.regions;
     const c = scrollY + vh * 0.5;
     if (!rs.length) {
       const progress = clamp01(scrollY / Math.max(1, docHeight - vh));
       const t = smoothstep(0.8, 1, progress);
-      return { a: 'night', b: 'dawn', t, pa: progress, pb: smoothstep(0.8, 1, progress), dominant: t > 0.5 ? 'dawn' : 'night', legacy: true };
+      return { a: 'night', b: 'dawn', t, pa: progress, pb: smoothstep(0.8, 1, progress), ma: null, mb: null, sa: null, sb: null, dominant: t > 0.5 ? 'dawn' : 'night', legacy: true };
     }
     const prog = (r: Region) => clamp01((c - r.top) / Math.max(1, r.bottom - r.top));
     const bound = (i: number) => (rs[i].bottom + rs[i + 1].top) / 2;
@@ -370,6 +397,6 @@ export class SceneTracker {
     }
     const a = rs[ai];
     const b = rs[bi];
-    return { a: a.id, b: b.id, t, pa: prog(a), pb: prog(b), dominant: t > 0.5 ? b.id : a.id, legacy: false };
+    return { a: a.id, b: b.id, t, pa: prog(a), pb: prog(b), ma: a.motif, mb: b.motif, sa: a.seed, sb: b.seed, dominant: t > 0.5 ? b.id : a.id, legacy: false };
   }
 }

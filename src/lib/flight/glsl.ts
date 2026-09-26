@@ -45,16 +45,25 @@ export const TERRAIN = `
 uniform vec3 u_cam;
 uniform vec3 u_shapeA;
 uniform vec3 u_shapeB;
+uniform vec4 u_varA;
+uniform vec4 u_varB;
 uniform vec3 u_front;
 uniform vec4 u_rip[4];
-float ridged(vec2 p) {
+uniform vec2 u_motif;
+uniform float u_mq;
+float motifW(float id, float m) {
+  return (u_motif.x == id ? 1.0 - m : 0.0) + (u_motif.y == id ? m : 0.0);
+}
+bool motifOn(float id) {
+  return u_motif.x == id || u_motif.y == id;
+}
+float ridged(vec2 p, float e) {
   float sum = 0.0;
   float amp = 0.55;
   float freq = 1.0;
   float prev = 1.0;
   for (int i = 0; i < 5; i++) {
-    float n = 1.0 - abs(snoise(p * freq));
-    n = n * n;
+    float n = pow(max(1.0 - abs(snoise(p * freq)), 0.0), e);
     sum += n * amp * prev;
     prev = n;
     freq *= 2.03;
@@ -75,18 +84,24 @@ float fbm(vec2 p) {
 float pathX(float z) {
   return 38.0 * sin(z * 0.0045) + 16.0 * sin(z * 0.011 + 1.3);
 }
-float terrainBase(vec2 xz) {
-  float base = fbm(xz * 0.0024 + vec2(5.2, 1.3));
-  float ridge = ridged(xz * 0.0052 + vec2(11.3, 4.7));
-  float big = snoise(xz * 0.0011 + vec2(3.1, 7.9)) * 0.5 + 0.5;
+float terrainBase(vec2 xz, vec4 v) {
+  vec2 q = xz + v.xy;
+  float base = fbm(q * 0.0024 + vec2(5.2, 1.3));
+  float ridge = ridged(q * 0.0052 + vec2(11.3, 4.7), 2.0 + v.z);
+  float big = snoise(q * 0.0011 + vec2(3.1, 7.9)) * 0.5 + 0.5;
   float m = smoothstep(0.28, 0.85, base);
-  float h = (m * m * 0.75 + ridge * m * 0.45) * mix(150.0, 290.0, big);
+  float h = (m * m * 0.75 + ridge * m * 0.45 * (1.0 + v.z * 0.35)) * mix(150.0, 290.0, big);
   float d = abs(xz.x - pathX(xz.y));
-  float carve = smoothstep(10.0, 170.0, d);
+  float carve = smoothstep(10.0, 170.0 * (1.0 + v.w), d);
   return h * mix(0.2, 1.0, carve);
 }
-float terrainH(vec2 xz, vec3 s) {
-  float h = terrainBase(xz) * s.x;
+float baseAt(vec2 xz, float m) {
+  if (m <= 0.001 || u_varA == u_varB) return terrainBase(xz, u_varA);
+  if (m >= 0.999) return terrainBase(xz, u_varB);
+  return mix(terrainBase(xz, u_varA), terrainBase(xz, u_varB), m);
+}
+float terrainH(vec2 xz, vec3 s, float m) {
+  float h = baseAt(xz, m) * s.x;
   if (s.y > 0.001) {
     float q = h / s.z;
     float t = (floor(q) + smoothstep(0.78, 1.0, fract(q))) * s.z;
@@ -119,7 +134,11 @@ vec2 ripple(vec2 xz) {
   }
   return r;
 }
+float groundAt(vec2 p) {
+  float m = sweepAt(p);
+  return terrainH(p, mix(u_shapeA, u_shapeB, m), m);
+}
 float groundH(vec2 p) {
-  return terrainH(p, shapeAt(p)) + ripple(p).x * 13.0 + seamAt(p) * 9.0;
+  return groundAt(p) + ripple(p).x * 13.0 + seamAt(p) * 9.0;
 }
 `;

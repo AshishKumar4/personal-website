@@ -1,4 +1,5 @@
 import type { SceneParams, V3 } from './scenes';
+import type { Variation } from './motifs';
 
 export interface Frame {
   viewProj: Float32Array;
@@ -22,4 +23,11 @@ export interface Frame {
   pxScale: number;
   sunDir: [number, number];
   dprScale: number;
+  motif: [number, number];
+  varA: Variation;
+  varB: Variation;
+  mq: number;
+  emu: number;
+  drone: Float32Array;
+  reduced: boolean;
 }

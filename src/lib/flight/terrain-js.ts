@@ -44,14 +44,13 @@ export function snoise(vx: number, vy: number): number {
   );
 }
 
-function ridged(x: number, y: number): number {
+function ridged(x: number, y: number, e: number): number {
   let sum = 0;
   let amp = 0.55;
   let freq = 1;
   let prev = 1;
   for (let i = 0; i < 5; i++) {
-    let n = 1 - Math.abs(snoise(x * freq, y * freq));
-    n *= n;
+    const n = Math.pow(Math.max(0, 1 - Math.abs(snoise(x * freq, y * freq))), e);
     sum += n * amp * prev;
     prev = n;
     freq *= 2.03;
@@ -78,20 +77,34 @@ export interface TerrainShape {
   terraceStep: number;
 }
 
-export function terrainHeight(x: number, z: number, s: TerrainShape): number {
-  const base = fbm(x * 0.0024 + 5.2, z * 0.0024 + 1.3);
-  const ridge = ridged(x * 0.0052 + 11.3, z * 0.0052 + 4.7);
-  const big = snoise(x * 0.0011 + 3.1, z * 0.0011 + 7.9) * 0.5 + 0.5;
+export type TerrainVariation = [number, number, number, number];
+
+const FLAT: TerrainVariation = [0, 0, 0, 0];
+
+export function terrainBase(x: number, z: number, v: TerrainVariation = FLAT): number {
+  const qx = x + v[0];
+  const qz = z + v[1];
+  const base = fbm(qx * 0.0024 + 5.2, qz * 0.0024 + 1.3);
+  const ridge = ridged(qx * 0.0052 + 11.3, qz * 0.0052 + 4.7, 2 + v[2]);
+  const big = snoise(qx * 0.0011 + 3.1, qz * 0.0011 + 7.9) * 0.5 + 0.5;
   const m = smoothstep(0.28, 0.85, base);
-  let h = (m * m * 0.75 + ridge * m * 0.45) * (150 + 140 * big);
-  const carve = smoothstep(10, 170, Math.abs(x - pathX(z)));
-  h *= (0.2 + 0.8 * carve) * s.amp;
+  const h = (m * m * 0.75 + ridge * m * 0.45 * (1 + v[2] * 0.35)) * (150 + 140 * big);
+  const carve = smoothstep(10, 170 * (1 + v[3]), Math.abs(x - pathX(z)));
+  return h * (0.2 + 0.8 * carve);
+}
+
+export function shapeHeight(base: number, s: TerrainShape): number {
+  let h = base * s.amp;
   if (s.terrace > 0.001) {
     const q = h / s.terraceStep;
     const t = (Math.floor(q) + smoothstep(0.78, 1, q - Math.floor(q))) * s.terraceStep;
     h += (t - h) * s.terrace;
   }
   return h;
+}
+
+export function terrainHeight(x: number, z: number, s: TerrainShape, v: TerrainVariation = FLAT): number {
+  return shapeHeight(terrainBase(x, z, v), s);
 }
 
 export function raycast(o: number[], d: number[], height: (x: number, z: number) => number, maxT: number): [number, number, number] | null {

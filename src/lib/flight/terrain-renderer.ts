@@ -1,6 +1,9 @@
 import { FULLSCREEN_VERT, Program, fullscreenTriangle } from './gl';
 import { NOISE, TERRAIN } from './glsl';
 import type { Frame } from './frame';
+import { M } from './motifs';
+
+const HUB = [520, 390];
 
 const meshVert = (lit: boolean) => `#version 300 es
 precision highp float;
@@ -14,6 +17,7 @@ uniform float u_intro;
 uniform vec2 u_jitter;
 uniform float u_seed;
 uniform float u_mist;
+uniform float u_time;
 out vec3 v_world;
 out float v_alpha;
 out float v_fog;
@@ -25,6 +29,7 @@ out float v_row;
 out float v_mix;
 out float v_seam;
 out float v_mist;
+out float v_wave;
 ${NOISE}
 ${TERRAIN}
 void main() {
@@ -34,7 +39,7 @@ void main() {
   v_row = floor(local.y / u_spacing.y + 0.5);
   float m = sweepAt(xz);
   vec3 shape = mix(u_shapeA, u_shapeB, m);
-  float h0 = terrainH(xz, shape);
+  float h0 = terrainH(xz, shape, m);
   vec2 rp = ripple(xz);
   float seam = seamAt(xz);
   float h = h0 + rp.x * 13.0 + seam * 9.0;
@@ -44,15 +49,33 @@ void main() {
     float s0 = floor(u_seed);
     float k = smoothstep(0.0, 1.0, fract(u_seed));
     vec2 off = mix(hash22(id + s0 * 17.13), hash22(id + (s0 + 1.0) * 17.13), k) - 0.5;
-    h = terrainH(xz + off * 44.0 * j, shape) + rp.x * 13.0 + seam * 9.0 + (off.x + off.y) * 20.0 * j * j;
-    xz.y += off.y * u_spacing.y * 0.8 * j;
+    vec2 o = off * j;
+    float dn = motifW(${M.denoise}.0, m);
+    if (dn > 0.001) {
+      float thr = 0.1 + 0.52 * hash12(floor(id / vec2(90.0, 9.0)) + 3.1) + 0.26 * hash12(floor(id / vec2(22.0, 3.0)) + 7.7) + 0.1 * hash12(id + 0.5);
+      float lj = smoothstep(thr - 0.05, thr + 0.05, j);
+      o = mix(o, off * lj * (0.55 + 0.45 * j), dn);
+    }
+    h = terrainH(xz + o * 44.0, shape, m) + rp.x * 13.0 + seam * 9.0 + (o.x + o.y) * 20.0 * j;
+    xz.y += o.y * u_spacing.y * 0.8;
+  }
+  v_wave = 0.0;
+  float wf = motifW(${M.waveform}.0, m);
+  if (wf > 0.001) {
+    float ph = xz.x * 0.075 - u_time * 3.0 + v_row * 0.41;
+    float env = smoothstep(-0.15, 0.75, snoise(vec2(xz.x * 0.0042 - u_time * 0.34, v_row * 0.035 + 4.0)));
+    float wave = sin(ph) * 0.62 + sin(ph * 2.31 + 1.7) * 0.28 + sin(ph * 4.7 + 0.4) * 0.1;
+    float crest = smoothstep(20.0, 120.0, h0);
+    float amp = wf * env * crest * (3.0 + length(xz - u_cam.xz) * 0.01);
+    h += wave * amp;
+    v_wave = pow(max(wave, 0.0), 2.0) * env * crest * wf;
   }
   float lambert = 0.0;
   float rim = 0.0;
   vec3 world = vec3(xz.x, h, xz.y);
 #ifdef LIT
   float e = 2.0;
-  vec3 n = normalize(vec3(h0 - terrainH(xz + vec2(e, 0.0), shape), e, h0 - terrainH(xz + vec2(0.0, e), shape)));
+  vec3 n = normalize(vec3(h0 - terrainH(xz + vec2(e, 0.0), shape, m), e, h0 - terrainH(xz + vec2(0.0, e), shape, m)));
   vec3 moon = normalize(vec3(-0.6, 0.5, -0.62));
   lambert = clamp(dot(n, moon), 0.0, 1.0);
   vec3 v = normalize(u_cam - world);
@@ -87,14 +110,44 @@ in float v_row;
 in float v_mix;
 in float v_seam;
 in float v_mist;
+in float v_wave;
 uniform vec4 u_lantern;
 uniform vec3 u_lanternColor;
 uniform float u_time;
+uniform vec3 u_cam;
+uniform vec2 u_motif;
+uniform float u_mq;
+uniform float u_far;
 out vec4 o;
+float motifW(float id, float m) {
+  return (u_motif.x == id ? 1.0 - m : 0.0) + (u_motif.y == id ? m : 0.0);
+}
+bool motifOn(float id) {
+  return u_motif.x == id || u_motif.y == id;
+}
+float cloudAt(vec3 w) {
+  vec2 q = w.xz * vec2(0.0045, 0.011) + vec2(u_time * 0.02, u_time * 0.004);
+  float n = snoise(q) * 0.6;
+  if (u_mq > 0.8) n += snoise(q * 2.6 + vec2(3.1, 7.7)) * 0.4;
+  float top = 54.0 + n * 30.0;
+  float dens = smoothstep(-4.0, 34.0, top - w.y) * smoothstep(-0.4, 0.35, n);
+  return dens * smoothstep(80.0, 320.0, length(w.xz - u_cam.xz));
+}
+vec2 labSweep(vec3 w) {
+  vec2 dv = w.xz - u_cam.xz;
+  float dist = length(dv);
+  float ph = fract(u_time / 7.0 + 0.3);
+  float lat = dot(dv, vec2(0.83, 0.56)) - mix(-560.0, 420.0, ph / 0.7);
+  float front = exp(-lat * lat / 5.0);
+  float after = lat < 0.0 ? exp(lat / 80.0) : 0.0;
+  float live = 1.0 - smoothstep(0.7, 0.9, ph);
+  return vec2(front, after) * live * smoothstep(20.0, 70.0, dist) * (1.0 - smoothstep(550.0, 1100.0, dist));
+}
 `;
 
 const LINE_FRAG = `#version 300 es
 precision highp float;
+${NOISE}
 ${MESH_IN}
 uniform vec3 u_lineA;
 uniform vec3 u_lineB;
@@ -115,16 +168,70 @@ void main() {
   col += u_lanternColor * l * (0.45 + v_light);
   col += mix(u_lanternColor, vec3(1.0), 0.5) * v_ring * 2.2;
   col += mix(u_lineB, vec3(1.0), 0.35) * v_seam * 2.4;
-  if (ls.w > 0.001) {
+  float pw = motifOn(${M.packets}.0) ? motifW(${M.packets}.0, v_mix) : 0.0;
+  float pk = ls.w * (1.0 - pw);
+  if (pk > 0.001) {
     float rh = h1(v_row);
-    if (rh < 0.3 * ls.w) {
-      float dir = rh < 0.15 * ls.w ? 1.0 : -1.0;
+    if (rh < 0.3 * pk) {
+      float dir = rh < 0.15 * pk ? 1.0 : -1.0;
       float s = fract(v_world.x * dir / 420.0 - u_time * (0.18 + rh * 1.1) + rh * 13.0);
       float p = pow(s, 9.0) * 0.8 + pow(s, 60.0) * 2.5;
-      col += vec3(0.62, 0.92, 1.0) * p * (0.45 + 0.55 * smoothstep(10.0, 120.0, v_world.y)) * 2.8 * ls.w;
+      col += vec3(0.62, 0.92, 1.0) * p * (0.45 + 0.55 * smoothstep(10.0, 120.0, v_world.y)) * 2.8 * pk;
     }
   }
-  o = vec4(col, v_alpha * 0.85);
+  if (pw > 0.001) {
+    vec2 hubCell = vec2(${HUB[0]}.0, ${HUB[1]}.0);
+    vec2 cell = floor(v_world.xz / hubCell);
+    vec2 hub = (cell + 0.25 + hash22(cell + 3.7) * 0.5) * hubCell;
+    float dx = abs(v_world.x - hub.x);
+    float near = 1.0 - smoothstep(12.0, hubCell.y * 0.5, abs(v_world.z - hub.y));
+    float rh = h1(v_row * 1.37 + 7.3);
+    if (rh < (0.3 + 0.6 * near) * (0.6 + 0.4 * u_mq)) {
+      float s = fract(-dx / 170.0 - u_time * (0.3 + rh * 0.5) + rh * 11.0);
+      float p = (pow(s, 10.0) * 0.8 + pow(s, 70.0) * 2.6) * smoothstep(3.0, 30.0, dx);
+      col += vec3(0.62, 0.92, 1.0) * p * (0.5 + 0.8 * near) * 2.8 * pw;
+    }
+  }
+  if (motifOn(${M.servers}.0)) {
+    col *= mix(vec3(1.0), vec3(1.25, 0.96, 0.7), motifW(${M.servers}.0, v_mix) * 0.6);
+  }
+  if (motifOn(${M.boot}.0)) {
+    float w = motifW(${M.boot}.0, v_mix);
+    float ph = fract(u_time / 6.5 + 0.2);
+    float lvl = mix(-30.0, 320.0, smoothstep(0.0, 0.6, ph));
+    float dy = lvl - v_world.y;
+    float band = exp(-dy * dy / 30.0);
+    float trail = dy > 0.0 ? exp(-dy / 70.0) : 0.0;
+    float fade = 1.0 - smoothstep(0.55, 0.85, ph);
+    col += vec3(1.0, 0.8, 0.48) * (band * 1.5 + trail * 0.28) * fade * w * (0.35 + v_light * 0.8);
+  }
+  if (motifOn(${M.lab}.0)) {
+    vec2 sw = labSweep(v_world) * motifW(${M.lab}.0, v_mix);
+    col += vec3(0.72, 0.95, 1.0) * (sw.x * 2.2 + sw.y * 0.3) * (0.4 + v_light * 0.6);
+  }
+  if (motifOn(${M.waveform}.0)) {
+    col += mix(line, vec3(1.0), 0.4) * v_wave * (0.35 + v_light) * 2.2;
+  }
+  if (motifOn(${M.dew}.0)) {
+    float w = motifW(${M.dew}.0, v_mix);
+    float len = 2.5 + v_dist * u_far * 0.008;
+    float cx = floor(v_world.x / len);
+    float hd = hash12(vec2(cx, v_row * 1.31));
+    float catchL = smoothstep(0.35, 1.2, v_light) + v_rim * 1.5;
+    if (hd > 1.0 - 0.2 * (0.5 + 0.5 * u_mq) && catchL > 0.01) {
+      float f = (fract(v_world.x / len) - 0.5) * len;
+      float spot = exp(-f * f * 4.0 / (1.0 + v_dist * 40.0));
+      float tw = pow(0.5 + 0.5 * sin(u_time * (0.5 + fract(hd * 71.0) * 1.1) + u_cam.z * 0.04 + hd * 400.0), 8.0);
+      col += vec3(0.94, 0.97, 1.0) * spot * tw * min(catchL, 1.5) * w * 6.0;
+    }
+  }
+  float alpha = v_alpha;
+  if (motifOn(${M.clouds}.0)) {
+    float c = cloudAt(v_world) * motifW(${M.clouds}.0, v_mix);
+    col *= 1.0 - c * 0.6;
+    alpha *= 1.0 - c * 0.4;
+  }
+  o = vec4(col, alpha * 0.85);
 }`;
 
 const ATMOS = `
@@ -153,10 +260,10 @@ vec3 atmos(vec3 d) {
 
 const FILL_FRAG = `#version 300 es
 precision highp float;
+${NOISE}
 ${MESH_IN}
 uniform vec3 u_fillA;
 uniform vec3 u_fillB;
-uniform vec3 u_cam;
 ${ATMOS}
 void main() {
   vec3 fogc = atmos(normalize(vec3(v_world.x - u_cam.x, 0.0, v_world.z - u_cam.z)));
@@ -165,6 +272,22 @@ void main() {
   float d = distance(v_world.xz, u_lantern.xy);
   col += u_lanternColor * u_lantern.w * exp(-d * d / 5000.0) * 0.05;
   col += u_lanternColor * v_ring * 0.04;
+  if (motifOn(${M.servers}.0)) {
+    col += vec3(0.014, 0.007, 0.0) * motifW(${M.servers}.0, v_mix);
+  }
+  if (motifOn(${M.lab}.0)) {
+    vec2 sw = labSweep(v_world) * motifW(${M.lab}.0, v_mix);
+    vec2 g = v_world.xz / vec2(7.8, 6.5);
+    vec2 fw = fwidth(g);
+    vec2 gd = abs(fract(g - 0.5) - 0.5) / max(fw, 1e-4);
+    float mesh = (1.0 - smoothstep(0.5, 1.5, min(gd.x, gd.y))) * (1.0 - smoothstep(0.08, 0.35, v_dist));
+    col += vec3(0.5, 0.85, 1.0) * mesh * (sw.y * 0.26 + sw.x * 0.5) + vec3(0.4, 0.8, 1.0) * (sw.x * 0.12 + sw.y * 0.012);
+  }
+  if (motifOn(${M.clouds}.0)) {
+    float c = cloudAt(v_world) * motifW(${M.clouds}.0, v_mix);
+    vec3 cc = fogc * 1.45 + vec3(0.016, 0.02, 0.028);
+    col = mix(col, cc, c * 0.68);
+  }
   o = vec4(col, 1.0);
 }`;
 
@@ -179,6 +302,7 @@ uniform float u_aurora;
 uniform float u_clouds;
 uniform float u_time;
 uniform float u_pxPerRad;
+uniform float u_emu;
 out vec4 o;
 ${NOISE}
 ${ATMOS}
@@ -247,6 +371,25 @@ void main() {
     vec3 cc = mix(u_top * 1.5 + u_horizon * 0.5, u_horizon + lit, smoothstep(-0.2, 0.6, n) * 0.8);
     cc += vec3(0.7, 0.78, 1.0) * u_moon * exp(-mang * 8.0) * 0.25;
     col = mix(col, cc, dens * u_clouds * 0.85);
+  }
+  if (u_emu > 0.001) {
+    vec2 sc = vec2(az, el) - vec2(0.0, 0.135);
+    vec2 hs = vec2(0.27, 0.105);
+    vec2 dd = abs(sc) - hs + 0.025;
+    float r = length(max(dd, 0.0)) + min(max(dd.x, dd.y), 0.0) - 0.025;
+    float inside = smoothstep(0.003, -0.012, r);
+    float px = r * u_pxPerRad;
+    float bezel = exp(-px * px / 2.2);
+    float halo = exp(-max(r, 0.0) * 22.0) * (1.0 - inside);
+    float raster = 0.72 + 0.28 * sin(el * u_pxPerRad * 1.3);
+    float roll = 0.85 + 0.15 * smoothstep(0.7, 1.0, sin(el * 14.0 - u_time * 0.9));
+    vec3 ph = vec3(1.0, 0.64, 0.28);
+    col += ph * (inside * 0.03 * raster * roll + bezel * 0.09 + halo * 0.018) * u_emu;
+    vec2 lp = vec2(hs.x - 0.045, -hs.y + 0.022) + vec2(0.0, 0.135);
+    float ld = length((vec2(az, el) - lp) * u_pxPerRad);
+    float burst = step(0.35, hash12(vec2(floor(u_time * 1.7), 2.3)));
+    float act = step(0.45, hash12(vec2(floor(u_time * 11.0), 1.7))) * burst;
+    col += vec3(1.0, 0.56, 0.14) * (exp(-ld * ld / 2.5) * (0.25 + 2.2 * act) + exp(-ld / 9.0) * 0.05 * act) * u_emu;
   }
   o = vec4(col, 1.0);
 }`;
@@ -338,7 +481,11 @@ export class TerrainRenderer {
       .set('u_rip', f.ripples)
       .set('u_lantern', f.lantern)
       .set('u_lanternColor', f.lanternColor)
-      .set('u_time', f.time);
+      .set('u_time', f.time)
+      .set('u_varA', f.varA)
+      .set('u_varB', f.varB)
+      .set('u_motif', f.motif)
+      .set('u_mq', f.mq);
   }
 
   private atmos(prog: Program, f: Frame) {
@@ -366,6 +513,7 @@ export class TerrainRenderer {
       .set('u_moon', p.moon)
       .set('u_aurora', p.aurora)
       .set('u_clouds', p.clouds)
+      .set('u_emu', f.emu)
       .set('u_time', f.time)
       .set('u_pxPerRad', f.pxPerRad);
     this.atmos(this.sky, f);

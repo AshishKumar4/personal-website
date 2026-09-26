@@ -1,10 +1,11 @@
 import { emitFlight, onFlight } from './bus';
 import { FlightInput } from './input';
-import { Particles } from './particles';
+import { DRONE_TRAIL, Particles } from './particles';
+import { applyMotif, motifCode, variation, type MotifId, type Variation } from './motifs';
 import { Post } from './post';
 import { SceneTracker, mixParams, sceneAt, type V3 } from './scenes';
 import { TerrainRenderer } from './terrain-renderer';
-import { raycast, terrainHeight, type TerrainShape } from './terrain-js';
+import { raycast, shapeHeight, terrainBase, type TerrainShape } from './terrain-js';
 import { damp, hsv, invert, lerp, lookAt, multiply, pathX, perspective, project, smoothstep, unproject } from './math';
 import type { Frame } from './frame';
 
@@ -70,6 +71,11 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
   let inv: Float32Array = new Float32Array(16);
   let shapeA: TerrainShape = { amp: 1, terrace: 0, terraceStep: 16 };
   let shapeB: TerrainShape = shapeA;
+  let varA: Variation = variation(null);
+  let varB: Variation = varA;
+  let prevZ: number | null = null;
+  let vz = 0;
+  const drone = new Float32Array((DRONE_TRAIL + 1) * 3);
   const deviceDpr = window.devicePixelRatio || 1;
   let dpr = Math.max(0.75, Math.min(deviceDpr, 1.5));
   let maxDpr = Math.max(dpr, Math.min(deviceDpr, small ? 1.5 : 1.75));
@@ -83,13 +89,22 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
 
   const heightAt = (x: number, z: number) => {
     const m = smoothstep(front[0] - front[1], front[0] + front[1], Math.hypot(x - eye[0], z - eye[2]));
-    if (m <= 0) return terrainHeight(x, z, shapeA);
-    if (m >= 1) return terrainHeight(x, z, shapeB);
-    return terrainHeight(x, z, {
+    if (m <= 0) return shapeHeight(terrainBase(x, z, varA), shapeA);
+    if (m >= 1) return shapeHeight(terrainBase(x, z, varB), shapeB);
+    const base = varA === varB ? terrainBase(x, z, varA) : lerp(terrainBase(x, z, varA), terrainBase(x, z, varB), m);
+    return shapeHeight(base, {
       amp: lerp(shapeA.amp, shapeB.amp, m),
       terrace: lerp(shapeA.terrace, shapeB.terrace, m),
       terraceStep: lerp(shapeA.terraceStep, shapeB.terraceStep, m),
     });
+  };
+
+  const droneAt = (tt: number, cz: number, out: Float32Array, o: number) => {
+    const z = cz - (250 + 40 * Math.sin(tt * 0.21));
+    const x = pathX(z) + 30 * Math.sin(tt * 0.61) + 12 * Math.sin(tt * 1.43 + 0.6);
+    out[o] = x;
+    out[o + 1] = heightAt(x, z) + 30 + 8 * Math.sin(tt * 0.9);
+    out[o + 2] = z;
   };
 
   const resize = () => {
@@ -171,8 +186,8 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     const sy = window.scrollY;
     smoothY = animate && smoothY !== null ? damp(smoothY, sy, 4, dt) : sy;
     const s = tracker.sample(smoothY, vh, document.documentElement.scrollHeight);
-    const A = sceneAt(s.a, s.pa);
-    const B = sceneAt(s.b, s.pb);
+    const A = applyMotif(sceneAt(s.a, s.pa), s.ma, s.pa);
+    const B = applyMotif(sceneAt(s.b, s.pb), s.mb, s.pb);
     const t = s.t;
     const p = mixParams(A, B, smoothstep(0.05, 0.8, t));
     const tc = smoothstep(0.1, 0.95, t);
@@ -181,6 +196,8 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     front[2] = Math.pow(dip, 0.7);
     shapeA = shapeOf(A);
     shapeB = shapeOf(B);
+    varA = variation(s.sa);
+    varB = s.sb === s.sa ? varA : variation(s.sb);
 
     if (animate) cruise += dt * CRUISE * lerp(A.speed, B.speed, tc) * (1 + dip * 0.8);
     scrollDist = animate ? damp(scrollDist, sy * 0.32, 3.2, dt) : sy * 0.32;
@@ -196,6 +213,8 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     const slope = (pathX(z - 12) - pathX(z + 12)) / 24;
     const roll = (-slope * 0.55 - smx * 0.05) * (1 + lerp(A.roll, B.roll, tc));
     eye = [x, alt, z];
+    if (animate && prevZ !== null && dt > 0) vz = damp(vz, (prevZ - z) / dt, 3, dt);
+    prevZ = z;
     const fx = tx - x;
     const fl = Math.hypot(fx, ahead) || 1;
     const view = lookAt(eye, [tx, ty, z - ahead], roll);
@@ -229,6 +248,11 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     const sw = viewProj[3] * sp[0] + viewProj[7] * sp[1] + viewProj[11] * sp[2] + viewProj[15];
     const sxy = project(viewProj, sp);
     const intro = reduced ? 1 : smoothstep(0, 1, (now - start) / 3200);
+    const mt = smoothstep(0.05, 0.8, t);
+    const weight = (id: MotifId) => (s.ma === id ? 1 - mt : 0) + (s.mb === id ? mt : 0);
+    if (s.ma === 'drone' || s.mb === 'drone') {
+      for (let k = 0; k <= DRONE_TRAIL; k++) droneAt(time - k * 0.045, z + k * 0.045 * vz, drone, k * 3);
+    }
     const f: Frame = {
       viewProj,
       inv,
@@ -251,6 +275,13 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       pxScale: canvas.height / (2 * Math.tan(fov / 2)),
       sunDir: [SUN_AZ, sunEl],
       dprScale: dpr,
+      motif: [motifCode(s.ma), motifCode(s.mb)],
+      varA,
+      varB,
+      mq: small ? 0.6 : 1,
+      emu: weight('emulator'),
+      drone,
+      reduced,
     };
     post.begin();
     terrain.render(f);
@@ -281,7 +312,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       emitFlight('telemetry', { scene: s.dominant, sceneMix: t, distance: -z });
     }
     if (animate) quality(now, dt);
-    const key = `${s.a}${s.b}${t.toFixed(3)}${focusMix.toFixed(2)}`;
+    const key = `${s.a}${s.b}${s.ma}${s.mb}${s.sa}${s.sb}${t.toFixed(3)}${focusMix.toFixed(2)}`;
     const settling = !animate && key !== lastKey;
     lastKey = key;
     if ((animate || settling) && visible && onscreen) raf = requestAnimationFrame(frame);
