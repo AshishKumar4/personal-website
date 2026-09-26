@@ -1,5 +1,5 @@
 import type { Project } from "@shared/types";
-import { EXPERIENCE_STORIES, PROJECT_STORIES } from "./entry-stories";
+import { EXPERIENCE_STORIES, PROJECT_STORIES, isReplaceableStory } from "./entry-stories";
 
 export const SEED_PROJECTS: Project[] = [
   {
@@ -82,6 +82,16 @@ export const SEED_PROJECTS: Project[] = [
     year: "2015-12",
     story: PROJECT_STORIES["ashishkumar4-aqeous"],
   },
+  {
+    id: "game-servers",
+    name: "Game servers",
+    description: "cPanel and game server setups for Indian game-server hosts, custom modded Counter-Strike 1.6 servers, and one of the more popular CS 1.6 and CS:GO community servers in India.",
+    repo: "",
+    url: "",
+    order: 9,
+    year: "2011",
+    story: PROJECT_STORIES["game-servers"],
+  },
 ];
 
 export interface ProjectsMigrationSpec {
@@ -97,9 +107,9 @@ export interface ProjectsMigrationSpec {
 const seedById = new Map(SEED_PROJECTS.map((p) => [p.id, p]));
 
 export const PROJECTS_MIGRATION: ProjectsMigrationSpec = {
-  id: "2026-09-projects-v5",
+  id: "2026-09-projects-v6",
   remove: ["mossaic", "ashishkumar4-cf-git"],
-  add: ["kinu", "dew"].map((id) => seedById.get(id)!),
+  add: ["kinu", "dew", "game-servers"].map((id) => seedById.get(id)!),
   order: Object.fromEntries(SEED_PROJECTS.map((p) => [p.id, p.order!])),
   year: Object.fromEntries(SEED_PROJECTS.filter((p) => p.year).map((p) => [p.id, p.year!])),
   story: PROJECT_STORIES,
@@ -137,7 +147,7 @@ export function planProjectsMigration(existing: Project[], spec: ProjectsMigrati
     .filter(([id]) => !removed.has(id))
     .flatMap(([id, story]) => {
       const current = byId.get(id) ?? add.find((p) => p.id === id);
-      return current && !current.story?.trim() ? [{ id, story }] : [];
+      return current && isReplaceableStory(current.story) ? [{ id, story }] : [];
     });
   return { deleteIds, add, orders, years, stories };
 }

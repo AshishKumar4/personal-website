@@ -7,7 +7,7 @@ import { Container } from '@/components/site/SectionHeader';
 import { Reveal } from '@/components/site/Reveal';
 import { Words } from '@/components/site/Words';
 import { useStageRegion } from '@/components/site/stage';
-import { SCENE_TONE, buildTimeline, projectHue, type TimelineEntry } from '@/components/site/timeline';
+import { SCENE_TONE, buildTimeline, entryMotif, projectHue, type TimelineEntry } from '@/components/site/timeline';
 import { emitFlight } from '@/lib/flight/bus';
 import { formatCount, repoStats } from '@/lib/site-data';
 
@@ -43,6 +43,8 @@ function ExperienceNode({ entry, item }: { entry: TimelineEntry; item: Experienc
       ref={node}
       id={anchorId(entry.id)}
       data-scene={entry.scene}
+      data-motif={entryMotif(entry.id)}
+      data-seed={projectHue(entry.id).toFixed(4)}
       aria-label={item.company}
       className="relative"
       style={{ '--tone': SCENE_TONE[entry.scene] } as React.CSSProperties}
@@ -111,6 +113,8 @@ function ProjectNode({ entry, item, github, flip }: { entry: TimelineEntry; item
       ref={node}
       id={anchorId(entry.id)}
       data-scene={entry.scene}
+      data-motif={entryMotif(entry.id)}
+      data-seed={projectHue(entry.id).toFixed(4)}
       aria-label={item.name}
       onMouseEnter={focus}
       onMouseLeave={blur}

@@ -100,7 +100,7 @@ describe('SEED_PROJECTS', () => {
     expect(ids).not.toContain('cloudflare-vibesdk-templates');
     expect(new Set(ids).size).toBe(ids.length);
     for (const p of SEED_PROJECTS) {
-      expect(p.url.startsWith('https://github.com/')).toBe(true);
+      expect(p.url === '' || p.url.startsWith('https://github.com/')).toBe(true);
       expect(p.description).not.toContain('—');
     }
   });
@@ -110,7 +110,7 @@ describe('planProjectsMigration', () => {
   test('plans deletes, additions and orders against the live project list', () => {
     const plan = planProjectsMigration(LIVE_IDS.map((id) => project(id)), PROJECTS_MIGRATION);
     expect(plan.deleteIds.sort()).toEqual(['ashishkumar4-cf-git', 'mossaic']);
-    expect(plan.add.map((p) => p.id)).toEqual(['kinu', 'dew']);
+    expect(plan.add.map((p) => p.id)).toEqual(['kinu', 'dew', 'game-servers']);
     expect(plan.orders).toContainEqual({ id: 'cloudflare-vibesdk', order: 2 });
     expect(plan.orders).toContainEqual({ id: 'do86', order: 4 });
     expect(plan.orders.map((o) => o.id)).not.toContain('mossaic');
@@ -126,6 +126,12 @@ describe('planProjectsMigration', () => {
     expect(plan.stories.map((s) => s.id)).toContain('do86');
     expect(plan.stories.map((s) => s.id)).not.toContain('nimbus');
   });
+  test('replaces retired default stories but keeps ones the admin wrote', () => {
+    const retired = 'do86 runs x86 operating systems inside a Cloudflare Durable Object, with guest memory paged in from SQLite. It boots Aqeous, the kernel I wrote at 15.';
+    const plan = planProjectsMigration([project('do86', { story: retired }), project('nimbus', { story: 'Mine.' })], PROJECTS_MIGRATION);
+    expect(plan.stories.map((s) => s.id)).toContain('do86');
+    expect(plan.stories.map((s) => s.id)).not.toContain('nimbus');
+  });
   test('keeps explicit admin ordering', () => {
     const plan = planProjectsMigration([project('do86', { order: 0 }), project('nimbus')], PROJECTS_MIGRATION);
     expect(plan.orders).toEqual([{ id: 'nimbus', order: 5 }]);
@@ -134,7 +140,7 @@ describe('planProjectsMigration', () => {
   test('does not re-add projects that already exist', () => {
     const kinu = project('kinu', { description: 'owner copy' });
     const plan = planProjectsMigration([kinu], PROJECTS_MIGRATION);
-    expect(plan.add.map((p) => p.id)).toEqual(['dew']);
+    expect(plan.add.map((p) => p.id)).toEqual(['dew', 'game-servers']);
     expect(plan.orders).toEqual([{ id: 'kinu', order: 1 }]);
   });
 
@@ -172,7 +178,7 @@ describe('runProjectsMigration', () => {
   test('migrates production content in one pass', async () => {
     const store = new MemoryStore(LIVE_IDS.map((id) => project(id)));
     expect(await runProjectsMigration(store)).toBe('applied');
-    expect(store.sorted()).toEqual(['kinu', 'cloudflare-vibesdk', 'dew', 'do86', 'nimbus', 'ashishkumar4-flaxdiff', 'flydreamer', 'ashishkumar4-aqeous']);
+    expect(store.sorted()).toEqual(['kinu', 'cloudflare-vibesdk', 'dew', 'do86', 'nimbus', 'ashishkumar4-flaxdiff', 'flydreamer', 'ashishkumar4-aqeous', 'game-servers']);
     expect(store.marker.status).toBe('done');
   });
 
@@ -206,7 +212,7 @@ describe('runProjectsMigration', () => {
     await store.addProjectIfAbsent(SEED_PROJECTS[0]);
     expect(await runProjectsMigration(store, PROJECTS_MIGRATION, () => 10_000)).toBe('busy');
     expect(await runProjectsMigration(store, PROJECTS_MIGRATION, () => 120_000)).toBe('applied');
-    expect(store.sorted()).toEqual(['kinu', 'cloudflare-vibesdk', 'dew', 'do86', 'nimbus', 'ashishkumar4-flaxdiff', 'flydreamer', 'ashishkumar4-aqeous']);
+    expect(store.sorted()).toEqual(['kinu', 'cloudflare-vibesdk', 'dew', 'do86', 'nimbus', 'ashishkumar4-flaxdiff', 'flydreamer', 'ashishkumar4-aqeous', 'game-servers']);
   });
 
   test('does not clobber an order the admin sets mid-flight', async () => {

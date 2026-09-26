@@ -4,7 +4,7 @@
 import { Entity, IndexedEntity, Index } from "./core-utils";
 import type { Env } from "./core-utils";
 import { SEED_PROJECTS, EMPTY_MIGRATION_MARKER } from "./content-migration";
-import { EXPERIENCE_STORIES } from "./entry-stories";
+import { EXPERIENCE_STORIES, isReplaceableStory } from "./entry-stories";
 import type { MigrationMarker, ProjectsMigrationStore } from "./content-migration";
 import type { BlogPost, AuthUser, PendingAuth, SiteConfig, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAddress, BlockedSender, EmailFeed, ApiTokenPublic } from "@shared/types";
 import { EMAIL_DOMAIN } from "@shared/types";
@@ -126,12 +126,12 @@ export function projectsMigrationStore(env: Env, migrationId: string): ProjectsM
         setStoryIfUnset: async (id, story) => {
             const entity = new ProjectEntity(env, id);
             if (!(await entity.exists())) return;
-            await entity.mutate((current) => (current.name && !current.story?.trim() ? { ...current, story } : current));
+            await entity.mutate((current) => (current.name && isReplaceableStory(current.story) ? { ...current, story } : current));
         },
         setExperienceStoryIfUnset: async (id, story) => {
             const entity = new ExperienceEntity(env, id);
             if (!(await entity.exists())) return;
-            await entity.mutate((current) => (current.company && !current.story?.trim() ? { ...current, story } : current));
+            await entity.mutate((current) => (current.company && isReplaceableStory(current.story) ? { ...current, story } : current));
         },
     };
 }

@@ -26,7 +26,34 @@ const DEFAULT_SCENES: Record<string, SceneId> = {
   nimbus: 'signal',
   kinu: 'swarm',
   dew: 'noise',
+  'game-servers': 'signal',
 };
+
+const DEFAULT_MOTIFS: Record<string, string> = {
+  'game-servers': 'servers',
+  aqeous: 'boot',
+  vit: 'ctf',
+  'eaf0515c-3715-4c2c-a138-38540c251a0d': 'ctf',
+  hyperverge: 'lab',
+  dyte: 'packets',
+  flaxdiff: 'denoise',
+  umd: 'waveform',
+  '17fc1af8-ce45-40aa-8f95-a1647d2d0931': 'waveform',
+  cloudflare: 'agents',
+  vibesdk: 'build',
+  flydreamer: 'drone',
+  do86: 'emulator',
+  kinu: 'workspaces',
+  nimbus: 'clouds',
+  dew: 'dew',
+};
+
+export function entryMotif(id: string): string | undefined {
+  const key = id.trim().toLowerCase();
+  if (DEFAULT_MOTIFS[key]) return DEFAULT_MOTIFS[key];
+  if (key.startsWith('vit')) return 'ctf';
+  return DEFAULT_MOTIFS[key.split(/[-/]/).pop() ?? ''];
+}
 
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
