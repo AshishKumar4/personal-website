@@ -12,6 +12,8 @@ import { TwoFactorPrompt } from '@/components/auth/TwoFactorPrompt';
 import { getErrorMessage } from '@/lib/error-utils';
 import { FlightCanvas } from '@/components/flight/FlightCanvas';
 import type { LoginStep } from '@shared/types';
+import { cn } from '@/lib/utils';
+import { DISPLAY_TITLE, MONO_LABEL } from '@/components/reading/styles';
 
 type Phase =
   | { name: 'credentials' }
@@ -53,34 +55,46 @@ export function LoginPage() {
       ? { title: 'Verify it’s you', desc: 'Complete the second factor to sign in.' }
       : { title: 'Sign in', desc: 'Admin access for ashishkumarsingh.com.' };
 
+  const step = phase.name === 'credentials' ? 1 : 2;
+
   return (
     <PortfolioLayout footer={false}>
       <FlightCanvas />
       <div className="flex min-h-[100svh] items-center justify-center px-5 py-28">
-        <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-background/70 p-8 backdrop-blur-xl">
-          <Link to="/" className="group inline-flex items-center gap-2 text-[0.875rem] text-foreground/55 hover:text-foreground">
-            <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" /> Back to site
-          </Link>
-          <h1 className="mt-10 font-display text-[2.4rem] font-[520] leading-none tracking-[-0.04em] text-foreground">{header.title}</h1>
-          <p className="mt-3 text-[0.9375rem] text-foreground/55">{header.desc}</p>
-          <div className="mt-8">
-            {phase.name === 'credentials' && (
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="username" className="text-[0.8125rem] text-foreground/60">Username</Label>
-                  <Input id="username" type="text" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required className="h-11 bg-transparent" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-[0.8125rem] text-foreground/60">Password</Label>
-                  <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-11 bg-transparent" />
-                </div>
-                <Button type="submit" className="h-11 w-full rounded-full bg-foreground text-background hover:bg-foreground/85" disabled={loading}>
-                  {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying</> : 'Continue'}
-                </Button>
-              </form>
-            )}
-            {phase.name === 'setup' && <TwoFactorSetup setupToken={phase.setupToken} onDone={enterAdmin} />}
-            {phase.name === '2fa' && <TwoFactorPrompt challengeToken={phase.challengeToken} methods={phase.methods} onDone={enterAdmin} />}
+        <div className="relative w-full max-w-[25rem] overflow-hidden rounded-[4px] border border-white/10 bg-background/75 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+          <div className="h-px w-full bg-gradient-to-r from-transparent via-signal/70 to-transparent" aria-hidden="true" />
+          <div className="p-8 sm:p-10">
+            <div className="flex items-center justify-between">
+              <Link to="/" className={cn(MONO_LABEL, 'group inline-flex items-center gap-2 text-foreground/50 transition-colors hover:text-foreground')}>
+                <ArrowLeft size={13} className="transition-transform group-hover:-translate-x-0.5" /> Back to site
+              </Link>
+              <span className={cn(MONO_LABEL, 'tabular text-foreground/35')}>Step {step} of 2</span>
+            </div>
+            <div className={cn(MONO_LABEL, 'mt-12 flex items-center gap-2.5 text-foreground/45')}>
+              <span className="h-1.5 w-1.5 rounded-full bg-signal shadow-[0_0_10px_hsl(var(--signal))]" aria-hidden="true" />
+              Restricted airspace
+            </div>
+            <h1 className={cn(DISPLAY_TITLE, 'mt-4 text-[2.5rem] leading-[1]')}>{header.title}</h1>
+            <p className="mt-4 font-serif text-[1.0625rem] italic leading-snug text-foreground/60">{header.desc}</p>
+            <div className="mt-10">
+              {phase.name === 'credentials' && (
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="space-y-2.5">
+                    <Label htmlFor="username" className={cn(MONO_LABEL, 'text-foreground/50')}>Username</Label>
+                    <Input id="username" type="text" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required className="h-11 rounded-[3px] border-white/15 bg-white/[0.02] font-mono text-[0.9375rem] focus-visible:border-white/35" />
+                  </div>
+                  <div className="space-y-2.5">
+                    <Label htmlFor="password" className={cn(MONO_LABEL, 'text-foreground/50')}>Password</Label>
+                    <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-11 rounded-[3px] border-white/15 bg-white/[0.02] font-mono text-[0.9375rem] focus-visible:border-white/35" />
+                  </div>
+                  <Button type="submit" className="mt-2 h-11 w-full rounded-full bg-foreground font-display text-[0.9375rem] font-[500] text-background [font-stretch:112%] hover:bg-foreground/85" disabled={loading}>
+                    {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying</> : 'Continue'}
+                  </Button>
+                </form>
+              )}
+              {phase.name === 'setup' && <TwoFactorSetup setupToken={phase.setupToken} onDone={enterAdmin} />}
+              {phase.name === '2fa' && <TwoFactorPrompt challengeToken={phase.challengeToken} methods={phase.methods} onDone={enterAdmin} />}
+            </div>
           </div>
         </div>
       </div>

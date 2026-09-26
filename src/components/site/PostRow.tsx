@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 import type { PostSummary } from '@shared/types';
+import { cn } from '@/lib/utils';
 import { Reveal } from '@/components/site/Reveal';
 
 interface PostRowProps {
@@ -12,23 +13,22 @@ interface PostRowProps {
 export function PostRow({ post, large = false }: PostRowProps) {
   const date = new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   return (
-    <Reveal as="li" className="border-t border-white/10">
-      <Link to={`/blog/${post.slug}`} className="group grid grid-cols-1 gap-y-2 py-8 md:grid-cols-12 md:gap-x-8 md:py-10">
-        <div className="text-[0.875rem] text-foreground/45 tabular md:col-span-3">
-          {date}
-          <span className="ml-3 text-foreground/30">{post.format === 'notebook' ? 'Notebook' : `${post.readingTime} min`}</span>
+    <Reveal as="li" className="border-t border-foreground/10">
+      <Link to={`/blog/${post.slug}`} className="group grid grid-cols-1 gap-y-3 py-8 md:grid-cols-12 md:gap-x-8 md:py-10">
+        <div className="flex gap-4 font-mono text-[0.75rem] text-foreground/50 tabular md:col-span-2 md:flex-col md:gap-1">
+          <span className="text-foreground/80">{date}</span>
+          <span>{post.format === 'notebook' ? 'Notebook' : `${post.readingTime} min read`}</span>
         </div>
-        <div className="md:col-span-8">
+        <div className="md:col-span-9">
           <h3
-            className={
-              large
-                ? 'font-display text-[clamp(1.7rem,3vw,2.6rem)] font-[480] leading-[1.08] tracking-[-0.03em] text-foreground transition-colors duration-300 group-hover:text-signal'
-                : 'font-display text-[clamp(1.4rem,2.2vw,1.9rem)] font-[480] leading-[1.12] tracking-[-0.025em] text-foreground transition-colors duration-300 group-hover:text-signal'
-            }
+            className={cn(
+              'text-foreground transition-colors duration-300 group-hover:text-signal text-balance',
+              large ? 't-section text-[clamp(1.75rem,3.2vw,2.75rem)] leading-[1.06]' : 't-name text-[clamp(1.5rem,2.3vw,2.125rem)] leading-[1.1]',
+            )}
           >
             {post.title}
           </h3>
-          <p className="mt-3 line-clamp-2 max-w-2xl text-[0.9375rem] leading-relaxed text-foreground/50">{post.excerpt}</p>
+          <p className="t-narration mt-3 line-clamp-2 max-w-[62ch] text-[1.0625rem] leading-[1.55] text-foreground/60">{post.excerpt}</p>
         </div>
         <div className="hidden justify-end md:col-span-1 md:flex">
           <ArrowUpRight size={18} className="text-foreground/35 transition-all duration-500 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground" />
