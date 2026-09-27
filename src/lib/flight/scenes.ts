@@ -321,7 +321,7 @@ const sameRegion = (x: Region, y: Region) => x.id === y.id && x.motif === y.moti
 
 export class SceneTracker {
   private regions: Region[] = [];
-  private lastRefresh = 0;
+  private docHeight = 0;
   private forced: SceneId | null = null;
   private forcedProgress = 0.35;
   private forcedMotif: MotifId | null = null;
@@ -366,14 +366,11 @@ export class SceneTracker {
       else merged.push({ ...r });
     }
     this.regions = merged;
-    this.lastRefresh = performance.now();
+    this.docHeight = document.documentElement.scrollHeight;
   }
 
-  maybeRefresh(now: number) {
-    if (now - this.lastRefresh > 500) this.refresh();
-  }
-
-  sample(scrollY: number, vh: number, docHeight: number): SceneSample {
+  sample(scrollY: number, vh: number): SceneSample {
+    const docHeight = this.docHeight;
     if (this.forced) {
       const f = this.forced;
       const p = this.forcedProgress;

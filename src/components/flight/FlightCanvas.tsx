@@ -17,7 +17,9 @@ export function FlightCanvas() {
     import('@/lib/flight/engine')
       .then(({ startFlight }) => {
         if (cancelled) return;
-        handle = startFlight(canvas, veilRef.current, reduced);
+        handle = startFlight(canvas, veilRef.current, reduced, () => {
+          if (!cancelled) setFailed(true);
+        });
         if (!handle) setFailed(true);
       })
       .catch(() => {

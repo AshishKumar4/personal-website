@@ -172,6 +172,10 @@ export class Post {
     this.init();
   }
 
+  get programs(): Program[] {
+    return [this.prefilter, this.down, this.up, this.composite];
+  }
+
   init() {
     const gl = this.gl;
     const float = !!gl.getExtension('EXT_color_buffer_float');
@@ -184,6 +188,11 @@ export class Post {
     this.vao = fullscreenTriangle(gl);
     this.w = 0;
     this.h = 0;
+    this.mips = [];
+    this.scene = null;
+    this.msFb = null;
+    this.msColor = null;
+    this.msDepth = null;
   }
 
   private target(w: number, h: number): Target {
@@ -214,6 +223,8 @@ export class Post {
     this.mips = [];
     this.scene = null;
     this.msFb = null;
+    this.msColor = null;
+    this.msDepth = null;
   }
 
   resize(w: number, h: number) {

@@ -57,7 +57,8 @@ Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage i
 - `src/components/flight/FlightCanvas.tsx` - fixed background; every story region in the DOM declares `data-scene="<SceneId>"` and the engine sweeps between scenes as they cross the viewport centre; adjacent regions with the same scene merge
 - Scenes: `night`, `kernel`, `breach`, `signal`, `noise`, `swarm`, `dawn` (`SCENE_IDS` in `shared/types.ts`)
 - `motifs.ts` layers a subtle per-entry motif (e.g. `boot`, `ctf`, `lab`, `drone`, `clouds`, `dew`, `fog`) that can switch the terrain archetype (mirror lake, open plain, rolling hills, cloud sea, block build, mesas) plus a terrain variation from `data-seed` on top of the scene; timeline regions get both from `entryMotif`/`projectHue` in `timeline.ts`, and neighbours merge only when scene, motif and seed all match
-- Debug params: `?scene=<id>&progress=0..1` forces a scene, `?motif=<id>&seed=0..1` forces a motif, `?flightq=hi` pins quality
+- Debug params: `?scene=<id>&progress=0..1` forces a scene, `?motif=<id>&seed=0..1` forces a motif, `?flightq=hi` pins quality, `?freeze=<seconds>` freezes time for deterministic frames (and exposes `window.__flightBench`)
+- `quality.ts` is the adaptive resolution controller (targets ~60fps, defers resizes until scrolling is idle); terrain is evaluated once per frame and shared by the fill, line and mirror passes, and every program is compiled and warmed up front so no world stalls on first appearance
 - Respects `prefers-reduced-motion` (static frames) and adapts resolution to frame time; small screens get lower density and no bloom
 
 ### Timeline

@@ -228,6 +228,10 @@ export class Particles {
     this.init();
   }
 
+  get programs(): Program[] {
+    return [this.flies, ...this.motifs.values()];
+  }
+
   init() {
     const gl = this.gl;
     this.flies = new Program(gl, FIREFLY_VERT, POINT_FRAG);
@@ -248,12 +252,12 @@ export class Particles {
     setTerrain(prog, f);
   }
 
-  render(f: Frame, cursor: [number, number, number, number]) {
+  render(f: Frame, cursor: [number, number, number, number], warm = false) {
     const gl = this.gl;
     const { a, b } = f;
     const flies = [a.fireflies, b.fireflies];
-    const kinds = [...new Set(f.motif)].filter(k => MOTIF_COUNTS[k]);
-    if (Math.max(...flies) < 0.01 && !kinds.length) return;
+    const kinds = warm ? [...this.motifs.keys()] : [...new Set(f.motif)].filter(k => MOTIF_COUNTS[k]);
+    if (Math.max(...flies) < 0.01 && !kinds.length && !warm) return;
     gl.enable(gl.DEPTH_TEST);
     gl.depthMask(false);
     gl.enable(gl.BLEND);
@@ -266,12 +270,12 @@ export class Particles {
       prog.set('u_fwd', f.fwd).set('u_minPx', 2 * f.dprScale);
       if (k === M.drone) prog.set('u_drone', f.drone);
       if (k === M.ctf) prog.set('u_beacon', f.beacon);
-      gl.drawArrays(gl.POINTS, 0, k === M.drone && f.reduced ? 1 : MOTIF_COUNTS[k]);
+      gl.drawArrays(gl.POINTS, 0, warm || (k === M.drone && f.reduced) ? 1 : MOTIF_COUNTS[k]);
     }
-    if (Math.max(...flies) > 0.01) {
+    if (Math.max(...flies) > 0.01 || warm) {
       this.common(this.flies, f, flies);
       this.flies.set('u_fwd', f.fwd).set('u_cursor', cursor).set('u_box', 560).set('u_colorA', a.particle).set('u_colorB', b.particle);
-      gl.drawArrays(gl.POINTS, 0, this.count);
+      gl.drawArrays(gl.POINTS, 0, warm ? 1 : this.count);
     }
     gl.bindVertexArray(null);
   }

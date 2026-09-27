@@ -454,6 +454,7 @@
     opacity: var(--w, 1);
     filter: blur(calc((1 - var(--w, 1)) * 14px));
   }
+  .reveal-title[data-still] .w-live { filter: none; }
 
 
 

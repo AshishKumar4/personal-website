@@ -9,40 +9,64 @@ function compile(gl: WebGL2RenderingContext, type: number, src: string): WebGLSh
   const s = gl.createShader(type)!;
   gl.shaderSource(s, src);
   gl.compileShader(s);
-  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS) && !gl.isContextLost()) {
-    const log = gl.getShaderInfoLog(s) || 'compile failed';
-    gl.deleteShader(s);
-    throw new Error(log);
-  }
   return s;
 }
+
+const COMPLETION_STATUS_KHR = 0x91b1;
 
 export class Program {
   readonly p: WebGLProgram;
   private map = new Map<string, UniformEntry>();
+  private shaders: WebGLShader[];
+  private done = false;
+  private parallel: boolean;
 
-  constructor(private gl: WebGL2RenderingContext, vs: string, fs: string) {
+  constructor(private gl: WebGL2RenderingContext, vs: string, fs: string, feedback?: string[]) {
     const p = gl.createProgram()!;
     const v = compile(gl, gl.VERTEX_SHADER, vs);
     const f = compile(gl, gl.FRAGMENT_SHADER, fs);
     gl.attachShader(p, v);
     gl.attachShader(p, f);
     gl.bindAttribLocation(p, 0, 'a_pos');
+    if (feedback) gl.transformFeedbackVaryings(p, feedback, gl.INTERLEAVED_ATTRIBS);
     gl.linkProgram(p);
-    gl.deleteShader(v);
-    gl.deleteShader(f);
-    if (!gl.getProgramParameter(p, gl.LINK_STATUS) && !gl.isContextLost()) throw new Error(gl.getProgramInfoLog(p) || 'link failed');
     this.p = p;
-    const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS) as number;
+    this.shaders = [v, f];
+    this.parallel = !!gl.getExtension('KHR_parallel_shader_compile');
+  }
+
+  ready(): boolean {
+    if (this.done || !this.parallel) return true;
+    return !!this.gl.getProgramParameter(this.p, COMPLETION_STATUS_KHR) || this.gl.isContextLost();
+  }
+
+  finalize() {
+    if (this.done) return this;
+    const gl = this.gl;
+    const p = this.p;
+    this.done = true;
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS) && !gl.isContextLost()) {
+      const log = this.shaders.map(s => (gl.getShaderParameter(s, gl.COMPILE_STATUS) ? '' : gl.getShaderInfoLog(s) || '')).join('\n').trim();
+      this.shaders.forEach(s => gl.deleteShader(s));
+      throw new Error(log || gl.getProgramInfoLog(p) || 'link failed');
+    }
+    this.shaders.forEach(s => {
+      gl.detachShader(p, s);
+      gl.deleteShader(s);
+    });
+    this.shaders = [];
+    const n = (gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS) as number) || 0;
     for (let i = 0; i < n; i++) {
       const info = gl.getActiveUniform(p, i);
       if (!info) continue;
       const loc = gl.getUniformLocation(p, info.name);
       if (loc) this.map.set(info.name.replace(/\[0\]$/, ''), { loc, type: info.type });
     }
+    return this;
   }
 
   use() {
+    if (!this.done) this.finalize();
     this.gl.useProgram(this.p);
     return this;
   }

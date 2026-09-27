@@ -18,6 +18,8 @@ interface Region extends RegionMeta {
   top: number;
   height: number;
   p: number;
+  words: number;
+  still: boolean;
 }
 
 export interface StageState {
@@ -54,6 +56,7 @@ function measure() {
   for (const r of regions) {
     r.top = r.el.getBoundingClientRect().top + y;
     r.height = r.el.offsetHeight;
+    r.words = r.kind === 'reveal' ? r.el.querySelectorAll('.w').length : 0;
   }
   regions.sort((a, b) => a.top - b.top);
 }
@@ -79,8 +82,16 @@ function update() {
     }
     p = Math.max(-1, Math.min(2, p));
     if (Math.abs(p - r.p) > 0.0004) {
+      const v = p.toFixed(4);
       r.p = p;
-      r.el.style.setProperty('--p', p.toFixed(4));
+      r.el.style.setProperty('--p', v);
+      const pv = Number(v);
+      const still = r.words > 0 && (pv <= 0 || pv * 1.3 - (r.words - 1) * 0.09 >= 1.001);
+      if (still !== r.still) {
+        r.still = still;
+        if (still) r.el.dataset.still = '';
+        else delete r.el.dataset.still;
+      }
     }
   }
   let node = -1;
@@ -155,11 +166,12 @@ export function useStageRegion(ref: RefObject<HTMLElement>, meta: RegionMeta) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const region: Region = { el, kind, id, label, year, scene, anchor, span, top: 0, height: 0, p: -9 };
+    const region: Region = { el, kind, id, label, year, scene, anchor, span, top: 0, height: 0, p: -9, words: 0, still: false };
     regions.push(region);
     bind();
     remeasure();
     return () => {
+      delete el.dataset.still;
       const i = regions.indexOf(region);
       if (i >= 0) regions.splice(i, 1);
       unbind();

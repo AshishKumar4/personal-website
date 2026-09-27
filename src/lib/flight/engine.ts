@@ -2,12 +2,14 @@ import { emitFlight, onFlight } from './bus';
 import { FlightInput } from './input';
 import { DRONE_TRAIL, Particles } from './particles';
 import { applyMotif, motifCode, variation, type MotifId, type Variation } from './motifs';
-import { Post } from './post';
+import { Post, type PostUniforms } from './post';
 import { SceneTracker, mixParams, sceneAt, type V3 } from './scenes';
 import { TerrainRenderer } from './terrain-renderer';
 import { TerrainField, raycast } from './terrain-js';
 import { damp, hsv, invert, lerp, lookAt, multiply, pathX, perspective, project, smoothstep, unproject } from './math';
 import type { Frame } from './frame';
+import type { Program } from './gl';
+import { QualityController } from './quality';
 
 const FAR = 1400;
 const CRUISE = 6.5;
@@ -26,11 +28,15 @@ interface Ripple {
 
 const mix3 = (a: V3, b: V3, t: number): V3 => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
 
-export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null, reduced: boolean): FlightHandle | null {
+export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null, reduced: boolean, onFail?: () => void): FlightHandle | null {
   const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, stencil: false, premultipliedAlpha: false, powerPreference: 'high-performance' });
   if (!gl) return null;
+  gl.getExtension('KHR_parallel_shader_compile');
   const small = window.innerWidth < 768 || Math.min(window.innerWidth, window.innerHeight) < 560;
-  const locked = new URLSearchParams(window.location.search).get('flightq') === 'hi';
+  const query = new URLSearchParams(window.location.search);
+  const locked = query.get('flightq') === 'hi';
+  const freezeAt = query.has('freeze') && Number.isFinite(Number(query.get('freeze'))) ? Number(query.get('freeze')) : null;
+  const frozen = freezeAt !== null;
   let terrain: TerrainRenderer;
   let particles: Particles;
   let post: Post;
@@ -51,12 +57,14 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
   let raf = 0;
   let disposed = false;
   let lost = false;
+  let pending: Program[] = [...terrain.programs, ...particles.programs, ...post.programs];
+  let warm = true;
   let visible = !document.hidden;
   let onscreen = true;
-  const start = performance.now();
+  let start = performance.now();
   let last = start;
-  let time = reduced ? 14 : 0;
-  let cruise = 0;
+  let time = frozen ? freezeAt : reduced ? 14 : 0;
+  let cruise = frozen ? freezeAt * CRUISE : 0;
   let scrollDist = window.scrollY * 0.32;
   let smoothY: number | null = null;
   let smx = 0;
@@ -76,14 +84,13 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
   let pendingSummit: V3 | null = null;
   let lastSummit = 0;
   let prevZ: number | null = null;
-  let vz = 0;
+  let vz = frozen ? CRUISE : 0;
   const drone = new Float32Array((DRONE_TRAIL + 1) * 3);
   const deviceDpr = window.devicePixelRatio || 1;
   let dpr = Math.max(0.75, Math.min(deviceDpr, 1.5));
-  let maxDpr = Math.max(dpr, Math.min(deviceDpr, small ? 1.5 : 1.75));
-  let frameAvg = 16.7;
-  let lastQuality = start;
-  let lastUpgrade = 0;
+  const maxDpr = Math.max(dpr, Math.min(deviceDpr, small ? 1.5 : 1.75));
+  const qc = new QualityController(dpr, maxDpr, post.bloomOn, start);
+  let lastScroll = -Infinity;
   let lastTelemetry = 0;
   let lastVeil = -1;
   let lastKey = '';
@@ -161,11 +168,13 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     rect = canvas.getBoundingClientRect();
     const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
     const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
-    if (canvas.width !== w || canvas.height !== h) {
+    const changed = canvas.width !== w || canvas.height !== h;
+    if (changed) {
       canvas.width = w;
       canvas.height = h;
     }
     if (!lost) post.resize(w, h);
+    return changed;
   };
 
   const rayAt = (cx: number, cy: number) => {
@@ -204,38 +213,54 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     }),
   ];
 
-  const quality = (now: number, dt: number) => {
-    if (locked) return;
-    frameAvg += (dt * 1000 - frameAvg) * 0.05;
-    if (now - lastQuality < 2000) return;
-    if (frameAvg > 25) {
-      if (now - lastUpgrade < 8000) maxDpr = Math.max(0.75, dpr - 0.125);
-      if (dpr > 0.75) dpr = Math.max(0.75, dpr - 0.25);
-      else if (post.bloomOn) post.bloomOn = false;
-      else return;
-      lastQuality = now;
-      frameAvg = 16.7;
-      resize();
-    } else if (frameAvg < 17.8 && dpr < maxDpr && now - lastQuality > 6000) {
-      dpr = Math.min(maxDpr, dpr + 0.125);
-      lastQuality = now;
-      lastUpgrade = now;
-      resize();
-    }
+  const applyQuality = (now: number) => {
+    if (!qc.apply(now, now - lastScroll > 450)) return;
+    dpr = qc.dpr;
+    post.bloomOn = qc.bloom;
+    resize();
   };
+
+  let regionsDirty = false;
+  let lastRegions = 0;
 
   const frame = (now: number) => {
     raf = 0;
     if (disposed || lost) return;
+    if (pending.length) {
+      if (!pending.every(pr => pr.ready())) {
+        last = now;
+        raf = requestAnimationFrame(frame);
+        return;
+      }
+      try {
+        pending.forEach(pr => pr.finalize());
+      } catch (err) {
+        console.warn('flight: init failed', err);
+        teardown();
+        onFail?.();
+        return;
+      }
+      pending = [];
+      start = now;
+      last = now;
+      qc.restart(now);
+    }
     const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
-    const animate = !reduced;
-    if (animate) time += dt;
-    tracker.maybeRefresh(now);
+    const animate = !reduced && !frozen;
+    if (animate) {
+      time += dt;
+      applyQuality(now);
+    }
+    if (regionsDirty && now - lastRegions > 200) {
+      regionsDirty = false;
+      lastRegions = now;
+      tracker.refresh();
+    }
     const vh = window.innerHeight;
     const sy = window.scrollY;
     smoothY = animate && smoothY !== null ? damp(smoothY, sy, 4, dt) : sy;
-    const s = tracker.sample(smoothY, vh, document.documentElement.scrollHeight);
+    const s = tracker.sample(smoothY, vh);
     const A = applyMotif(sceneAt(s.a, s.pa), s.ma, s.pa);
     const B = applyMotif(sceneAt(s.b, s.pb), s.mb, s.pb);
     const t = s.t;
@@ -300,7 +325,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     const sp = [eye[0] + sv[0] * 1000, eye[1] + sv[1] * 1000, eye[2] + sv[2] * 1000];
     const sw = viewProj[3] * sp[0] + viewProj[7] * sp[1] + viewProj[11] * sp[2] + viewProj[15];
     const sxy = project(viewProj, sp);
-    const intro = reduced ? 1 : smoothstep(0, 1, (now - start) / 3200);
+    const intro = reduced || frozen ? 1 : smoothstep(0, 1, (now - start) / 3200);
     const mt = smoothstep(0.05, 0.8, t);
     const weight = (id: MotifId) => (s.ma === id ? 1 - mt : 0) + (s.mb === id ? mt : 0);
     const ctf = weight('ctf');
@@ -317,6 +342,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
         pendingSummit = null;
       }
       if (summit) {
+        summit[1] = heightAt(summit[0], summit[2]);
         beacon[0] = summit[0];
         beacon[1] = summit[1];
         beacon[2] = summit[2];
@@ -361,10 +387,8 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       beacon,
       reduced,
     };
-    post.begin();
-    terrain.render(f);
-    particles.render(f, [lantern[0], lantern[1], lantern[2], Math.min(1, lantern[3])]);
-    post.finish({
+    const cursor: [number, number, number, number] = [lantern[0], lantern[1], lantern[2], Math.min(1, lantern[3])];
+    const pu: PostUniforms = {
       time,
       bloom: p.bloom,
       warp: dip * 0.3,
@@ -374,7 +398,16 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       dpr,
       rays: [sxy[0] * 0.5 + 0.5, sxy[1] * 0.5 + 0.5, sw > 0 ? p.rays * p.sun : 0],
       rayColor: p.glow,
-    });
+    };
+    post.begin();
+    if (warm) {
+      warm = false;
+      terrain.warm(f);
+      particles.render(f, cursor, true);
+    }
+    terrain.render(f);
+    particles.render(f, cursor);
+    post.finish(pu);
 
     if (veil) {
       const v = (s.legacy ? 0.3 * (1 - t * 0.85) : p.veil) * smoothstep(vh * 0.1, vh * 0.8, sy);
@@ -388,7 +421,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       lastTelemetry = now;
       emitFlight('telemetry', { scene: s.dominant, sceneMix: t, distance: -z });
     }
-    if (animate) quality(now, dt);
+    if (animate && !locked) qc.sample(now, dt * 1000);
     const key = `${s.a}${s.b}${s.ma}${s.mb}${s.sa}${s.sb}${t.toFixed(3)}${focusMix.toFixed(2)}`;
     const settling = !animate && key !== lastKey;
     lastKey = key;
@@ -417,6 +450,8 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       terrain.init();
       particles.init();
       post.init();
+      pending = [...terrain.programs, ...particles.programs, ...post.programs];
+      warm = true;
       lost = false;
       resize();
       kick();
@@ -424,51 +459,94 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       console.warn('flight: restore failed', err);
     }
   };
+  const redraw = () => {
+    if (disposed || lost || !visible) return;
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+    frame(performance.now());
+  };
   const onResize = () => {
     tracker.refresh();
-    resize();
+    if (resize()) redraw();
+    else kick();
+  };
+  const onScroll = () => {
+    lastScroll = performance.now();
     kick();
   };
   const ro = new ResizeObserver(() => {
-    resize();
-    kick();
+    if (resize()) redraw();
+    else kick();
   });
   ro.observe(canvas);
   const bodyRo = new ResizeObserver(onResize);
   bodyRo.observe(document.body);
+  const mo = new MutationObserver(records => {
+    for (const r of records) {
+      if (r.type === 'attributes' || [...r.addedNodes, ...r.removedNodes].some(n => n.nodeType === 1)) {
+        regionsDirty = true;
+        kick();
+        return;
+      }
+    }
+  });
+  mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-scene', 'data-motif', 'data-seed'] });
   const io = new IntersectionObserver(entries => {
     onscreen = entries.some(en => en.isIntersecting);
     kick();
   });
   io.observe(canvas);
   window.addEventListener('resize', onResize, { passive: true });
-  window.addEventListener('scroll', kick, { passive: true });
+  window.addEventListener('scroll', onScroll, { passive: true });
   document.addEventListener('visibilitychange', onVis);
   canvas.addEventListener('webglcontextlost', onLost, false);
   canvas.addEventListener('webglcontextrestored', onRestored, false);
   tracker.refresh();
   resize();
   kick();
-
-  return {
-    dispose() {
-      disposed = true;
-      if (raf) cancelAnimationFrame(raf);
-      ro.disconnect();
-      bodyRo.disconnect();
-      io.disconnect();
-      offs.forEach(fn => fn());
-      input.dispose();
-      window.removeEventListener('resize', onResize);
-      window.removeEventListener('scroll', kick);
-      document.removeEventListener('visibilitychange', onVis);
-      canvas.removeEventListener('webglcontextlost', onLost);
-      canvas.removeEventListener('webglcontextrestored', onRestored);
-      if (!lost) {
-        terrain.dispose();
-        particles.dispose();
-        post.dispose();
+  if (frozen) {
+    (window as unknown as { __flightBench?: (n: number, at?: number) => number[] }).__flightBench = (n: number, at?: number) => {
+      const out: number[] = [];
+      if (at !== undefined) {
+        time = at;
+        cruise = at * CRUISE;
       }
-    },
-  };
+      const px = new Uint8Array(4);
+      pending.forEach(pr => pr.finalize());
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      for (let i = 0; i < n; i++) {
+        const t0 = performance.now();
+        frame(t0);
+        gl.finish();
+        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        out.push(performance.now() - t0);
+      }
+      return out;
+    };
+  }
+
+  function teardown() {
+    if (disposed) return;
+    disposed = true;
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+    ro.disconnect();
+    bodyRo.disconnect();
+    mo.disconnect();
+    io.disconnect();
+    offs.forEach(fn => fn());
+    input.dispose();
+    window.removeEventListener('resize', onResize);
+    window.removeEventListener('scroll', onScroll);
+    document.removeEventListener('visibilitychange', onVis);
+    canvas.removeEventListener('webglcontextlost', onLost);
+    canvas.removeEventListener('webglcontextrestored', onRestored);
+    if (!lost) {
+      terrain.dispose();
+      particles.dispose();
+      post.dispose();
+    }
+  }
+
+  return { dispose: teardown };
 }
