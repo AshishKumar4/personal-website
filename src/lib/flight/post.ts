@@ -83,32 +83,71 @@ uniform vec3 u_eye;
 uniform vec3 u_cloudCol;
 out vec4 o;
 ${NOISE}
+float cloudCover(vec2 p) {
+  return snoise(p * 0.00085 + vec2(3.1, 7.4)) * 0.55 + snoise(p * 0.0023 + vec2(9.2, 1.3)) * 0.3 + snoise(p * 0.006 + vec2(1.7, 5.9)) * 0.15;
+}
+float cloudDensity(vec3 p, float detail, float fine) {
+  float h = (p.y - u_cloud.y) / (u_cloud.z - u_cloud.y);
+  if (h <= 0.0 || h >= 1.0) return 0.0;
+  vec2 w = p.xz + vec2(u_cloudT.x * 7.0, -u_cloudT.x * 2.5);
+  float cover = cloudCover(w) + 0.3;
+  float billow = snoise(vec2(w.x * 0.011 + p.y * 0.013, w.y * 0.011 - p.y * 0.009)) * 0.5 + snoise(vec2(w.x * 0.029 - p.y * 0.02, w.y * 0.029 + p.y * 0.017)) * 0.25 * detail;
+  if (fine > 0.001) billow += snoise(vec2(w.x * 0.075 + p.y * 0.06, w.y * 0.075 - p.y * 0.05)) * 0.5 * fine;
+  float shape = cover - pow(h, 1.35) * 0.95 - (1.0 - smoothstep(0.0, 0.14, h)) * 0.45 + billow * 0.42 - fine * 0.12;
+  return smoothstep(0.0, 0.16, shape);
+}
 vec3 cloudLayer(vec3 col, vec2 uv) {
   vec4 a = u_inv * vec4(uv * 2.0 - 1.0, 1.0, 1.0);
   vec3 d = normalize(a.xyz / a.w - u_eye);
-  float n = u_cloud.w;
+  float base = u_cloud.y;
+  float top = u_cloud.z;
+  float t0 = 0.0;
+  float t1 = 0.0;
+  if (u_eye.y > top) {
+    if (d.y >= -0.0005) return col;
+    t0 = (top - u_eye.y) / d.y;
+    t1 = (base - u_eye.y) / d.y;
+  } else if (u_eye.y < base) {
+    if (d.y <= 0.0005) return col;
+    t0 = (base - u_eye.y) / d.y;
+    t1 = (top - u_eye.y) / d.y;
+  } else {
+    t1 = d.y > 0.0005 ? (top - u_eye.y) / d.y : d.y < -0.0005 ? (base - u_eye.y) / d.y : 3200.0;
+  }
+  float far = 9000.0;
+  if (t0 > far) return col;
+  t1 = min(t1, t0 + 850.0);
+  t1 = min(t1, far);
+  float steps = u_cloud.w;
+  float dt = (t1 - t0) / steps;
+  float t = t0 + dt * hash12(gl_FragCoord.xy + fract(u_cloudT.x * 7.3) * 91.0);
+  vec3 L = normalize(vec3(0.38, 0.62, -0.69));
+  float mu = dot(d, L);
+  float phase = 0.55 + 0.9 * pow(max(mu, 0.0), 10.0) * u_cloudT.y + 0.25 * pow(max(mu, 0.0), 2.0);
   float tr = 1.0;
   vec3 acc = vec3(0.0);
-  for (int i = 0; i < 5; i++) {
-    if (float(i) >= n) break;
-    float k = d.y < 0.0 ? n - 1.0 - float(i) : float(i);
-    float h = mix(u_cloud.y, u_cloud.z, (k + 0.5) / n);
-    float t = (h - u_eye.y) / d.y;
-    if (t <= 0.0 || t > 7000.0) continue;
-    vec2 q = u_eye.xz + d.xz * t + vec2(k * 131.7 + u_cloudT.x * 9.0, k * 57.3 - u_cloudT.x * 3.0);
-    float f = snoise(q * 0.0011) * 0.55 + snoise(q * 0.0034 + 3.1) * 0.3 + snoise(q * 0.011 + 7.7) * 0.15 + snoise(q * 0.034 + 2.3) * 0.1 * smoothstep(900.0, 150.0, t);
-    float dens = smoothstep(-0.6, 0.3, f) * smoothstep(7000.0, 1500.0, t) * smoothstep(0.0, 40.0, t);
-    float alpha = dens * 0.55 * u_cloud.x;
-    float top = k / max(n - 1.0, 1.0);
-    float lit = mix(0.3, 1.0, top) * (0.4 + 0.9 * smoothstep(-0.35, 0.6, f)) + u_cloudT.y * pow(max(dot(normalize(d.xz), vec2(0.41, -0.91)), 0.0), 8.0) * top * 0.8;
-    acc += tr * alpha * u_cloudCol * lit;
-    tr *= 1.0 - alpha;
+  vec3 lit = u_cloudCol * 2.6 + vec3(0.06, 0.07, 0.09);
+  vec3 shade = u_cloudCol * vec3(0.38, 0.42, 0.6);
+  for (int i = 0; i < 28; i++) {
+    if (float(i) >= steps || tr < 0.02) break;
+    vec3 p = u_eye + d * t;
+    float fade = smoothstep(far, far * 0.3, t);
+    float near = smoothstep(320.0, 0.0, t);
+    float den = cloudDensity(p, 1.0 - smoothstep(600.0, 1400.0, t), near) * fade;
+    if (den > 0.001) {
+      float toward = cloudDensity(p + L * 55.0, 0.0, 0.0);
+      float h = (p.y - base) / (top - base);
+      float sun = exp(-toward * 3.2) * phase;
+      vec3 c = mix(shade, lit, clamp(sun * (0.25 + 0.95 * h), 0.0, 1.25)) + u_cloudCol * 0.1 * (1.0 - h);
+      float ext = den * dt * mix(0.016, 0.0032, near);
+      float a = 1.0 - exp(-ext);
+      acc += tr * a * c;
+      tr *= 1.0 - a;
+    }
+    t += dt;
   }
-  col = col * tr + acc;
-  float inside = smoothstep(u_cloud.y - 30.0, u_cloud.y + 20.0, u_eye.y) * smoothstep(u_cloud.z + 30.0, u_cloud.z - 20.0, u_eye.y);
-  vec2 sv = (uv - 0.5) * vec2(1.6 * u_cloudT.z, 1.6) + vec2(0.0, u_eye.y * 0.012);
-  float puff = smoothstep(-0.5, 0.7, snoise(sv + vec2(1.7, 0.0)) * 0.7 + snoise(sv * 2.3 + vec2(4.1, u_eye.y * 0.01)) * 0.3);
-  return mix(col, u_cloudCol * (0.75 + 0.35 * uv.y), clamp(inside * (0.35 + 0.6 * puff) * u_cloud.x, 0.0, 1.0));
+  float amt = u_cloud.x;
+  return col * mix(1.0, tr, amt) + acc * amt;
 }
 float hash(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
