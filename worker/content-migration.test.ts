@@ -74,6 +74,16 @@ class MemoryStore implements ProjectsMigrationStore {
     await this.tick();
     if (!this.experienceStories.has(id)) this.experienceStories.set(id, story);
   }
+  aboutStory = '';
+  async editAboutStory(edit: (story: string) => string) {
+    await this.tick();
+    this.aboutStory = edit(this.aboutStory);
+  }
+  experienceLogos = new Map<string, string>();
+  async setExperienceLogoIfReplaceable(id: string, logoUrl: string, retired: string[]) {
+    await this.tick();
+    if (isReplaceableField(this.experienceLogos.get(id), retired)) this.experienceLogos.set(id, logoUrl);
+  }
   async setYearIfUnset(id: string, year: string) {
     await this.tick();
     const current = this.docs.get(id);
@@ -302,5 +312,22 @@ describe('runProjectsMigration', () => {
     await runProjectsMigration(store);
     expect(store.docs.get('flydreamer')!.order).toBe(0);
     expect(store.sorted()[0]).toBe('flydreamer');
+  });
+
+  test('swaps the old favicons for the new logo marks and keeps custom logos', async () => {
+    const store = new MemoryStore([]);
+    store.experienceLogos.set('cloudflare', 'https://www.cloudflare.com/favicon.ico');
+    store.experienceLogos.set('dyte', '/api/images/mine.png');
+    await runProjectsMigration(store);
+    expect(store.experienceLogos.get('cloudflare')).toBe('/logos/cloudflare.svg');
+    expect(store.experienceLogos.get('dyte')).toBe('/api/images/mine.png');
+    expect(store.experienceLogos.get('eaf0515c-3715-4c2c-a138-38540c251a0d')).toBe('/logos/vit.webp');
+  });
+
+  test('rewrites only the exact retired sentences in the about story', async () => {
+    const store = new MemoryStore([]);
+    store.aboutStory = 'Aqeous. The code is still on my GitHub, teenage mess and all. It was never really finished, but it set the way I still learn today: build it.\n\nMy own words stay.';
+    await runProjectsMigration(store);
+    expect(store.aboutStory).toBe('Aqeous. The code is still on my GitHub. It set the way I still learn today: build it.\n\nMy own words stay.');
   });
 });

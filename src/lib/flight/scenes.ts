@@ -37,6 +37,13 @@ export interface SceneParams {
   build: number;
   rise: number;
   bank: number;
+  crystal: number;
+  quantum: number;
+  arena: number;
+  mind: number;
+  canyon: number;
+  alpine: number;
+  hi: V3;
   fireflies: number;
   aurora: number;
   scanlines: number;
@@ -85,6 +92,13 @@ const NIGHT: SceneParams = {
   build: 0,
   rise: 0,
   bank: 0,
+  crystal: 0,
+  quantum: 0,
+  arena: 0,
+  mind: 0,
+  canyon: 0,
+  alpine: 0,
+  hi: [0.9, 0.95, 1],
   fireflies: 0,
   aurora: 0,
   scanlines: 0,

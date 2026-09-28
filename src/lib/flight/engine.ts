@@ -2,7 +2,7 @@ import { emitFlight, onFlight } from './bus';
 import { INTRO_GO, introDuration, introShot } from './choreo';
 import { FlightInput } from './input';
 import { DRONE_TRAIL, Particles } from './particles';
-import { applyMotif, motifCode, variation, type MotifId, type Variation } from './motifs';
+import { alpineOf, applyMotif, motifCode, variation, type MotifId, type Variation } from './motifs';
 import { Post, type PostUniforms } from './post';
 import { SceneTracker, mixParams, sceneAt, type V3 } from './scenes';
 import { TerrainRenderer } from './terrain-renderer';
@@ -336,6 +336,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     field.b = B;
     field.va = varA;
     field.vb = varB;
+    field.alp = [A.alpine * alpineOf(s.sa), B.alpine * alpineOf(s.sb)];
     field.time = time;
 
     if (animate) cruise += dt * CRUISE * lerp(A.speed, B.speed, tc) * (1 + dip * 0.8);
@@ -382,7 +383,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       const pitch = pitchN + (lerp(shot.pitch, pitchN, shot.pitchMix) - pitchN) * iw;
       const ie: V3 = [x, alt + shot.lift * iw, z + shot.back * iw];
       const cp = Math.cos(pitch);
-      view = lookAt(ie, [ie[0] + Math.sin(yaw) * cp * ahead, ie[1] + Math.sin(pitch) * ahead, ie[2] - Math.cos(yaw) * cp * ahead], roll + shot.roll * iw);
+      view = lookAt(ie, [ie[0] + Math.sin(yaw) * cp * ahead, ie[1] + Math.sin(pitch) * ahead, ie[2] - Math.cos(yaw) * cp * ahead], roll * (1 - iw * (1 - shot.pitchMix)) + shot.roll * iw);
       eye = ie;
       fovDeg += shot.fov * iw;
     } else view = lookAt(eye, [tx, ty, z - ahead], roll);
@@ -470,6 +471,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       motif: [motifCode(s.ma), motifCode(s.mb)],
       varA,
       varB,
+      alpine: field.alp,
       mq: small ? 0.6 : 1,
       emu: weight('emulator'),
       drone,
@@ -480,7 +482,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     const pu: PostUniforms = {
       time,
       bloom: p.bloom,
-      warp: dip * 0.3,
+      warp: dip * 0.3 + (shot ? shot.rush * shot.cloud * iw * 0.22 : 0),
       scan: p.scanlines,
       grain: 0.05,
       exposure: shot ? p.exposure * (1 - (1 - shot.exposure) * iw) : p.exposure,
@@ -488,7 +490,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       rays: [sxy[0] * 0.5 + 0.5, sxy[1] * 0.5 + 0.5, sw > 0 ? p.rays * p.sun : 0],
       rayColor: p.glow,
       cloud: shot
-        ? { amt: shot.cloud * iw, base: small ? 400 : 480, top: small ? 520 : 620, slabs: small ? 3 : 5, time, moon: p.moon, inv, eye, color: [p.skyHorizon[0] * 3 + 0.16, p.skyHorizon[1] * 3 + 0.18, p.skyHorizon[2] * 3 + 0.25] }
+        ? { amt: shot.cloud * iw, base: small ? 420 : 440, top: small ? 600 : 660, slabs: small ? 18 : 24, time, moon: p.moon, inv, eye, color: [p.skyHorizon[0] * 3 + 0.16, p.skyHorizon[1] * 3 + 0.18, p.skyHorizon[2] * 3 + 0.25] }
         : undefined,
     };
     post.begin();

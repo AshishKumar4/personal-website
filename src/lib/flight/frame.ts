@@ -25,6 +25,7 @@ export interface Frame {
   motif: [number, number];
   varA: Variation;
   varB: Variation;
+  alpine: [number, number];
   mq: number;
   emu: number;
   drone: Float32Array;

@@ -433,7 +433,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       about,
       aboutStory: typeof aboutStory === 'string' ? aboutStory : (current.aboutStory ?? ''),
       ...(backgroundEffect ? { backgroundEffect } : {}),
-      ...pickOptionalStrings(body, ['heroPrompt', 'portraitUrl', 'now', 'location']),
+      ...pickOptionalStrings(body, ['heroPrompt', 'portraitUrl', 'now', 'location', 'origins']),
       ...(body.accent ? { accent: body.accent } : {}),
       ...(body.facts ? { facts: body.facts.map(f => ({ label: f.label.trim(), value: f.value.trim() })).filter(f => f.label && f.value).slice(0, 12) } : {}),
     };

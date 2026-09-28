@@ -28,7 +28,7 @@ const SEED_EXPERIENCE: Experience[] = [
     id: "cloudflare",
     story: EXPERIENCE_STORIES["cloudflare"],
     company: "Cloudflare",
-    logoUrl: "https://www.cloudflare.com/favicon.ico",
+    logoUrl: "/logos/cloudflare.svg",
     role: "Systems Engineer, Emerging Technologies & Incubation",
     duration: "Jun 2025 - Present",
     location: "Austin, TX, United States",
@@ -40,7 +40,7 @@ const SEED_EXPERIENCE: Experience[] = [
     id: "umd",
     story: EXPERIENCE_STORIES["umd"],
     company: "University of Maryland, College Park",
-    logoUrl: "https://umd.edu/default/static/icons/favicon.png",
+    logoUrl: "/logos/umd.svg",
     role: "M.S. in Applied Machine Learning",
     duration: "Aug 2024 - May 2026",
     location: "College Park, MD, United States",
@@ -52,7 +52,7 @@ const SEED_EXPERIENCE: Experience[] = [
     id: "dyte",
     story: EXPERIENCE_STORIES["dyte"],
     company: "Dyte (acquired by Cloudflare)",
-    logoUrl: "https://cdn.prod.website-files.com/63ca2acc6352c221abe583d0/63cb76071fe6f5c0f6478cfa_favicon.svg",
+    logoUrl: "/logos/dyte.svg",
     role: "Machine Learning and Systems Engineer",
     duration: "Jun 2021 - Jul 2024 · 3 yrs 2 mos",
     location: "Bengaluru, India · Hybrid",
@@ -64,7 +64,7 @@ const SEED_EXPERIENCE: Experience[] = [
     id: "hyperverge",
     story: EXPERIENCE_STORIES["hyperverge"],
     company: "HyperVerge Inc.",
-    logoUrl: "https://cdn.hyperverge.co/wp-content/uploads/2025/08/favicon.png",
+    logoUrl: "/logos/hyperverge.webp",
     role: "Machine Learning Researcher",
     duration: "Dec 2019 - Jun 2021 · 1 yr 7 mos",
     location: "Bengaluru, Karnataka, India",
@@ -76,7 +76,7 @@ const SEED_EXPERIENCE: Experience[] = [
     id: "vit",
     story: EXPERIENCE_STORIES["vit"],
     company: "Vellore Institute of Technology",
-    logoUrl: "https://www.google.com/s2/favicons?domain=vit.ac.in&sz=64",
+    logoUrl: "/logos/vit.webp",
     role: "B.Tech in Computer Science",
     duration: "Jul 2016 - Jun 2020",
     location: "Vellore, India",
@@ -132,6 +132,20 @@ export function projectsMigrationStore(env: Env, migrationId: string): ProjectsM
             const entity = new ExperienceEntity(env, id);
             if (!(await entity.exists())) return;
             await entity.mutate((current) => (current.company && isReplaceableStory(current.story) ? { ...current, story } : current));
+        },
+        setExperienceLogoIfReplaceable: async (id, logoUrl, retired) => {
+            const entity = new ExperienceEntity(env, id);
+            if (!(await entity.exists())) return;
+            await entity.mutate((current) => (current.company && isReplaceableField(current.logoUrl, retired) ? { ...current, logoUrl } : current));
+        },
+        editAboutStory: async (edit) => {
+            const config = new SiteConfigEntity(env, "main");
+            if (!(await config.exists())) return;
+            await config.mutate((current) => {
+                const story = current.aboutStory ?? "";
+                const next = edit(story);
+                return next === story ? current : { ...current, aboutStory: next };
+            });
         },
         setFieldIfReplaceable: async (id, field, value, retired) => {
             const entity = new ProjectEntity(env, id);
@@ -217,7 +231,7 @@ export class SiteConfigEntity extends Entity<SiteConfig> {
             await config.save({
                 subtitle: "I love building things.",
                 bio: "I'm an ML engineer and open-source enthusiast with a passion for science and technology. I love building things from scratch and challenging myself. My hobbies are building and flying FPV drones, and playing minecraft and valorant. I don't really like coding tbh (since I wrote an x86 kernel from scratch when I was 15)",
-                about: "I've been building things since before I probably should have been. When I was 15 I taught myself C and x86 assembly and wrote a small multicore operating system from scratch, mostly off my phone over remote desktop since I was only allowed an hour of computer a day. That set the pattern for how I learn: if something grabs me, I have to build it myself to actually understand it. These days I'm a software engineer at Cloudflare's Emerging Technologies group, where I created Cloudflare OS, our internal platform for background agents, and VibeSDK, our open-source AI app builder. Before Cloudflare I spent around five years on ML and systems, architecting a distributed WebRTC SFU at Dyte and training computer vision models on TPUs at HyperVerge. On the side I keep tinkering: I wrote FlaxDiff, a diffusion library in JAX, and trained a text-to-image model on 128 TPUs, and lately I've been teaching a reinforcement learning agent to fly a drone from just vision. The thing I care about most is an old question I've never quite let go of, whether intelligence can really be built and not just approximated, and the ideas creeping towards it like diffusion, world models and reinforcement learning. That's where I wanna go next.",
+                about: "I've been building things since before I probably should have been. When I was 15 I taught myself C and x86 assembly and wrote a small multicore operating system from scratch, mostly off my phone over remote desktop since I was only allowed an hour of computer a day. That set the pattern for how I learn: if something grabs me, I have to build it myself to actually understand it. These days I'm a software engineer at Cloudflare's Emerging Technologies group, where I created Cloudflare OS, our internal platform for background agents, and VibeSDK, our open-source AI app builder. Before Cloudflare I spent around five years on ML and systems, architecting a distributed WebRTC SFU at Dyte and training computer vision models on TPUs at HyperVerge. On the side I keep tinkering: I wrote FlaxDiff, a diffusion library in JAX, and trained a text-to-image model on 128 TPUs, and lately I've been teaching a reinforcement learning agent to fly a drone from just vision. The question I've never quite let go of is whether a machine can actually think, and the ideas creeping towards it, like diffusion, world models and reinforcement learning, are where I spend my free time. That's where I wanna go next.",
                 aboutStory: "",
                 backgroundEffect: 'grid'
             });

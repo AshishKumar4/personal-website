@@ -107,22 +107,27 @@ export interface TerrainShape {
   build: number;
   rise: number;
   bank: number;
+  crystal: number;
+  quantum: number;
+  arena: number;
+  mind: number;
+  canyon: number;
 }
 
 export type TerrainVariation = [number, number, number, number];
 
 const FLAT: TerrainVariation = [0, 0, 0, 0];
 
-export const SHAPE_KEYS = ['amp', 'terrace', 'terraceStep', 'jitter', 'water', 'plain', 'hills', 'mesa', 'cloud', 'build', 'rise', 'bank'] as const;
+export const SHAPE_KEYS = ['amp', 'terrace', 'terraceStep', 'jitter', 'water', 'plain', 'hills', 'mesa', 'cloud', 'build', 'rise', 'bank', 'crystal', 'quantum', 'arena', 'mind', 'canyon'] as const;
 
-export function terrainBase(x: number, z: number, v: TerrainVariation = FLAT, det = 1): number {
+export function terrainBase(x: number, z: number, v: TerrainVariation = FLAT, det = 1, alp = 0): number {
   const qx = x + v[0];
   const qz = z + v[1];
   const base = fbm(qx * 0.0024 + 5.2, qz * 0.0024 + 1.3);
-  const ridge = ridged(qx * 0.0052 + 11.3, qz * 0.0052 + 4.7, 2 + v[2], det);
+  const ridge = ridged(qx * 0.0052 + 11.3, qz * 0.0052 + 4.7, 2 + v[2] + alp * 0.9, det);
   const big = snoise(qx * 0.0011 + 3.1, qz * 0.0011 + 7.9) * 0.5 + 0.5;
   const m = smoothstep(0.28, 0.85, base);
-  const h = (m * m * 0.75 + ridge * m * 0.45 * (1 + v[2] * 0.35)) * (150 + 140 * big);
+  const h = (m * m * 0.75 + ridge * m * 0.45 * (1 + v[2] * 0.35 + alp * 0.5)) * (150 + 140 * big) * (1 + alp * 0.45 * smoothstep(0.35, 0.9, big));
   const carve = smoothstep(10, 170 * (1 + v[3]), Math.abs(x - pathX(z)));
   return h * (0.2 + 0.8 * carve);
 }
@@ -159,6 +164,124 @@ function bankTop(qx: number, qz: number, t: number): number {
   return 4 + n * (30 + snoise(px * 0.011 + 1.9, pz * 0.011 + 8.4) * 8);
 }
 
+const R72C = 0.309017;
+const R72S = 0.951057;
+
+function crystalOne(vx: number, vz: number, dx: number, dz: number, size: number, tall: number): number {
+  let rad = vx * dx + vz * dz;
+  for (let k = 0; k < 4; k++) {
+    const nx = dx * R72C - dz * R72S;
+    dz = dx * R72S + dz * R72C;
+    dx = nx;
+    rad = Math.max(rad, vx * dx + vz * dz);
+  }
+  const k = 1 - rad / size;
+  return k > 0 ? tall * Math.min(k * 4, 0.5 + 0.5 * k) : 0;
+}
+
+export function crystalH(x: number, z: number, ox: number, oz: number): number {
+  const qx = x + ox;
+  const qz = z + oz;
+  const gx = qx / 110;
+  const gz = qz / 110;
+  const c0x = Math.floor(gx) + (fract(gx) >= 0.5 ? 1 : 0) - 1;
+  const c0z = Math.floor(gz) + (fract(gz) >= 0.5 ? 1 : 0) - 1;
+  let h = fbm(qx * 0.005 + 3.3, qz * 0.005 + 8.8) * 10;
+  for (let j = 0; j < 2; j++) {
+    for (let i = 0; i < 2; i++) {
+      const cx = c0x + i;
+      const cz = c0z + j;
+      const r = hash22(cx + 0.37, cz + 0.37);
+      const tx = (cx + 0.22 + r[0] * 0.56) * 110;
+      const tz = (cz + 0.22 + r[1] * 0.56) * 110;
+      const px = tx - ox;
+      const pz = tz - oz;
+      const cl = smoothstep(-0.3, 0.4, snoise(tx * 0.0032 + 6.1, tz * 0.0032 + 2.4)) * smoothstep(45, 150, Math.abs(px - pathX(pz)));
+      if (cl <= 0) continue;
+      const a = hash12(cx + 8.3, cz + 8.3) * 6.2832;
+      const dx = Math.cos(a);
+      const dz = Math.sin(a);
+      const size = 13 + r[1] * 13;
+      const tall = (70 + hash12(cx + 1.9, cz + 1.9) * 150) * cl;
+      h = Math.max(h, crystalOne(qx - tx, qz - tz, dx, dz, size, tall));
+      const so = hash22(cx + 5.1, cz + 5.1);
+      const sx = (so[0] - 0.5) * size * 2.6;
+      const sz = (so[1] - 0.5) * size * 2.6;
+      h = Math.max(h, crystalOne(qx - tx - sx, qz - tz - sz, -dz, dx, size * 0.7, tall * 0.62));
+      h = Math.max(h, crystalOne(qx - tx + sz, qz - tz - sx, dz, dx, size * 0.55, tall * 0.4));
+    }
+  }
+  return h;
+}
+
+export function quantumH(x: number, z: number, ox: number, oz: number, t: number): number {
+  const qx = x + ox;
+  const qz = z + oz;
+  let psi = 0;
+  let norm = 1e-4;
+  const zn = Math.floor(qz / 700 + 0.5);
+  for (let k = -1; k < 2; k++) {
+    const n = zn + k;
+    const sz = n * 700;
+    const sx = pathX(sz - oz) + ox + ((n - Math.floor(n / 2) * 2) * 2 - 1) * 200;
+    const r = Math.hypot(qx - sx, qz - sz);
+    const env = Math.exp((-r * r) / 202500);
+    psi += Math.cos(r * 0.075 - t * 0.9) * env;
+    norm += env * env;
+  }
+  const I = (psi * psi) / norm;
+  return 70 * (1 - Math.exp(-I * 1.2)) + 2;
+}
+
+function arenaLevel(cx: number, cz: number, ox: number, oz: number): number {
+  const px = (cx + 0.5) * 24;
+  const pz = (cz + 0.5) * 24;
+  const n = snoise(px * 0.0034 + 1.9, pz * 0.0034 + 6.3) * 0.85 + snoise(px * 0.012 + 8.2, pz * 0.012 + 0.7) * 0.15;
+  const lv = Math.floor(Math.min(0.999, Math.max(0, n * 0.62 + 0.55)) * 5);
+  return Math.min(lv, Math.floor(Math.max(Math.abs(px - ox - pathX(pz - oz)) - 40, 0) / 48));
+}
+
+const box = (fx: number, fz: number, x0: number, x1: number, z0: number, z1: number) => (fx >= x0 && fx <= x1 && fz >= z0 && fz <= z1 ? 1 : 0);
+
+export function arenaH(x: number, z: number, ox: number, oz: number): number {
+  ox = Math.floor(ox / 24) * 24;
+  oz = Math.floor(oz / 24) * 24;
+  const gx = (x + ox) / 24;
+  const gz = (z + oz) / 24;
+  const cx = Math.floor(gx);
+  const cz = Math.floor(gz);
+  const fx = gx - cx;
+  const fz = gz - cz;
+  const lv = arenaLevel(cx, cz, ox, oz);
+  const r = hash12(cx + 2.9, cz + 2.9);
+  if (r < 0.22) {
+    const alongX = r < 0.11;
+    const ln = arenaLevel(cx + (alongX ? 1 : 0), cz + (alongX ? 0 : 1), ox, oz);
+    if (Math.abs(ln - lv) === 1) return lerp(lv, ln, alongX ? fx : fz) * 16;
+  }
+  const h = lv * 16;
+  if (lv >= 1 && hash12(Math.floor(cx / 6) + 5.7, Math.floor(cz / 6) + 5.7) > 0.7 && cx - Math.floor(cx / 2) * 2 === 0) return h + 26 * box(fx, fz, 0.2, 0.75, 0.06, 0.94);
+  if (r > 0.95) return h + 12 * box(fx, fz, 0.22, 0.78, 0.22, 0.78);
+  return h;
+}
+
+function mindH(qx: number, qz: number, d: number): number {
+  const wx = qx + snoise(qx * 0.0019 + 1.7, qz * 0.0019 + 4.2) * 110;
+  const wz = qz + snoise(qx * 0.0019 + 8.3, qz * 0.0019 + 2.9) * 110;
+  const r1 = 1 - Math.abs(snoise(wx * 0.0014 + 3.3, wz * 0.0014 + 7.7));
+  const h = r1 * r1 * r1 * 110 + 3;
+  return h * (0.35 + 0.65 * smoothstep(40, 260, d));
+}
+
+function canyonH(qx: number, qz: number, d: number): number {
+  const dd = d + snoise(qx * 0.0045 + 2.1, qz * 0.0045 + 9.4) * 24 + snoise(qx * 0.014 + 5.3, qz * 0.014 + 1.1) * 7;
+  const top = 205 + (fbm(qx * 0.0016 + 3.7, qz * 0.0016 + 6.2) - 0.5) * 130;
+  const w = smoothstep(52, 150, dd);
+  const t = (top * w * (0.7 + 0.3 * w)) / 20;
+  const ft = Math.floor(t);
+  return Math.max((ft + smoothstep(0.62, 1, t - ft)) * 20, 1.5 + snoise(qx * 0.012 + 4.4, qz * 0.012 + 3.3) * 0.8);
+}
+
 function smax(a: number, b: number, k: number): number {
   const h = Math.min(1, Math.max(0, 0.5 + (0.5 * (a - b)) / k));
   return b + (a - b) * h + k * h * (1 - h);
@@ -169,6 +292,7 @@ export class TerrainField {
   b: TerrainShape;
   va: TerrainVariation = FLAT;
   vb: TerrainVariation = FLAT;
+  alp: [number, number] = [0, 0];
   time = 0;
 
   constructor(s: TerrainShape) {
@@ -177,10 +301,10 @@ export class TerrainField {
   }
 
   private base(x: number, z: number, m: number, det: number): number {
-    const { va, vb } = this;
-    if (m <= 0.001 || va === vb) return terrainBase(x, z, va, det);
-    if (m >= 0.999) return terrainBase(x, z, vb, det);
-    return lerp(terrainBase(x, z, va, det), terrainBase(x, z, vb, det), m);
+    const { va, vb, alp } = this;
+    if (m <= 0.001 || (va === vb && alp[0] === alp[1])) return terrainBase(x, z, va, det, alp[0]);
+    if (m >= 0.999) return terrainBase(x, z, vb, det, alp[1]);
+    return lerp(terrainBase(x, z, va, det, alp[0]), terrainBase(x, z, vb, det, alp[1]), m);
   }
 
   height(x: number, z: number, m: number): number {
@@ -190,6 +314,11 @@ export class TerrainField {
       const wa = a[k] * (1 - m);
       const wb = b[k] * m;
       return ((wa > 0 ? wa * fn(x + va[0], z + va[1]) : 0) + (wb > 0 ? wb * fn(x + vb[0], z + vb[1]) : 0)) / Math.max(wa + wb, 1e-5);
+    };
+    const offSide = (k: typeof SHAPE_KEYS[number], fn: (ox: number, oz: number) => number) => {
+      const wa = a[k] * (1 - m);
+      const wb = b[k] * m;
+      return ((wa > 0 ? wa * fn(va[0], va[1]) : 0) + (wb > 0 ? wb * fn(vb[0], vb[1]) : 0)) / Math.max(wa + wb, 1e-5);
     };
     const d = Math.abs(x - pathX(z));
     const det = 1 - s('jitter');
@@ -201,9 +330,19 @@ export class TerrainField {
     const build = s('build');
     const terrace = s('terrace');
     const cloud = s('cloud');
-    let h = hills + mesa < 0.999 ? this.base(x, z, m, det) * amp : 0;
+    const crystal = a.crystal * (1 - m) + b.crystal * m;
+    const quantum = a.quantum * (1 - m) + b.quantum * m;
+    const arena = a.arena * (1 - m) + b.arena * m;
+    const mind = a.mind * (1 - m) + b.mind * m;
+    const canyon = a.canyon * (1 - m) + b.canyon * m;
+    let h = hills + mesa + crystal + quantum + arena + mind + canyon < 0.999 ? this.base(x, z, m, det) * amp : 0;
     if (hills > 0.001) h = lerp(h, side('hills', (px, pz) => hillsH(px, pz, d)), hills);
     if (mesa > 0.001) h = lerp(h, side('mesa', mesaH), mesa);
+    if (crystal > 0.001) h = lerp(h, offSide('crystal', (ox, oz) => crystalH(x, z, ox, oz)), crystal);
+    if (quantum > 0.001) h = lerp(h, offSide('quantum', (ox, oz) => quantumH(x, z, ox, oz, this.time)), quantum);
+    if (arena > 0.001) h = lerp(h, offSide('arena', (ox, oz) => arenaH(x, z, ox, oz)), arena);
+    if (mind > 0.001) h = lerp(h, side('mind', (px, pz) => mindH(px, pz, d)), mind);
+    if (canyon > 0.001) h = lerp(h, side('canyon', (px, pz) => canyonH(px, pz, d)), canyon);
     if (plain > 0.001) {
       const pv = a.plain * (1 - m) >= b.plain * m ? va : vb;
       h = lerp(h, h * smoothstep(220, 620, d) * 1.2 + fbm((x + pv[0]) * 0.006, (z + pv[1]) * 0.006) * 4, plain);
