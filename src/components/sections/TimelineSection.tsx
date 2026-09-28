@@ -169,6 +169,84 @@ function ProjectNode({ entry, item, github, flip }: { entry: TimelineEntry; item
   );
 }
 
+function spanLabel(items: Project[]) {
+  const first = yearLabel(items[0]?.year);
+  const last = yearLabel(items[items.length - 1]?.year);
+  if (!first || !last || first === last) return first ?? last;
+  const [fm, fy] = first.split(' ');
+  const [lm, ly] = last.split(' ');
+  return fy && ly && fy === ly ? `${fm} to ${lm} ${ly}` : `${first} to ${last}`;
+}
+
+function GroupCard({ item, github }: { item: Project; github: GitHubSnapshot | null }) {
+  const stats = repoStats(github, item.repo);
+  const href = item.url || (item.repo ? `https://github.com/${item.repo}` : undefined);
+  const repoHref = item.repo ? `https://github.com/${item.repo}` : undefined;
+  const focus = () => emitFlight('focus', { hue: projectHue(item.id), strength: 1 });
+  const blur = () => emitFlight('focus', { hue: null });
+  return (
+    <div id={anchorId(item.id)} onMouseEnter={focus} onMouseLeave={blur} className="scrim">
+      <Words as="h3" text={item.name} wdth="114%" className="t-name text-[clamp(1.9rem,2.7vw,2.75rem)] leading-[1] text-foreground" />
+      <div className="reveal-sub">
+        {narrative(item).map((para, i) => (
+          <p key={i} className="t-narration legible mt-5 text-[1.0625rem] leading-[1.6] text-foreground/80 text-pretty">{para}</p>
+        ))}
+        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+          {(href || repoHref) && (
+            <a href={repoHref ?? href} target="_blank" rel="noopener noreferrer" className="pill group">
+              {repoHref ? 'GitHub' : 'Visit'}
+              <ArrowUpRight size={13} className="opacity-60 transition-transform duration-300 group-hover:-translate-y-px group-hover:translate-x-px" />
+            </a>
+          )}
+          {(stats?.language || (stats && stats.stars > 0)) && (
+            <span className="t-kicker legible flex gap-4 normal-case tracking-[0.04em] text-foreground/50 tabular">
+              {stats?.language && <span>{stats.language}</span>}
+              {stats && stats.stars > 0 && <span>{formatCount(stats.stars)} stars</span>}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GroupNode({ entry, items, lead, github }: { entry: TimelineEntry; items: Project[]; lead: Project; github: GitHubSnapshot | null }) {
+  const node = useRef<HTMLElement>(null);
+  const head = useRef<HTMLDivElement>(null);
+  const label = items.map(p => p.name).join(', ');
+  useStageRegion(node, { kind: 'node', id: entry.id, label, year: entry.start, scene: entry.scene });
+  useStageRegion(head, { kind: 'reveal', id: entry.id, anchor: 'top', span: 0.45 });
+  const when = spanLabel(items);
+
+  return (
+    <article
+      ref={node}
+      id={anchorId(entry.id)}
+      data-scene={entry.scene}
+      data-motif={entryMotif(lead.id)}
+      data-seed={projectHue(lead.id).toFixed(4)}
+      aria-label={label}
+      className="relative py-[24svh] md:py-[30svh]"
+      style={{ '--tone': SCENE_TONE[entry.scene] } as React.CSSProperties}
+    >
+      <RailContainer>
+        <div ref={head} className="reveal-title">
+          <div className="t-kicker legible flex items-center gap-3 text-foreground/60">
+            <span aria-hidden="true" className="h-1.5 w-1.5 rotate-45 bg-[hsl(var(--tone))]" />
+            <span className="text-foreground/80">Projects</span>
+            {when && <span>{when}</span>}
+          </div>
+          <div className="mt-8 grid grid-cols-1 gap-y-14 md:mt-10 md:grid-cols-3 md:gap-x-10">
+            {items.map(item => (
+              <GroupCard key={item.id} item={item} github={github} />
+            ))}
+          </div>
+        </div>
+      </RailContainer>
+    </article>
+  );
+}
+
 export function TimelineSection() {
   const { data, github } = useSiteConfig();
   const entries = data ? buildTimeline(data.experiences, data.projects) : [];
@@ -181,6 +259,8 @@ export function TimelineSection() {
       {entries.map(entry =>
         entry.kind === 'experience' ? (
           <ExperienceNode key={`e-${entry.id}`} entry={entry} item={entry.item} />
+        ) : entry.kind === 'group' ? (
+          <GroupNode key={`g-${entry.id}`} entry={entry} items={entry.items} lead={entry.lead} github={github} />
         ) : (
           <ProjectNode key={`p-${entry.id}`} entry={entry} item={entry.item} github={github} flip={projectIndex++ % 2 === 1} />
         ),

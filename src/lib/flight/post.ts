@@ -7,11 +7,14 @@ uniform sampler2D u_tex;
 uniform vec2 u_texel;
 uniform float u_threshold;
 out vec4 o;
+vec3 finite(vec3 c) {
+  return vec3(c.r < 256.0 && c.r > -1.0 ? max(c.r, 0.0) : 0.0, c.g < 256.0 && c.g > -1.0 ? max(c.g, 0.0) : 0.0, c.b < 256.0 && c.b > -1.0 ? max(c.b, 0.0) : 0.0);
+}
 void main() {
-  vec3 c = texture(u_tex, v_uv + u_texel * vec2(-1.0, -1.0)).rgb;
-  c += texture(u_tex, v_uv + u_texel * vec2(1.0, -1.0)).rgb;
-  c += texture(u_tex, v_uv + u_texel * vec2(-1.0, 1.0)).rgb;
-  c += texture(u_tex, v_uv + u_texel * vec2(1.0, 1.0)).rgb;
+  vec3 c = finite(texture(u_tex, v_uv + u_texel * vec2(-1.0, -1.0)).rgb);
+  c += finite(texture(u_tex, v_uv + u_texel * vec2(1.0, -1.0)).rgb);
+  c += finite(texture(u_tex, v_uv + u_texel * vec2(-1.0, 1.0)).rgb);
+  c += finite(texture(u_tex, v_uv + u_texel * vec2(1.0, 1.0)).rgb);
   c *= 0.25;
   float l = max(c.r, max(c.g, c.b));
   float k = u_threshold * 0.6;
@@ -78,6 +81,9 @@ float hash(vec2 p) {
   p3 += dot(p3, p3.yzx + 33.33);
   return fract((p3.x + p3.y) * p3.z);
 }
+vec3 finite(vec3 c) {
+  return vec3(c.r < 256.0 && c.r > -1.0 ? max(c.r, 0.0) : 0.0, c.g < 256.0 && c.g > -1.0 ? max(c.g, 0.0) : 0.0, c.b < 256.0 && c.b > -1.0 ? max(c.b, 0.0) : 0.0);
+}
 vec3 tone(vec3 x) {
   vec3 k = vec3(0.62);
   vec3 over = max(x - k, 0.0);
@@ -91,14 +97,15 @@ void main() {
   col.r = texture(u_scene, uv - dc * ca * 2.0).r;
   col.g = texture(u_scene, uv).g;
   col.b = texture(u_scene, uv + dc * ca * 2.0).b;
-  vec3 bl = texture(u_bloom, uv).rgb;
+  col = finite(col);
+  vec3 bl = finite(texture(u_bloom, uv).rgb);
   if (u_warp > 0.01) {
     vec3 acc = vec3(0.0);
     float j = hash(gl_FragCoord.xy + u_time);
     for (int i = 0; i < 8; i++) {
       float s = (float(i) + j) / 8.0;
       vec2 q = uv - dc * s * 0.09 * u_warp;
-      acc += texture(u_scene, q).rgb + texture(u_bloom, q).rgb * u_bloomAmt;
+      acc += finite(texture(u_scene, q).rgb) + finite(texture(u_bloom, q).rgb) * u_bloomAmt;
     }
     float w = u_warp * smoothstep(0.12, 0.5, length(dc));
     col = mix(col, acc / 8.0 - bl * u_bloomAmt, w * 0.85);

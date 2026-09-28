@@ -57,7 +57,12 @@ const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', '
 
 export type TimelineEntry =
   | { kind: 'experience'; id: string; start: number | null; scene: SceneId; item: Experience }
-  | { kind: 'project'; id: string; start: number | null; scene: SceneId; item: Project };
+  | { kind: 'project'; id: string; start: number | null; scene: SceneId; item: Project }
+  | { kind: 'group'; id: string; start: number | null; scene: SceneId; items: Project[]; lead: Project };
+
+type SingleEntry = Exclude<TimelineEntry, { kind: 'group' }>;
+
+const GROUP_GAP = 1.5 / 12;
 
 function defaultScene(id: string, fallback: SceneId): SceneId {
   const key = id.trim().toLowerCase();
@@ -84,12 +89,35 @@ export function projectStart(year?: string): number | null {
 }
 
 export function buildTimeline(experiences: Experience[], projects: Project[]): TimelineEntry[] {
-  const entries: TimelineEntry[] = [
+  const entries: SingleEntry[] = [
     ...experiences.map(e => ({ kind: 'experience' as const, id: e.id, start: experienceStart(e.duration), scene: e.scene ?? defaultScene(e.id, 'signal'), item: e })),
     ...projects.map(p => ({ kind: 'project' as const, id: p.id, start: projectStart(p.year), scene: p.scene ?? defaultScene(p.id, 'swarm'), item: p })),
   ];
   const dated = entries.filter(e => e.start !== null).sort((a, b) => (a.start! - b.start!) || (a.kind === b.kind ? 0 : a.kind === 'experience' ? -1 : 1));
-  return [...dated, ...entries.filter(e => e.start === null)];
+  return [...groupProjects(dated), ...entries.filter(e => e.start === null)];
+}
+
+function groupProjects(entries: SingleEntry[]): TimelineEntry[] {
+  const out: TimelineEntry[] = [];
+  let run: Extract<SingleEntry, { kind: 'project' }>[] = [];
+  const flush = () => {
+    if (run.length > 1) {
+      const lead = run.reduce((best, e) => ((e.item.order ?? 99) < (best.item.order ?? 99) ? e : best), run[0]);
+      out.push({ kind: 'group', id: run.map(e => e.id).join('+'), start: run[0].start, scene: lead.scene, items: run.map(e => e.item), lead: lead.item });
+    } else out.push(...run);
+    run = [];
+  };
+  for (const e of entries) {
+    const prev = run[run.length - 1];
+    if (e.kind === 'project' && prev && e.start !== null && prev.start !== null && e.start - prev.start <= GROUP_GAP) run.push(e);
+    else {
+      flush();
+      if (e.kind === 'project') run.push(e);
+      else out.push(e);
+    }
+  }
+  flush();
+  return out;
 }
 
 export function projectHue(id: string): number {
@@ -102,5 +130,6 @@ export function projectHue(id: string): number {
 }
 
 export function entryTitle(e: TimelineEntry): string {
+  if (e.kind === 'group') return e.items.map(p => p.name).join(', ');
   return e.kind === 'experience' ? e.item.company : e.item.name;
 }

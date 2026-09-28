@@ -17,6 +17,7 @@ float amountAt(vec2 p) {
   return mix(u_amount.x, u_amount.y, sweepAt(p));
 }
 float sprite(float a, float core, inout float energy) {
+  if (!(core > 0.0 && core < 1e5) || gl_Position.w <= 0.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); energy = 0.0; return 0.0; }
   float s = max(core * 2.2, u_minPx);
   energy *= min(1.0, pow(core * 2.2 / s, 1.5) + 0.12);
   if (a < 0.003) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return 0.0; }
