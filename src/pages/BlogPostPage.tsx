@@ -1,29 +1,23 @@
-import { PERSONAL_INFO } from '@/components/config/constants';
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { PortfolioLayout } from '@/components/layout/PortfolioLayout';
-import { BlogPost } from '@shared/types';
+import type { BlogPost, NotebookDoc } from '@shared/types';
 import { api } from '@/lib/api-client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MarkdownContent } from '@/components/MarkdownContent';
-import { NotebookFromJson } from '@/components/NotebookRenderer';
+import { NotebookRenderer } from '@/components/NotebookRenderer';
 import { getReadingTime, paragraphize } from '@/lib/text-utils';
 import { useSiteConfig } from '@/contexts/SiteConfigContext';
 import { Container } from '@/components/site/SectionHeader';
-import { PostRow } from '@/components/site/PostRow';
-import type { NotebookDoc } from '@shared/types';
 import { cn } from '@/lib/utils';
 import { Horizon, MonoMeta, NightSky } from '@/components/reading/NightMasthead';
-import { DISPLAY_TITLE, MONO_LABEL, POST_PROSE, READING_MEASURE } from '@/components/reading/styles';
-
-function notebookColab(content: string): string | undefined {
-  try {
-    return (JSON.parse(content) as NotebookDoc).colabUrl;
-  } catch {
-    return undefined;
-  }
-}
+import { DISPLAY_TITLE, MONO_LABEL } from '@/components/reading/styles';
+import { cleanExcerpt, formatDate, postMinutes, prepareNotebook, splitLead } from '@/components/reading/post-text';
+import { scrollToHeading, useArticleNav } from '@/components/reading/useArticleNav';
+import { useReaderPrefs } from '@/components/reading/reader-prefs';
+import { ReaderDock, TocRail } from '@/components/reading/Toc';
+import { EndMatter } from '@/components/reading/EndMatter';
 
 const ColabIcon = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
@@ -31,33 +25,27 @@ const ColabIcon = () => (
   </svg>
 );
 
-function ReadingProgress({ target }: { target: RefObject<HTMLElement> }) {
-  const barRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    let raf = 0;
-    const update = () => {
-      raf = 0;
-      const el = target.current;
-      const bar = barRef.current;
-      if (!el || !bar) return;
-      const rect = el.getBoundingClientRect();
-      const total = rect.height - window.innerHeight * 0.6;
-      const p = total > 0 ? Math.min(1, Math.max(0, -rect.top / total)) : 0;
-      bar.style.transform = `scaleX(${p})`;
-    };
-    const onScroll = () => {
-      if (!raf) raf = requestAnimationFrame(update);
-    };
-    update();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [target]);
-  return <div ref={barRef} className="fixed inset-x-0 top-0 z-[70] h-[2px] origin-left bg-signal" style={{ transform: 'scaleX(0)' }} aria-hidden="true" />;
+type Prepared =
+  | { kind: 'markdown'; body: string; lead: string | null; words: number }
+  | { kind: 'notebook'; doc: NotebookDoc | null; lead: string | null; words: number; colabUrl?: string };
+
+function prepare(post: BlogPost): Prepared {
+  if (post.format === 'notebook') {
+    const nb = prepareNotebook(post.content, post.title);
+    return { kind: 'notebook', doc: nb.doc, lead: nb.lead, words: nb.words, colabUrl: nb.doc?.colabUrl };
+  }
+  const { lead, rest } = splitLead(paragraphize(post.content));
+  return { kind: 'markdown', body: rest, lead, words: post.content.trim().split(/\s+/).length };
+}
+
+function onAnchorClick(e: MouseEvent<HTMLElement>) {
+  const a = (e.target as HTMLElement).closest('a');
+  const href = a?.getAttribute('href');
+  if (!href || !href.startsWith('#') || href.length < 2) return;
+  const id = decodeURIComponent(href.slice(1));
+  if (!document.getElementById(id)) return;
+  e.preventDefault();
+  scrollToHeading(id);
 }
 
 function PostBody() {
@@ -66,7 +54,8 @@ function PostBody() {
   const [post, setPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
-  const articleRef = useRef<HTMLElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const prefs = useReaderPrefs();
 
   useEffect(() => {
     if (!slug) return;
@@ -95,91 +84,96 @@ function PostBody() {
     };
   }, [post]);
 
-  const isNotebook = post?.format === 'notebook';
-  const colabUrl = post && isNotebook ? notebookColab(post.content) : undefined;
-  const body = post && !isNotebook ? paragraphize(post.content) : '';
-  const more = (data?.posts ?? []).filter(p => p.slug !== slug).slice(0, 3);
-
+  const prepared = useMemo(() => (post && post.slug === slug ? prepare(post) : null), [post, slug]);
+  const all = useMemo(() => (data?.posts ?? []).slice().sort((a, b) => b.createdAt - a.createdAt), [data]);
+  const idx = all.findIndex(p => p.slug === slug);
+  const summary = idx >= 0 ? all[idx] : undefined;
+  const newer = idx > 0 ? all[idx - 1] : undefined;
+  const older = idx >= 0 && idx < all.length - 1 ? all[idx + 1] : undefined;
+  const minutes = postMinutes(summary, prepared ? Math.max(1, Math.ceil(prepared.words / 200)) : getReadingTime(''));
+  const dek = prepared?.lead ?? (summary ? cleanExcerpt(summary, 220) : null);
+  const colabUrl = prepared?.kind === 'notebook' ? prepared.colabUrl : undefined;
+  const nav = useArticleNav(bodyRef, prepared, minutes);
   const date = post ? new Date(post.createdAt) : null;
+  const ready = !!(post && prepared && date);
 
   return (
     <>
-      <ReadingProgress target={articleRef} />
-      <article ref={articleRef} className="reading">
-        <header className="relative isolate">
+      <div ref={nav.barRef} className="reading-progress" style={{ transform: 'scaleX(0)' }} aria-hidden="true" />
+      <article className="article" data-size={prefs.size} data-theme={prefs.theme}>
+        <header className="article-head relative isolate">
           <NightSky />
-          <Container className="pt-28 md:pt-36">
-            <div className="mx-auto max-w-5xl">
-              <Link to="/blog" className={cn(MONO_LABEL, 'group inline-flex items-center gap-2 text-foreground/50 transition-colors hover:text-foreground')}>
-                <ArrowLeft size={13} className="transition-transform group-hover:-translate-x-1" /> All notes
-              </Link>
-            </div>
-            {loading ? (
-              <div className="mx-auto mt-16 max-w-5xl space-y-5 md:mt-24">
-                <Skeleton className="h-4 w-48 bg-white/5" />
-                <Skeleton className="h-20 w-full bg-white/5" />
-                <Skeleton className="h-20 w-3/4 bg-white/5" />
-              </div>
-            ) : post && date ? (
-              <div className="mx-auto mt-16 max-w-5xl md:mt-24">
-                <MonoMeta
-                  items={[
-                    <time key="d" dateTime={date.toISOString()}>{date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</time>,
-                    isNotebook ? 'Notebook' : `${getReadingTime(body)} min read`,
-                    post.author,
-                  ]}
-                />
-                <h1 className={cn(DISPLAY_TITLE, 'mt-8 text-[clamp(2.4rem,5.4vw,5rem)] leading-[1.02] md:mt-10')}>{post.title}</h1>
-                {colabUrl && (
-                  <a
-                    href={colabUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={cn(MONO_LABEL, 'mt-10 inline-flex items-center gap-2.5 rounded-full border border-white/15 px-4 py-2.5 text-foreground/80 transition-colors hover:border-white/40 hover:text-foreground')}
-                  >
-                    <span className="text-[#e8710a]"><ColabIcon /></span>
-                    Open in Colab
-                  </a>
+          <Container className="pt-24 md:pt-32">
+            <div className="article-grid">
+              <div className="article-head-col">
+                <Link to="/blog" className={cn(MONO_LABEL, 'group inline-flex items-center gap-2 text-foreground/55 transition-colors hover:text-foreground')}>
+                  <ArrowLeft size={13} aria-hidden="true" className="transition-transform group-hover:-translate-x-1" /> Blog
+                </Link>
+                {loading && !ready ? (
+                  <div className="mt-12 space-y-5 md:mt-14">
+                    <Skeleton className="h-4 w-48 bg-white/5" />
+                    <Skeleton className="h-16 w-full bg-white/5" />
+                    <Skeleton className="h-16 w-3/4 bg-white/5" />
+                  </div>
+                ) : ready && date ? (
+                  <div className="mt-12 md:mt-14">
+                    <MonoMeta
+                      className="text-foreground/60"
+                      items={[
+                        <time key="d" dateTime={date.toISOString()}>{formatDate(post.createdAt)}</time>,
+                        <span key="r" className="tabular">{minutes} min read</span>,
+                        prepared?.kind === 'notebook' ? 'Notebook' : null,
+                      ]}
+                    />
+                    <h1 className={cn(DISPLAY_TITLE, 'article-title')}>{post.title}</h1>
+                    {dek && <p className={cn('article-dek', dek.length > 240 && 'is-long')}>{dek}</p>}
+                    {colabUrl && (
+                      <a href={colabUrl} target="_blank" rel="noopener noreferrer" className="article-colab">
+                        <span className="text-[#f9ab00]"><ColabIcon /></span>
+                        Open in Colab
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <div className="py-24 md:py-32">
+                    <div className={cn(MONO_LABEL, 'text-foreground/45')}>{failed ? 'Error 404' : 'Empty'}</div>
+                    <p className={cn(DISPLAY_TITLE, 'mt-6 text-[clamp(2.4rem,5vw,4rem)] leading-none')}>{failed ? 'Could not load this post.' : 'Post not found.'}</p>
+                    <p className="mt-6 font-serif text-[1.125rem] italic text-foreground/60">{failed ? 'This post does not exist, or it has moved.' : 'This post is empty.'}</p>
+                    <Link to="/blog" className={cn(MONO_LABEL, 'mt-10 inline-flex items-center gap-2 text-foreground/70 hover:text-foreground')}>
+                      <ArrowLeft size={13} aria-hidden="true" /> All posts
+                    </Link>
+                  </div>
                 )}
               </div>
-            ) : (
-              <div className="mx-auto max-w-3xl py-32 text-center">
-                <div className={cn(MONO_LABEL, 'text-foreground/40')}>{failed ? 'Error 404' : 'Empty'}</div>
-                <p className={cn(DISPLAY_TITLE, 'mt-6 text-[clamp(2.4rem,5vw,4rem)] leading-none')}>{failed ? 'Could not load this post.' : 'Post not found.'}</p>
-                <p className="mt-6 font-serif text-[1.125rem] italic text-foreground/55">{failed ? 'This note does not exist, or it has moved.' : 'This note is empty.'}</p>
-              </div>
-            )}
+            </div>
           </Container>
-          {post && (
-            <div className="mt-14 h-20 md:mt-20 md:h-28">
+          {ready && post && (
+            <div className="mt-10 h-14 md:mt-12 md:h-20">
               <Horizon seed={post.slug} />
             </div>
           )}
         </header>
-        {post && (
-          <Container className="mt-10 md:mt-14">
-            <div className="mx-auto max-w-5xl">
-              <div className={cn(isNotebook ? 'w-full max-w-[52rem]' : cn(READING_MEASURE, 'mx-0'))}>
-                {isNotebook ? <NotebookFromJson json={post.content} /> : <MarkdownContent className={POST_PROSE}>{body}</MarkdownContent>}
-                <div className="mt-20 flex items-center justify-between gap-6 border-t border-white/10 pt-8">
-                  <span className={cn(MONO_LABEL, 'text-foreground/35')}>{PERSONAL_INFO.name}</span>
-                  <Link to="/blog" className={cn(MONO_LABEL, 'group inline-flex items-center gap-2 text-foreground/60 transition-colors hover:text-foreground')}>
-                    <ArrowLeft size={13} className="transition-transform group-hover:-translate-x-1" /> All notes
-                  </Link>
+        {ready && prepared && (
+          <div className="article-surface">
+            <Container>
+              <div className="article-grid article-body-grid">
+                <aside className="article-rail">
+                  <TocRail items={nav.items} active={nav.active} left={nav.left} prefs={prefs} />
+                </aside>
+                <div ref={bodyRef} className="article-col" onClick={onAnchorClick}>
+                  {prepared.kind === 'notebook' ? (
+                    prepared.doc ? <NotebookRenderer doc={prepared.doc} anchors /> : <p className="text-muted-foreground">This notebook could not be rendered.</p>
+                  ) : (
+                    <MarkdownContent anchors>{prepared.body}</MarkdownContent>
+                  )}
+                  <EndMatter newer={newer} older={older} colabUrl={colabUrl} />
                 </div>
               </div>
-            </div>
-          </Container>
+            </Container>
+          </div>
         )}
       </article>
-      {post && more.length > 0 && (
-        <Container className="mt-28 pb-24 md:mt-36 md:pb-32">
-          <div className={cn(MONO_LABEL, 'mb-4 text-foreground/40')}>More posts</div>
-          <ol className="border-b border-white/10">
-            {more.map((p, i) => <PostRow key={p.slug} post={p} index={i + 1} />)}
-          </ol>
-        </Container>
-      )}
+      {ready && <ReaderDock items={nav.items} active={nav.active} visible={nav.inBody && !nav.done} prefs={prefs} />}
     </>
   );
 }
