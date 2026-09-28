@@ -21,7 +21,10 @@ export function onOpenTerminal(handler: Handler): () => void {
   return () => terminalHandlers.delete(handler);
 }
 
-export function scrollToHash(hash: string) {
+export function scrollToHash(hash: string, instant = false): boolean {
   const el = document.getElementById(hash.replace('#', ''));
-  if (el) el.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  if (!el) return false;
+  const far = Math.abs(el.getBoundingClientRect().top) > window.innerHeight * 3;
+  el.scrollIntoView({ behavior: instant || far || window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  return true;
 }

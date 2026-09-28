@@ -188,18 +188,21 @@ export function onStage(fn: StageListener): () => void {
   };
 }
 
-function go(top: number) {
-  window.scrollTo({ top: Math.max(0, top), behavior: reducedMotion() ? 'auto' : 'smooth' });
+function go(top: number, instant = false) {
+  const y = Math.max(0, top);
+  const far = Math.abs(y - window.scrollY) > window.innerHeight * 3;
+  window.scrollTo({ top: y, behavior: instant || far || reducedMotion() ? 'auto' : 'smooth' });
 }
 
-export function scrollToSection(id: string) {
+export function scrollToSection(id: string, instant = false): boolean {
   if (id === 'timeline') id = regions.find(r => r.kind === 'node')?.id ?? id;
+  if (instant) measure();
   const title = regions.find(r => r.kind === 'reveal' && r.id === id);
   if (title) {
-    go(title.top + title.height - vh * 0.62);
-    return;
+    go(title.top + title.height - vh * 0.62, instant);
+    return true;
   }
-  scrollToHash(id);
+  return scrollToHash(id, instant);
 }
 
 export function scrollToYear(year: number) {

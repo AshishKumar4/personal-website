@@ -1,4 +1,5 @@
 import { emitFlight, onFlight } from './bus';
+import { INTRO_GO, introDuration, introShot } from './choreo';
 import { FlightInput } from './input';
 import { DRONE_TRAIL, Particles } from './particles';
 import { applyMotif, motifCode, variation, type MotifId, type Variation } from './motifs';
@@ -6,7 +7,7 @@ import { Post, type PostUniforms } from './post';
 import { SceneTracker, mixParams, sceneAt, type V3 } from './scenes';
 import { TerrainRenderer } from './terrain-renderer';
 import { TerrainField, raycast } from './terrain-js';
-import { damp, hsv, invert, lerp, lookAt, multiply, pathX, perspective, project, smoothstep, unproject } from './math';
+import { clamp01, damp, hsv, invert, lerp, lookAt, multiply, pathX, perspective, project, smoothstep, unproject } from './math';
 import type { Frame } from './frame';
 import type { Program } from './gl';
 import { QualityController } from './quality';
@@ -95,6 +96,18 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
   let lastVeil = -1;
   let lastKey = '';
   let rect = canvas.getBoundingClientRect();
+  const root = document.documentElement;
+  const introAt = frozen && query.has('intro') && Number.isFinite(Number(query.get('intro'))) ? Number(query.get('intro')) : null;
+  const introLen = introDuration(small);
+  let introState: 'wait' | 'on' | 'off' = !reduced && !frozen && root.dataset.intro === 'hold' ? 'wait' : 'off';
+  let introPlayed = false;
+  let introT0 = 0;
+  let introY = 0;
+  let abortAt = -1;
+  let moveAcc = 0;
+  let moveT = 0;
+  let moveX = -1;
+  let moveY = -1;
 
   const heightAt = (x: number, z: number) => field.height(x, z, smoothstep(front[0] - front[1], front[0] + front[1], Math.hypot(x - eye[0], z - eye[2])));
 
@@ -213,6 +226,53 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     }),
   ];
 
+  const releaseText = () => {
+    if (root.dataset.intro === 'hold' || root.dataset.intro === 'dive') root.dataset.intro = 'go';
+  };
+  const abortIntro = () => {
+    if (introState !== 'on' || abortAt >= 0) return;
+    abortAt = performance.now();
+    releaseText();
+    kick();
+  };
+  const onIntroKey = (e: KeyboardEvent) => {
+    if (e.key !== 'Shift' && e.key !== 'Meta' && e.key !== 'Alt' && e.key !== 'Control') abortIntro();
+  };
+  const onIntroMove = (e: PointerEvent) => {
+    if (moveX >= 0) {
+      moveAcc = moveAcc * Math.exp(-Math.max(0, e.timeStamp - moveT) / 160) + Math.hypot(e.clientX - moveX, e.clientY - moveY);
+      if (moveAcc > 360) abortIntro();
+    }
+    moveX = e.clientX;
+    moveY = e.clientY;
+    moveT = e.timeStamp;
+  };
+  const introEvents: [string, EventListener][] = [
+    ['wheel', abortIntro],
+    ['touchstart', abortIntro],
+    ['pointerdown', abortIntro],
+    ['keydown', onIntroKey as EventListener],
+    ['pointermove', onIntroMove as EventListener],
+  ];
+  const endIntro = () => {
+    if (introState === 'on') introEvents.forEach(([type, fn]) => window.removeEventListener(type, fn));
+    introState = 'off';
+    releaseText();
+  };
+  const beginIntro = (now: number) => {
+    if (introState !== 'wait') return;
+    if (root.dataset.intro !== 'hold' || window.scrollY > 40) {
+      introState = 'off';
+      return;
+    }
+    introState = 'on';
+    introPlayed = true;
+    introT0 = now;
+    introY = window.scrollY;
+    root.dataset.intro = 'dive';
+    introEvents.forEach(([type, fn]) => window.addEventListener(type, fn, { passive: true }));
+  };
+
   const applyQuality = (now: number) => {
     if (!qc.apply(now, now - lastScroll > 450)) return;
     dpr = qc.dpr;
@@ -244,6 +304,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       start = now;
       last = now;
       qc.restart(now);
+      beginIntro(now);
     }
     const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
@@ -295,9 +356,37 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     prevZ = z;
     const fx = tx - x;
     const fl = Math.hypot(fx, ahead) || 1;
-    const view = lookAt(eye, [tx, ty, z - ahead], roll);
+    let iw = 0;
+    let ip = 1;
+    if (introState === 'on') {
+      ip = clamp01((now - introT0) / 1000 / introLen);
+      if (Math.abs(window.scrollY - introY) > 4) abortIntro();
+      const fade = abortAt < 0 ? 1 : 1 - smoothstep(0, 400, now - abortAt);
+      if (ip >= INTRO_GO) releaseText();
+      if (ip >= 1 || fade <= 0) endIntro();
+      else iw = fade;
+    } else if (introAt !== null) {
+      ip = clamp01(introAt / introLen);
+      iw = ip < 1 ? 1 : 0;
+    }
+    const shot = iw > 0 ? introShot(ip, small) : null;
+    let view: Float32Array;
     const aspect = canvas.width / Math.max(1, canvas.height);
-    const fov = (((aspect < 1 ? 68 : 52) + lerp(A.fov, B.fov, tc) + dip * 6) * Math.PI) / 180;
+    let fovDeg = (aspect < 1 ? 68 : 52) + lerp(A.fov, B.fov, tc) + dip * 6;
+    if (shot) {
+      const dx = tx - x;
+      const dy = ty - alt;
+      const yawN = Math.atan2(dx, ahead);
+      const pitchN = Math.atan2(dy, Math.hypot(dx, ahead));
+      const yaw = yawN + shot.yaw * iw;
+      const pitch = pitchN + (lerp(shot.pitch, pitchN, shot.pitchMix) - pitchN) * iw;
+      const ie: V3 = [x, alt + shot.lift * iw, z + shot.back * iw];
+      const cp = Math.cos(pitch);
+      view = lookAt(ie, [ie[0] + Math.sin(yaw) * cp * ahead, ie[1] + Math.sin(pitch) * ahead, ie[2] - Math.cos(yaw) * cp * ahead], roll + shot.roll * iw);
+      eye = ie;
+      fovDeg += shot.fov * iw;
+    } else view = lookAt(eye, [tx, ty, z - ahead], roll);
+    const fov = (fovDeg * Math.PI) / 180;
     viewProj = multiply(perspective(fov, aspect, 0.5, FAR * 1.1), view);
     inv = invert(viewProj);
 
@@ -325,7 +414,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     const sp = [eye[0] + sv[0] * 1000, eye[1] + sv[1] * 1000, eye[2] + sv[2] * 1000];
     const sw = viewProj[3] * sp[0] + viewProj[7] * sp[1] + viewProj[11] * sp[2] + viewProj[15];
     const sxy = project(viewProj, sp);
-    const intro = reduced || frozen ? 1 : smoothstep(0, 1, (now - start) / 3200);
+    const intro = shot ? 1 - (1 - shot.reveal) * iw : reduced || frozen || introPlayed ? 1 : smoothstep(0, 1, (now - start) / 3200);
     const mt = smoothstep(0.05, 0.8, t);
     const weight = (id: MotifId) => (s.ma === id ? 1 - mt : 0) + (s.mb === id ? mt : 0);
     const ctf = weight('ctf');
@@ -394,10 +483,13 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       warp: dip * 0.3,
       scan: p.scanlines,
       grain: 0.05,
-      exposure: p.exposure,
+      exposure: shot ? p.exposure * (1 - (1 - shot.exposure) * iw) : p.exposure,
       dpr,
       rays: [sxy[0] * 0.5 + 0.5, sxy[1] * 0.5 + 0.5, sw > 0 ? p.rays * p.sun : 0],
       rayColor: p.glow,
+      cloud: shot
+        ? { amt: shot.cloud * iw, base: small ? 400 : 480, top: small ? 520 : 620, slabs: small ? 3 : 5, time, moon: p.moon, inv, eye, color: [p.skyHorizon[0] * 3 + 0.16, p.skyHorizon[1] * 3 + 0.18, p.skyHorizon[2] * 3 + 0.25] }
+        : undefined,
     };
     post.begin();
     if (warm) {
@@ -422,7 +514,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       emitFlight('telemetry', { scene: s.dominant, sceneMix: t, distance: -z });
     }
     if (animate && !locked) qc.sample(now, dt * 1000);
-    const key = `${s.a}${s.b}${s.ma}${s.mb}${s.sa}${s.sb}${t.toFixed(3)}${focusMix.toFixed(2)}`;
+    const key = `${s.a}${s.b}${s.ma}${s.mb}${s.sa}${s.sb}${t.toFixed(3)}${focusMix.toFixed(2)}${ip.toFixed(3)}`;
     const settling = !animate && key !== lastKey;
     lastKey = key;
     if ((animate || settling) && visible && onscreen) raf = requestAnimationFrame(frame);
@@ -528,6 +620,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
   function teardown() {
     if (disposed) return;
     disposed = true;
+    endIntro();
     if (raf) cancelAnimationFrame(raf);
     raf = 0;
     ro.disconnect();

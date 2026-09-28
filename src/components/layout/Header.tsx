@@ -6,7 +6,7 @@ import { scrollToSection } from '@/components/site/stage';
 
 const NAV = [
   { label: 'Timeline', to: '/#timeline' },
-  { label: 'Writing', to: '/#writing' },
+  { label: 'Blog', to: '/blog' },
   { label: 'About', to: '/about' },
 ];
 

@@ -67,7 +67,7 @@ export function AdminProjectsPage() {
   };
 
   const handleCreateNew = () => {
-    setCurrentProject({ name: '', description: '', repo: '', url: '', imageUrl: '' });
+    setCurrentProject({ name: '', description: '', repo: '', url: '', homepage: '', imageUrl: '', videoUrl: '' });
     setDialogOpen(true);
   };
 
@@ -102,6 +102,8 @@ export function AdminProjectsPage() {
     const payload: Partial<Omit<Project, 'order' | 'scene'>> & { order?: number | null; scene?: Project['scene'] | null } = {
       ...currentProject,
       imageUrl: currentProject.imageUrl?.trim() || '',
+      videoUrl: currentProject.videoUrl?.trim() || '',
+      homepage: currentProject.homepage?.trim() || '',
       year: currentProject.year?.trim() || '',
       scene: currentProject.scene ?? null,
       order: typeof currentProject.order === 'number' && Number.isFinite(currentProject.order) ? currentProject.order : isEditing ? null : undefined,
@@ -291,6 +293,18 @@ export function AdminProjectsPage() {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="homepage" className="text-muted-foreground">
+                  Live site (optional, shown as a pill labelled with its domain)
+                </Label>
+                <Input
+                  id="homepage"
+                  value={currentProject.homepage || ''}
+                  onChange={(e) => setCurrentProject({ ...currentProject, homepage: e.target.value })}
+                  className="bg-background border-border"
+                  placeholder="https://myproject.dev"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="description" className="text-muted-foreground">
                   Description
                 </Label>
@@ -359,6 +373,18 @@ export function AdminProjectsPage() {
                   onChange={(e) => setCurrentProject({ ...currentProject, imageUrl: e.target.value })}
                   className="bg-background border-border"
                   placeholder="https://example.com/screenshot.png"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="videoUrl" className="text-muted-foreground">
+                  Video URL (optional muted loop; the screenshot is its poster; list a .webm and an .mp4 separated by a space for the widest support)
+                </Label>
+                <Input
+                  id="videoUrl"
+                  value={currentProject.videoUrl || ''}
+                  onChange={(e) => setCurrentProject({ ...currentProject, videoUrl: e.target.value })}
+                  className="bg-background border-border"
+                  placeholder="/projects/demo.webm /projects/demo.mp4"
                 />
               </div>
               <DialogFooter className="pt-4 border-t border-border">

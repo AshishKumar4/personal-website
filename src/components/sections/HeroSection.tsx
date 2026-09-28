@@ -1,13 +1,15 @@
-import { useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { PERSONAL_INFO } from '@/components/config/constants';
 import { useSiteConfig } from '@/contexts/SiteConfigContext';
 import { Container } from '@/components/site/SectionHeader';
 import { useStageRegion } from '@/components/site/stage';
+import { armIntro } from '@/components/flight/intro-gate';
 
 export function HeroSection() {
   const ref = useRef<HTMLElement>(null);
   const { config, data } = useSiteConfig();
   useStageRegion(ref, { kind: 'hero' });
+  useLayoutEffect(armIntro, []);
 
   const current = data?.experiences?.[0];
   const [first, ...rest] = PERSONAL_INFO.nameLines;
@@ -33,7 +35,7 @@ export function HeroSection() {
                   {current.role}, {current.company}
                 </span>
               )}
-              {config?.subtitle && <span className="t-narration mt-1 block text-[1.1875rem] italic leading-snug text-foreground/75">{config.subtitle}</span>}
+              {config?.subtitle && <span className="mt-1 block font-text text-[1.1875rem] font-[380] italic leading-snug text-foreground/75">{config.subtitle}</span>}
             </p>
           </div>
         </Container>

@@ -8,6 +8,8 @@ export const SEED_PROJECTS: Project[] = [
     description: "An agent platform that keeps working while you are away. Persistent, self-evolving agents with their own computers run research swarms, build live apps and work in real Linux sandboxes, on Cloudflare Durable Objects or locally with Bun.",
     repo: "AshishKumar4/kinu",
     url: "https://github.com/AshishKumar4/kinu",
+    homepage: "https://kinu.run",
+    imageUrl: "/projects/kinu-landing.webp",
     order: 1,
     year: "2026-04",
     story: PROJECT_STORIES["kinu"],
@@ -18,6 +20,7 @@ export const SEED_PROJECTS: Project[] = [
     description: "An open-source text-to-app platform built on Cloudflare's developer ecosystem: users generate, deploy and iterate on full-stack apps using natural language. I created it and was its primary author; 5K+ GitHub stars.",
     repo: "cloudflare/vibesdk",
     url: "https://github.com/cloudflare/vibesdk",
+    homepage: "https://build.cloudflare.dev",
     order: 2,
     year: "2025-08",
     story: PROJECT_STORIES["cloudflare-vibesdk"],
@@ -28,19 +31,11 @@ export const SEED_PROJECTS: Project[] = [
     description: "A JAX/Flax framework for training language models (pretraining, SFT, DPO and GRPO), diffusion models (rectified flow, latent and video diffusion) and I-JEPA/V-JEPA encoders, with FSDP, expert, tensor and sequence parallelism. It grew out of FlaxDiff.",
     repo: "AshishKumar4/dew",
     url: "https://github.com/AshishKumar4/dew",
+    homepage: "https://dewml.dev",
+    imageUrl: "/projects/dew.svg",
     order: 3,
     year: "2026-09",
     story: PROJECT_STORIES["dew"],
-  },
-  {
-    id: "do86",
-    name: "do86",
-    description: "x86 operating systems running inside a Cloudflare Durable Object, with demand-paged guest memory backed by SQLite. Boots my own Aqeous OS in the cloud, on the edge.",
-    repo: "AshishKumar4/do86",
-    url: "https://github.com/AshishKumar4/do86",
-    order: 4,
-    year: "2026-03",
-    story: PROJECT_STORIES["do86"],
   },
   {
     id: "nimbus",
@@ -48,6 +43,8 @@ export const SEED_PROJECTS: Project[] = [
     description: "Free POSIX-like sandboxes on Cloudflare Durable Objects: a WASI runtime, a demand-paged SQLite-backed virtual file system, and Python, Ruby and C/Clang WASM runtimes running inside isolated sandboxes at the edge.",
     repo: "AshishKumar4/Nimbus",
     url: "https://github.com/AshishKumar4/Nimbus",
+    homepage: "https://nimbus-os.dev",
+    imageUrl: "/projects/nimbus.webp",
     order: 5,
     year: "2026-04",
     story: PROJECT_STORIES["nimbus"],
@@ -58,6 +55,8 @@ export const SEED_PROJECTS: Project[] = [
     description: "A JAX/Flax-based diffusion library replicating 17+ techniques. Trained 100M-parameter models on 250M+ images using 128 TPUv4s.",
     repo: "AshishKumar4/FlaxDiff",
     url: "https://github.com/AshishKumar4/FlaxDiff",
+    homepage: "https://pypi.org/project/flaxdiff/",
+    imageUrl: "/projects/flaxdiff.webp",
     order: 6,
     year: "2024-06",
     story: PROJECT_STORIES["ashishkumar4-flaxdiff"],
@@ -68,6 +67,8 @@ export const SEED_PROJECTS: Project[] = [
     description: "Teaching a DreamerV3 world-model agent to fly FPV drones from vision alone: custom simulation environments, reward shaping and a transformer state-space dynamics variant.",
     repo: "AshishKumar4/FlyDreamer",
     url: "https://github.com/AshishKumar4/FlyDreamer",
+    imageUrl: "/projects/flydreamer.webp",
+    videoUrl: "/projects/flydreamer.webm /projects/flydreamer.mp4",
     order: 7,
     year: "2025-10",
     story: PROJECT_STORIES["flydreamer"],
@@ -92,19 +93,39 @@ export interface ProjectsMigrationSpec {
   year: Record<string, string>;
   story: Record<string, string>;
   experienceStory: Record<string, string>;
+  fields: Record<string, Partial<Record<MigratedField, string>>>;
+  retired: Record<string, Partial<Record<MigratedField, string[]>>>;
 }
+
+export type MigratedField = "homepage" | "imageUrl" | "videoUrl";
+
+const MIGRATED_FIELDS: MigratedField[] = ["homepage", "imageUrl", "videoUrl"];
 
 const seedById = new Map(SEED_PROJECTS.map((p) => [p.id, p]));
 
 export const PROJECTS_MIGRATION: ProjectsMigrationSpec = {
-  id: "2026-09-projects-v7",
-  remove: ["mossaic", "ashishkumar4-cf-git", "game-servers"],
+  id: "2026-09-projects-v9",
+  remove: ["mossaic", "ashishkumar4-cf-git", "game-servers", "do86"],
   add: ["kinu", "dew"].map((id) => seedById.get(id)!),
   order: Object.fromEntries(SEED_PROJECTS.map((p) => [p.id, p.order!])),
   year: Object.fromEntries(SEED_PROJECTS.filter((p) => p.year).map((p) => [p.id, p.year!])),
   story: PROJECT_STORIES,
   experienceStory: EXPERIENCE_STORIES,
+  fields: Object.fromEntries(
+    SEED_PROJECTS.map((p) => [p.id, Object.fromEntries(MIGRATED_FIELDS.filter((f) => p[f]).map((f) => [f, p[f]!]))]),
+  ),
+  retired: {
+    "ashishkumar4-flaxdiff": { imageUrl: ["/api/images/images/projects/flaxdiff.jpg"] },
+    nimbus: { imageUrl: ["/api/images/images/projects/nimbus.png"] },
+    flydreamer: { imageUrl: ["/api/images/images/projects/flydreamer.png"] },
+    kinu: { imageUrl: ["/projects/kinu.webp"] },
+  },
 };
+
+export function isReplaceableField(current: string | undefined, retired: string[] = []): boolean {
+  const value = current?.trim() ?? "";
+  return !value || retired.includes(value);
+}
 
 export interface ProjectsMigrationPlan {
   deleteIds: string[];
@@ -112,6 +133,7 @@ export interface ProjectsMigrationPlan {
   orders: { id: string; order: number }[];
   years: { id: string; year: string }[];
   stories: { id: string; story: string }[];
+  fields: { id: string; field: MigratedField; value: string; retired: string[] }[];
 }
 
 export function planProjectsMigration(existing: Project[], spec: ProjectsMigrationSpec): ProjectsMigrationPlan {
@@ -139,7 +161,18 @@ export function planProjectsMigration(existing: Project[], spec: ProjectsMigrati
       const current = byId.get(id) ?? add.find((p) => p.id === id);
       return current && isReplaceableStory(current.story) ? [{ id, story }] : [];
     });
-  return { deleteIds, add, orders, years, stories };
+  const fields = Object.entries(spec.fields)
+    .filter(([id]) => !removed.has(id))
+    .flatMap(([id, values]) => {
+      const current = byId.get(id) ?? add.find((p) => p.id === id);
+      if (!current) return [];
+      return MIGRATED_FIELDS.flatMap((field) => {
+        const value = values[field];
+        const retired = spec.retired[id]?.[field] ?? [];
+        return value && current[field] !== value && isReplaceableField(current[field], retired) ? [{ id, field, value, retired }] : [];
+      });
+    });
+  return { deleteIds, add, orders, years, stories, fields };
 }
 
 export interface MigrationMarker {
@@ -175,6 +208,7 @@ export interface ProjectsMigrationStore {
   setYearIfUnset(id: string, year: string): Promise<void>;
   setStoryIfUnset(id: string, story: string): Promise<void>;
   setExperienceStoryIfUnset(id: string, story: string): Promise<void>;
+  setFieldIfReplaceable(id: string, field: MigratedField, value: string, retired: string[]): Promise<void>;
 }
 
 export type MigrationOutcome = "already-done" | "applied" | "busy";
@@ -198,6 +232,7 @@ export async function runProjectsMigration(
   for (const { id, year } of plan.years) await store.setYearIfUnset(id, year);
   for (const { id, story } of plan.stories) await store.setStoryIfUnset(id, story);
   for (const [id, story] of Object.entries(spec.experienceStory)) await store.setExperienceStoryIfUnset(id, story);
+  for (const { id, field, value, retired } of plan.fields) await store.setFieldIfReplaceable(id, field, value, retired);
   await store.updateMarker((current) => finishMarker(current, now()));
   return "applied";
 }

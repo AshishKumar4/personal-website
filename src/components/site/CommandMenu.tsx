@@ -35,15 +35,14 @@ export default function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
         <CommandGroup heading="Navigate">
           <CommandItem className={itemClass} onSelect={() => run(() => { navigate('/'); window.scrollTo({ top: 0, behavior: 'smooth' }); })}><Home /> Home</CommandItem>
           <CommandItem className={itemClass} onSelect={() => run(section('timeline'))}><Briefcase /> Timeline</CommandItem>
-          <CommandItem className={itemClass} onSelect={() => run(section('writing'))}><FileText /> Writing</CommandItem>
-          <CommandItem className={itemClass} onSelect={() => run(() => navigate('/blog'))}><FileText /> All posts</CommandItem>
+          <CommandItem className={itemClass} onSelect={() => run(() => navigate('/blog'))}><FileText /> Blog</CommandItem>
           <CommandItem className={itemClass} onSelect={() => run(() => navigate('/about'))}><User /> About</CommandItem>
           <CommandItem className={itemClass} onSelect={() => run(section('contact'))}><Mail /> Contact</CommandItem>
         </CommandGroup>
         {data && data.posts.length > 0 && (
           <>
             <CommandSeparator />
-            <CommandGroup heading="Writing">
+            <CommandGroup heading="Posts">
               {data.posts.map(p => (
                 <CommandItem key={p.slug} value={`post ${p.title}`} className={itemClass} onSelect={() => run(() => navigate(`/blog/${p.slug}`))}>
                   <FileText /> {p.title}

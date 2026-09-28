@@ -97,6 +97,7 @@ export function NightMasthead({
   children,
   className,
   titleClassName,
+  compact = false,
 }: {
   seed: string;
   meta: ReactNode[];
@@ -105,17 +106,18 @@ export function NightMasthead({
   children?: ReactNode;
   className?: string;
   titleClassName?: string;
+  compact?: boolean;
 }) {
   return (
     <header className={cn('relative isolate', className)}>
       <NightSky />
-      <Container className="pt-36 md:pt-48">
+      <Container className={compact ? 'pt-32 md:pt-40' : 'pt-36 md:pt-48'}>
         <MonoMeta items={meta} />
-        <h1 className={cn(DISPLAY_TITLE, 'mt-8 text-[clamp(2.75rem,7.4vw,7.25rem)] leading-[0.95] md:mt-10', titleClassName)}>{title}</h1>
+        <h1 className={cn(DISPLAY_TITLE, compact ? 'mt-6 text-[clamp(2.75rem,6vw,5.5rem)] leading-[0.95] md:mt-8' : 'mt-8 text-[clamp(2.75rem,7.4vw,7.25rem)] leading-[0.95] md:mt-10', titleClassName)}>{title}</h1>
         {lede && <div className="mt-8 max-w-[34ch] font-serif text-[clamp(1.25rem,1.9vw,1.6rem)] italic leading-[1.4] text-foreground/65 md:mt-10">{lede}</div>}
         {children}
       </Container>
-      <div className="mt-14 h-24 md:mt-20 md:h-36">
+      <div className={compact ? 'mt-10 h-16 md:mt-12 md:h-24' : 'mt-14 h-24 md:mt-20 md:h-36'}>
         <Horizon seed={seed} />
       </div>
     </header>

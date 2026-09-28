@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="0%" r="95%">
+      <stop offset="0" stop-color="#16202c"/>
+      <stop offset="1" stop-color="#090c11"/>
+    </radialGradient>
+    <linearGradient id="drop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#bfe6ff"/>
+      <stop offset="1" stop-color="#5aa9e6"/>
+    </linearGradient>
+    <linearGradient id="flow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8cc8f0" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#8cc8f0" stop-opacity="0.08"/>
+    </linearGradient>
+    <pattern id="dots" width="32" height="32" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#ffffff" fill-opacity="0.05"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <rect width="1600" height="1000" fill="url(#dots)"/>
+
+  <g font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <path d="M132 92 C132 92 108 122 108 138 A24 24 0 0 0 156 138 C156 122 132 92 132 92 Z" fill="url(#drop)"/>
+    <text x="178" y="148" font-size="54" font-weight="600" fill="#eef4fa" letter-spacing="-1.5">dew</text>
+    <text x="310" y="148" font-size="22" fill="#8fa3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">dewml.dev</text>
+    <text x="1480" y="148" font-size="22" fill="#8fa3b8" text-anchor="end">one JAX codebase · three model families · any mesh</text>
+
+    <g>
+      <rect x="110" y="220" width="430" height="330" rx="18" fill="#101923" stroke="#2a3a4c"/>
+      <text x="142" y="272" font-size="15" fill="#7fb8e6" letter-spacing="3" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">01 · LANGUAGE</text>
+      <text x="142" y="318" font-size="34" font-weight="600" fill="#eef4fa" letter-spacing="-0.8">Language models</text>
+      <g font-size="20" fill="#c9d6e3" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+        <rect x="142" y="354" width="150" height="46" rx="10" fill="#15222f" stroke="#2a3a4c"/>
+        <text x="217" y="384" text-anchor="middle">pretrain</text>
+        <rect x="306" y="354" width="100" height="46" rx="10" fill="#15222f" stroke="#2a3a4c"/>
+        <text x="356" y="384" text-anchor="middle">SFT</text>
+        <rect x="142" y="414" width="100" height="46" rx="10" fill="#15222f" stroke="#2a3a4c"/>
+        <text x="192" y="444" text-anchor="middle">DPO</text>
+        <rect x="256" y="414" width="112" height="46" rx="10" fill="#15222f" stroke="#2a3a4c"/>
+        <text x="312" y="444" text-anchor="middle">GRPO</text>
+      </g>
+      <path d="M142 508 h356" stroke="#2a3a4c"/>
+      <text x="142" y="532" font-size="17" fill="#8fa3b8">tokens → next token → preference → reward</text>
+    </g>
+
+    <g>
+      <rect x="585" y="220" width="430" height="330" rx="18" fill="#101923" stroke="#2a3a4c"/>
+      <text x="617" y="272" font-size="15" fill="#9fd8c4" letter-spacing="3" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">02 · DIFFUSION</text>
+      <text x="617" y="318" font-size="34" font-weight="600" fill="#eef4fa" letter-spacing="-0.8">Diffusion models</text>
+      <g font-size="20" fill="#c9d6e3" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+        <rect x="617" y="354" width="206" height="46" rx="10" fill="#15222f" stroke="#2a3a4c"/>
+        <text x="720" y="384" text-anchor="middle">rectified flow</text>
+        <rect x="617" y="414" width="112" height="46" rx="10" fill="#15222f" stroke="#2a3a4c"/>
+        <text x="673" y="444" text-anchor="middle">latent</text>
+        <rect x="743" y="414" width="100" height="46" rx="10" fill="#15222f" stroke="#2a3a4c"/>
+        <text x="793" y="444" text-anchor="middle">video</text>
+      </g>
+      <path d="M617 508 h356" stroke="#2a3a4c"/>
+      <g fill="#9fd8c4">
+        <circle cx="627" cy="526" r="7" fill-opacity="0.2"/>
+        <circle cx="657" cy="526" r="7" fill-opacity="0.35"/>
+        <circle cx="687" cy="526" r="7" fill-opacity="0.55"/>
+        <circle cx="717" cy="526" r="7" fill-opacity="0.8"/>
+      </g>
+      <text x="740" y="532" font-size="17" fill="#8fa3b8">noise → image → video</text>
+    </g>
+
+    <g>
+      <rect x="1060" y="220" width="430" height="330" rx="18" fill="#101923" stroke="#2a3a4c"/>
+      <text x="1092" y="272" font-size="15" fill="#e6c38f" letter-spacing="3" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">03 · REPRESENTATION</text>
+      <text x="1092" y="318" font-size="34" font-weight="600" fill="#eef4fa" letter-spacing="-0.8">JEPA encoders</text>
+      <g font-size="20" fill="#c9d6e3" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+        <rect x="1092" y="354" width="120" height="46" rx="10" fill="#15222f" stroke="#2a3a4c"/>
+        <text x="1152" y="384" text-anchor="middle">I-JEPA</text>
+        <rect x="1226" y="354" width="120" height="46" rx="10" fill="#15222f" stroke="#2a3a4c"/>
+        <text x="1286" y="384" text-anchor="middle">V-JEPA</text>
+      </g>
+      <g stroke="#e6c38f" stroke-opacity="0.7" fill="none">
+        <rect x="1092" y="420" width="40" height="40" rx="4" fill="#e6c38f" fill-opacity="0.12"/>
+        <rect x="1140" y="420" width="40" height="40" rx="4" stroke-dasharray="4 4"/>
+        <rect x="1188" y="420" width="40" height="40" rx="4" fill="#e6c38f" fill-opacity="0.12"/>
+        <rect x="1236" y="420" width="40" height="40" rx="4" stroke-dasharray="4 4"/>
+      </g>
+      <text x="1292" y="446" font-size="17" fill="#8fa3b8">predict the masked</text>
+      <path d="M1092 508 h356" stroke="#2a3a4c"/>
+      <text x="1092" y="532" font-size="17" fill="#8fa3b8">context → embedding → target</text>
+    </g>
+
+    <g fill="none" stroke="url(#flow)" stroke-width="2">
+      <path d="M325 550 C325 600 800 590 800 640"/>
+      <path d="M800 550 L800 640"/>
+      <path d="M1275 550 C1275 600 800 590 800 640"/>
+    </g>
+    <circle cx="800" cy="640" r="5" fill="#8cc8f0"/>
+
+    <rect x="110" y="660" width="1380" height="270" rx="18" fill="#0d141c" stroke="#2a3a4c"/>
+    <text x="142" y="712" font-size="15" fill="#8fa3b8" letter-spacing="3" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">ONE TRAINER · JAX / FLAX</text>
+    <text x="142" y="758" font-size="34" font-weight="600" fill="#eef4fa" letter-spacing="-0.8">Sharded across the device mesh</text>
+    <g font-size="20" fill="#c9d6e3" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+      <rect x="142" y="800" width="112" height="46" rx="23" fill="#122232" stroke="#3b6b90"/>
+      <text x="198" y="830" text-anchor="middle">FSDP</text>
+      <rect x="268" y="800" width="126" height="46" rx="23" fill="#122232" stroke="#3b6b90"/>
+      <text x="331" y="830" text-anchor="middle">expert</text>
+      <rect x="408" y="800" width="126" height="46" rx="23" fill="#122232" stroke="#3b6b90"/>
+      <text x="471" y="830" text-anchor="middle">tensor</text>
+      <rect x="548" y="800" width="146" height="46" rx="23" fill="#122232" stroke="#3b6b90"/>
+      <text x="621" y="830" text-anchor="middle">sequence</text>
+    </g>
+    <text x="142" y="890" font-size="17" fill="#8fa3b8">the same model code, from one chip to a pod</text>
+
+    <g transform="translate(900 700)">
+      <g fill="#15222f" stroke="#2a3a4c">
+        <rect x="0" y="0" width="52" height="40" rx="6"/><rect x="64" y="0" width="52" height="40" rx="6"/><rect x="128" y="0" width="52" height="40" rx="6"/><rect x="192" y="0" width="52" height="40" rx="6"/><rect x="256" y="0" width="52" height="40" rx="6"/><rect x="320" y="0" width="52" height="40" rx="6"/><rect x="384" y="0" width="52" height="40" rx="6"/><rect x="448" y="0" width="52" height="40" rx="6"/>
+        <rect x="0" y="52" width="52" height="40" rx="6"/><rect x="64" y="52" width="52" height="40" rx="6"/><rect x="128" y="52" width="52" height="40" rx="6"/><rect x="192" y="52" width="52" height="40" rx="6"/><rect x="256" y="52" width="52" height="40" rx="6"/><rect x="320" y="52" width="52" height="40" rx="6"/><rect x="384" y="52" width="52" height="40" rx="6"/><rect x="448" y="52" width="52" height="40" rx="6"/>
+        <rect x="0" y="104" width="52" height="40" rx="6"/><rect x="64" y="104" width="52" height="40" rx="6"/><rect x="128" y="104" width="52" height="40" rx="6"/><rect x="192" y="104" width="52" height="40" rx="6"/><rect x="256" y="104" width="52" height="40" rx="6"/><rect x="320" y="104" width="52" height="40" rx="6"/><rect x="384" y="104" width="52" height="40" rx="6"/><rect x="448" y="104" width="52" height="40" rx="6"/>
+        <rect x="0" y="156" width="52" height="40" rx="6"/><rect x="64" y="156" width="52" height="40" rx="6"/><rect x="128" y="156" width="52" height="40" rx="6"/><rect x="192" y="156" width="52" height="40" rx="6"/><rect x="256" y="156" width="52" height="40" rx="6"/><rect x="320" y="156" width="52" height="40" rx="6"/><rect x="384" y="156" width="52" height="40" rx="6"/><rect x="448" y="156" width="52" height="40" rx="6"/>
+      </g>
+      <g fill="#7fb8e6" fill-opacity="0.28" stroke="#7fb8e6" stroke-opacity="0.8">
+        <rect x="0" y="0" width="52" height="40" rx="6"/><rect x="64" y="0" width="52" height="40" rx="6"/><rect x="128" y="0" width="52" height="40" rx="6"/><rect x="192" y="0" width="52" height="40" rx="6"/>
+      </g>
+      <g fill="#9fd8c4" fill-opacity="0.22" stroke="#9fd8c4" stroke-opacity="0.7">
+        <rect x="256" y="52" width="52" height="40" rx="6"/><rect x="256" y="104" width="52" height="40" rx="6"/><rect x="256" y="156" width="52" height="40" rx="6"/>
+      </g>
+      <g fill="#e6c38f" fill-opacity="0.2" stroke="#e6c38f" stroke-opacity="0.7">
+        <rect x="384" y="104" width="52" height="40" rx="6"/><rect x="448" y="104" width="52" height="40" rx="6"/><rect x="384" y="156" width="52" height="40" rx="6"/><rect x="448" y="156" width="52" height="40" rx="6"/>
+      </g>
+      <g font-size="15" fill="#8fa3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" letter-spacing="2">
+        <text x="0" y="222">MESH · DATA × MODEL</text>
+      </g>
+    </g>
+  </g>
+</svg>

@@ -3,7 +3,7 @@
  */
 import { Entity, IndexedEntity, Index } from "./core-utils";
 import type { Env } from "./core-utils";
-import { SEED_PROJECTS, EMPTY_MIGRATION_MARKER } from "./content-migration";
+import { SEED_PROJECTS, EMPTY_MIGRATION_MARKER, isReplaceableField } from "./content-migration";
 import { EXPERIENCE_STORIES, isReplaceableStory } from "./entry-stories";
 import type { MigrationMarker, ProjectsMigrationStore } from "./content-migration";
 import type { BlogPost, AuthUser, PendingAuth, SiteConfig, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAddress, BlockedSender, EmailFeed, ApiTokenPublic } from "@shared/types";
@@ -132,6 +132,11 @@ export function projectsMigrationStore(env: Env, migrationId: string): ProjectsM
             const entity = new ExperienceEntity(env, id);
             if (!(await entity.exists())) return;
             await entity.mutate((current) => (current.company && isReplaceableStory(current.story) ? { ...current, story } : current));
+        },
+        setFieldIfReplaceable: async (id, field, value, retired) => {
+            const entity = new ProjectEntity(env, id);
+            if (!(await entity.exists())) return;
+            await entity.mutate((current) => (current.name && isReplaceableField(current[field], retired) ? { ...current, [field]: value } : current));
         },
     };
 }

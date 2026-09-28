@@ -14,7 +14,7 @@ export function WritingSection() {
     <div data-motif="fog" className="contents">
       <Scene
         id="writing"
-        label="Writing"
+        label="Blog"
         scene="noise"
         aside={
           <Link to="/blog" className="pill group">
