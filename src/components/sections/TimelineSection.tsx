@@ -47,7 +47,6 @@ function ExperienceNode({ entry, item }: { entry: TimelineEntry; item: Experienc
       data-scene={entry.scene}
       data-motif={entryMotif(entry.id)}
       data-seed={projectHue(entry.id).toFixed(4)}
-      data-kind="experience"
       aria-label={item.company}
       className="relative"
       style={{ '--tone': SCENE_TONE[entry.scene] } as React.CSSProperties}
@@ -73,7 +72,7 @@ function ExperienceNode({ entry, item }: { entry: TimelineEntry; item: Experienc
               <Reveal className="md:col-span-8 lg:col-span-7">
                 <div className="space-y-5">
                   {narrative(item).map((para, i) => (
-                    <p key={i} className="t-narration legible text-[clamp(1.125rem,1.3vw,1.25rem)] leading-[1.62] text-foreground/85 text-pretty">{para}</p>
+                    <p key={i} className="t-narration legible text-[clamp(1.0625rem,1.2vw,1.1875rem)] leading-[1.66] text-foreground/92 text-pretty">{para}</p>
                   ))}
                 </div>
               </Reveal>
@@ -98,7 +97,7 @@ function ProjectNode({ entry, item, github, flip }: { entry: TimelineEntry; item
   const node = useRef<HTMLElement>(null);
   const head = useRef<HTMLDivElement>(null);
   useStageRegion(node, { kind: 'node', id: entry.id, label: item.name, year: entry.start, scene: entry.scene });
-  useStageRegion(head, { kind: 'reveal', id: entry.id });
+  useStageRegion(head, { kind: 'reveal', id: entry.id, anchor: 'top', span: 0.45 });
 
   const stats = repoStats(github, item.repo);
   const href = item.url || (item.repo ? `https://github.com/${item.repo}` : undefined);
@@ -116,7 +115,6 @@ function ProjectNode({ entry, item, github, flip }: { entry: TimelineEntry; item
       data-scene={entry.scene}
       data-motif={entryMotif(entry.id)}
       data-seed={projectHue(entry.id).toFixed(4)}
-      data-kind="project"
       aria-label={item.name}
       onMouseEnter={focus}
       onMouseLeave={blur}
@@ -143,7 +141,7 @@ function ProjectNode({ entry, item, github, flip }: { entry: TimelineEntry; item
             <Words as="h3" text={item.name} wdth="114%" className="t-name mt-4 text-[clamp(2.1rem,3.6vw,3.5rem)] leading-[1] text-foreground" />
             <div className="reveal-sub">
               {narrative(item).map((para, i) => (
-                <p key={i} className="t-narration legible mt-5 text-[1.0625rem] leading-[1.6] text-foreground/80 text-pretty">{para}</p>
+                <p key={i} className="t-narration legible mt-5 text-[1.0625rem] leading-[1.66] text-foreground/90 text-pretty">{para}</p>
               ))}
               <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
                 {(href || repoHref) && (
@@ -194,7 +192,7 @@ function GroupCard({ item, github, media }: { item: Project; github: GitHubSnaps
       <Words as="h3" text={item.name} wdth="114%" className="t-name text-[clamp(1.9rem,2.7vw,2.75rem)] leading-[1] text-foreground" />
       <div className="reveal-sub">
         {narrative(item).map((para, i) => (
-          <p key={i} className="t-narration legible mt-5 text-[1.0625rem] leading-[1.6] text-foreground/80 text-pretty">{para}</p>
+          <p key={i} className="t-narration legible mt-5 text-[1rem] leading-[1.66] text-foreground/90 text-pretty">{para}</p>
         ))}
         <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
           {(href || repoHref) && (
@@ -237,7 +235,6 @@ function GroupNode({ entry, items, lead, github }: { entry: TimelineEntry; items
       data-scene={entry.scene}
       data-motif={entryMotif(lead.id)}
       data-seed={projectHue(lead.id).toFixed(4)}
-      data-kind="group"
       aria-label={label}
       className="relative py-[24svh] md:py-[30svh]"
       style={{ '--tone': SCENE_TONE[entry.scene] } as React.CSSProperties}

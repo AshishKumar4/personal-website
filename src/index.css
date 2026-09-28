@@ -315,10 +315,11 @@
     letter-spacing: -0.03em;
   }
   .t-narration {
-    font-family: theme('fontFamily.text');
-    font-weight: 380;
-    letter-spacing: -0.003em;
-    font-variant-numeric: oldstyle-nums proportional-nums;
+    font-family: theme('fontFamily.sans');
+    font-weight: 400;
+    font-stretch: 100%;
+    letter-spacing: -0.005em;
+    font-variant-numeric: lining-nums proportional-nums;
   }
   .legible {
     text-shadow: 0 1px 2px hsl(228 30% 3% / 0.45), 0 0 28px hsl(228 30% 3% / 0.55);

@@ -1,5 +1,5 @@
 import { emitFlight, onFlight } from './bus';
-import { INTRO_GO, NO_CREST, crestAt, introDuration, introShot, type Crest } from './choreo';
+import { INTRO_GO, introDuration, introShot } from './choreo';
 import { FlightInput } from './input';
 import { DRONE_TRAIL, Particles } from './particles';
 import { applyMotif, motifCode, variation, type MotifId, type Variation } from './motifs';
@@ -15,11 +15,6 @@ import { QualityController } from './quality';
 const FAR = 1400;
 const CRUISE = 6.5;
 const SUN_AZ = -0.42;
-const CLIMB = 150;
-const CREST_UP = 55;
-const CREST_DOWN = 100;
-const CREST_FOV = 9;
-const RIDGE = 130;
 
 export interface FlightHandle {
   dispose(): void;
@@ -113,7 +108,6 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
   let moveT = 0;
   let moveX = -1;
   let moveY = -1;
-  const crest: Crest = { ...NO_CREST };
 
   const heightAt = (x: number, z: number) => field.height(x, z, smoothstep(front[0] - front[1], front[0] + front[1], Math.hypot(x - eye[0], z - eye[2])));
 
@@ -278,10 +272,6 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     root.dataset.intro = 'dive';
     introEvents.forEach(([type, fn]) => window.addEventListener(type, fn, { passive: true }));
   };
-  const settle = (v: number, target: number, dt: number) => {
-    const n = damp(v, target, 7, dt);
-    return target === 0 && Math.abs(n) < 1e-4 ? 0 : n;
-  };
 
   const applyQuality = (now: number) => {
     if (!qc.apply(now, now - lastScroll > 450)) return;
@@ -348,27 +338,19 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     field.vb = varB;
     field.time = time;
 
-    const expIn = s.cross && s.kb === 'experience';
-    const ct = expIn ? crestAt(t) : NO_CREST;
-    crest.climb = animate ? settle(crest.climb, ct.climb, dt) : ct.climb;
-    crest.up = animate ? settle(crest.up, ct.up, dt) : ct.up;
-    crest.down = animate ? settle(crest.down, ct.down, dt) : ct.down;
-    crest.breath = animate ? settle(crest.breath, ct.breath, dt) : ct.breath;
-    crest.ridge = animate ? settle(crest.ridge, ct.ridge, dt) : ct.ridge;
-
     if (animate) cruise += dt * CRUISE * lerp(A.speed, B.speed, tc) * (1 + dip * 0.8);
     scrollDist = animate ? damp(scrollDist, sy * 0.32, 3.2, dt) : sy * 0.32;
     smx = animate ? damp(smx, input.hover ? input.mx : 0, 2.5, dt) : 0;
     smy = animate ? damp(smy, input.hover ? input.my : 0, 2.5, dt) : 0;
 
     const z = -(cruise + scrollDist);
-    const alt = 205 + lerp(A.altitude, B.altitude, tc) - dip * 26 + Math.sin(time * 0.31) * 1.2 + crest.climb * CLIMB;
+    const alt = 205 + lerp(A.altitude, B.altitude, tc) - dip * 26 + Math.sin(time * 0.31) * 1.2;
     const x = pathX(z);
     const ahead = 420;
     const tx = pathX(z - ahead) + smx * 26;
-    const ty = alt - 118 - smy * 30 + lerp(A.lookUp, B.lookUp, tc) + dip * 10 + crest.up * CREST_UP - crest.down * CREST_DOWN;
+    const ty = alt - 118 - smy * 30 + lerp(A.lookUp, B.lookUp, tc) + dip * 10;
     const slope = (pathX(z - 12) - pathX(z + 12)) / 24;
-    const roll = (-slope * 0.55 - smx * 0.05) * (1 + lerp(A.roll, B.roll, tc)) + crest.climb * (1 - crest.climb) * 0.14;
+    const roll = (-slope * 0.55 - smx * 0.05) * (1 + lerp(A.roll, B.roll, tc));
     eye = [x, alt, z];
     if (animate && prevZ !== null && dt > 0) vz = damp(vz, (prevZ - z) / dt, 3, dt);
     prevZ = z;
@@ -390,7 +372,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     const shot = iw > 0 ? introShot(ip, small) : null;
     let view: Float32Array;
     const aspect = canvas.width / Math.max(1, canvas.height);
-    let fovDeg = (aspect < 1 ? 68 : 52) + lerp(A.fov, B.fov, tc) + dip * 6 + crest.breath * CREST_FOV;
+    let fovDeg = (aspect < 1 ? 68 : 52) + lerp(A.fov, B.fov, tc) + dip * 6;
     if (shot) {
       const dx = tx - x;
       const dy = ty - alt;
@@ -489,7 +471,6 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       varA,
       varB,
       mq: small ? 0.6 : 1,
-      ridge: crest.ridge * RIDGE,
       emu: weight('emulator'),
       drone,
       beacon,
@@ -499,10 +480,10 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     const pu: PostUniforms = {
       time,
       bloom: p.bloom,
-      warp: dip * 0.3 * (expIn ? 0.35 : 1),
+      warp: dip * 0.3,
       scan: p.scanlines,
       grain: 0.05,
-      exposure: shot ? p.exposure * (1 - (1 - shot.exposure) * iw) : p.exposure * (1 + crest.down * 0.08),
+      exposure: shot ? p.exposure * (1 - (1 - shot.exposure) * iw) : p.exposure,
       dpr,
       rays: [sxy[0] * 0.5 + 0.5, sxy[1] * 0.5 + 0.5, sw > 0 ? p.rays * p.sun : 0],
       rayColor: p.glow,
@@ -601,7 +582,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       }
     }
   });
-  mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-scene', 'data-motif', 'data-seed', 'data-kind'] });
+  mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-scene', 'data-motif', 'data-seed'] });
   const io = new IntersectionObserver(entries => {
     onscreen = entries.some(en => en.isIntersecting);
     kick();

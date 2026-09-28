@@ -9,7 +9,7 @@ export const SEED_PROJECTS: Project[] = [
     repo: "AshishKumar4/kinu",
     url: "https://github.com/AshishKumar4/kinu",
     homepage: "https://kinu.run",
-    imageUrl: "/projects/kinu.webp",
+    imageUrl: "/projects/kinu-landing.webp",
     order: 1,
     year: "2026-04",
     story: PROJECT_STORIES["kinu"],
@@ -32,20 +32,10 @@ export const SEED_PROJECTS: Project[] = [
     repo: "AshishKumar4/dew",
     url: "https://github.com/AshishKumar4/dew",
     homepage: "https://dewml.dev",
+    imageUrl: "/projects/dew.svg",
     order: 3,
     year: "2026-09",
     story: PROJECT_STORIES["dew"],
-  },
-  {
-    id: "do86",
-    name: "do86",
-    description: "x86 operating systems running inside a Cloudflare Durable Object, with demand-paged guest memory backed by SQLite. Boots my own Aqeous OS in the cloud, on the edge.",
-    repo: "AshishKumar4/do86",
-    url: "https://github.com/AshishKumar4/do86",
-    homepage: "https://do86.ashishkumarsingh.com",
-    order: 4,
-    year: "2026-03",
-    story: PROJECT_STORIES["do86"],
   },
   {
     id: "nimbus",
@@ -114,8 +104,8 @@ const MIGRATED_FIELDS: MigratedField[] = ["homepage", "imageUrl", "videoUrl"];
 const seedById = new Map(SEED_PROJECTS.map((p) => [p.id, p]));
 
 export const PROJECTS_MIGRATION: ProjectsMigrationSpec = {
-  id: "2026-09-projects-v8",
-  remove: ["mossaic", "ashishkumar4-cf-git", "game-servers"],
+  id: "2026-09-projects-v9",
+  remove: ["mossaic", "ashishkumar4-cf-git", "game-servers", "do86"],
   add: ["kinu", "dew"].map((id) => seedById.get(id)!),
   order: Object.fromEntries(SEED_PROJECTS.map((p) => [p.id, p.order!])),
   year: Object.fromEntries(SEED_PROJECTS.filter((p) => p.year).map((p) => [p.id, p.year!])),
@@ -128,6 +118,7 @@ export const PROJECTS_MIGRATION: ProjectsMigrationSpec = {
     "ashishkumar4-flaxdiff": { imageUrl: ["/api/images/images/projects/flaxdiff.jpg"] },
     nimbus: { imageUrl: ["/api/images/images/projects/nimbus.png"] },
     flydreamer: { imageUrl: ["/api/images/images/projects/flydreamer.png"] },
+    kinu: { imageUrl: ["/projects/kinu.webp"] },
   },
 };
 

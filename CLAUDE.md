@@ -59,8 +59,7 @@ Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage i
 - `motifs.ts` layers a subtle per-entry motif (e.g. `boot`, `ctf`, `lab`, `drone`, `clouds`, `dew`, `fog`) that can switch the terrain archetype (mirror lake, open plain, rolling hills, cloud sea, block build, mesas) plus a terrain variation from `data-seed` on top of the scene; timeline regions get both from `entryMotif`/`projectHue` in `timeline.ts`, and neighbours merge only when scene, motif and seed all match
 - Debug params: `?scene=<id>&progress=0..1` forces a scene, `?motif=<id>&seed=0..1` forces a motif, `?flightq=hi` pins quality, `?freeze=<seconds>` freezes time for deterministic frames (and exposes `window.__flightBench`)
 - `quality.ts` is the adaptive resolution controller (targets ~60fps, defers resizes until scrolling is idle); terrain is evaluated once per frame and shared by the fill, line and mirror passes, and every program is compiled and warmed up front so no world stalls on first appearance
-- Opening shot: once per session on a fresh load of `/` at the top, the camera dives through a cloud layer into the hero (`intro-gate.ts` holds the hero name via `html[data-intro]` until the dive releases it; any scroll, key or touch aborts it; `?nointro` skips it)
-- Transitions into an experience region (`data-kind="experience"`) crest a rising ridge before the new world opens up (`choreo.ts`, a pure function of scroll progress, finished before the entry's text arrives); project transitions are unchanged
+- Opening shot: once per session on a fresh load of `/` at the top, the camera dives through a cloud layer into the hero (`choreo.ts` shapes the dive as a pure function of time; `intro-gate.ts` holds the hero name via `html[data-intro]` until the dive releases it; any scroll, key or touch aborts it; `?nointro` skips it)
 - Respects `prefers-reduced-motion` (static frames) and adapts resolution to frame time; small screens get lower density and no bloom
 
 ### Timeline
@@ -68,6 +67,7 @@ Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage i
 - `src/components/site/timeline.ts` merges experiences (start parsed from `duration`) and projects (`year`, `YYYY-MM`) oldest first; undated projects go last. Consecutive projects that start within about a month of each other become one `group` stop (one landscape, taken from the lowest `order` project, with the projects side by side)
 - Each entry's scene is its `scene` field when set, otherwise a default by id in `timeline.ts`; both are editable in the admin ("Landscape", "Started")
 - Each entry shows its `story` (first-person narrative, blank lines split paragraphs) and falls back to `description`; default stories live in `worker/entry-stories.ts` and are editable per entry in the admin
+- Every entry's text reveal is keyed to the top of its heading block (`useStageRegion` with `anchor: 'top'`), so long stories don't delay their own entrance
 - Project media (`imageUrl`, optional `videoUrl` as a space-separated source list, curated assets in `public/projects/`) renders through `ProjectMedia.tsx` as a tone-tinted glass window that tilts in on scroll and comes to full colour on hover; `homepage` adds a live-site pill labelled with its domain (`project-links.ts`)
 - `worker/content-migration.ts` holds the project seeds and a one-time, marker-guarded migration that runs from the public read routes
 

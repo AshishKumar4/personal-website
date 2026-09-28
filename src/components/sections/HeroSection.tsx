@@ -35,7 +35,7 @@ export function HeroSection() {
                   {current.role}, {current.company}
                 </span>
               )}
-              {config?.subtitle && <span className="t-narration mt-1 block text-[1.1875rem] italic leading-snug text-foreground/75">{config.subtitle}</span>}
+              {config?.subtitle && <span className="mt-1 block font-text text-[1.1875rem] font-[380] italic leading-snug text-foreground/75">{config.subtitle}</span>}
             </p>
           </div>
         </Container>

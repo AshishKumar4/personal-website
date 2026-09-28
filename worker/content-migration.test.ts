@@ -100,9 +100,10 @@ class MemoryStore implements ProjectsMigrationStore {
 }
 
 describe('SEED_PROJECTS', () => {
-  test('leads with Kinu, VibeSDK, Dew and do86 and drops retired projects', () => {
+  test('leads with Kinu, VibeSDK, Dew and Nimbus and drops retired projects', () => {
     const ids = [...SEED_PROJECTS].sort((a, b) => a.order! - b.order!).map((p) => p.id);
-    expect(ids.slice(0, 4)).toEqual(['kinu', 'cloudflare-vibesdk', 'dew', 'do86']);
+    expect(ids.slice(0, 4)).toEqual(['kinu', 'cloudflare-vibesdk', 'dew', 'nimbus']);
+    expect(ids).not.toContain('do86');
     expect(ids).not.toContain('mossaic');
     expect(ids).not.toContain('ashishkumar4-cf-git');
     expect(ids).not.toContain('cloudflare-vibesdk-templates');
@@ -117,27 +118,28 @@ describe('SEED_PROJECTS', () => {
 describe('planProjectsMigration', () => {
   test('plans deletes, additions and orders against the live project list', () => {
     const plan = planProjectsMigration(LIVE_IDS.map((id) => project(id)), PROJECTS_MIGRATION);
-    expect(plan.deleteIds.sort()).toEqual(['ashishkumar4-cf-git', 'mossaic']);
+    expect(plan.deleteIds.sort()).toEqual(['ashishkumar4-cf-git', 'do86', 'mossaic']);
     expect(plan.add.map((p) => p.id)).toEqual(['kinu', 'dew']);
     expect(plan.orders).toContainEqual({ id: 'cloudflare-vibesdk', order: 2 });
-    expect(plan.orders).toContainEqual({ id: 'do86', order: 4 });
+    expect(plan.orders).toContainEqual({ id: 'nimbus', order: 5 });
+    expect(plan.orders.map((o) => o.id)).not.toContain('do86');
     expect(plan.orders.map((o) => o.id)).not.toContain('mossaic');
     expect(plan.orders.map((o) => o.id)).not.toContain('kinu');
   });
 
   test('fills missing years without touching ones the admin set', () => {
-    const plan = planProjectsMigration([project('ashishkumar4-aqeous'), project('do86', { year: '2025-01' })], PROJECTS_MIGRATION);
+    const plan = planProjectsMigration([project('ashishkumar4-aqeous'), project('flydreamer', { year: '2025-01' })], PROJECTS_MIGRATION);
     expect(plan.years).toEqual([{ id: 'ashishkumar4-aqeous', year: '2015-12' }]);
   });
   test('fills missing stories without touching ones the admin wrote', () => {
-    const plan = planProjectsMigration([project('do86'), project('nimbus', { story: 'Mine.' })], PROJECTS_MIGRATION);
-    expect(plan.stories.map((s) => s.id)).toContain('do86');
+    const plan = planProjectsMigration([project('flydreamer'), project('nimbus', { story: 'Mine.' })], PROJECTS_MIGRATION);
+    expect(plan.stories.map((s) => s.id)).toContain('flydreamer');
     expect(plan.stories.map((s) => s.id)).not.toContain('nimbus');
   });
   test('replaces retired default stories but keeps ones the admin wrote', () => {
-    const retired = 'do86 runs x86 operating systems inside a Cloudflare Durable Object, with guest memory paged in from SQLite. It boots Aqeous, the kernel I wrote at 15.';
-    const plan = planProjectsMigration([project('do86', { story: retired }), project('nimbus', { story: 'Mine.' })], PROJECTS_MIGRATION);
-    expect(plan.stories.map((s) => s.id)).toContain('do86');
+    const retired = "Lately I've been trying to teach a DreamerV3 style world model agent to fly an FPV drone from vision alone, inside simulation environments I built for it. I build and fly FPV drones myself, so this one is a bit personal. Reward shaping is humbling tbh.";
+    const plan = planProjectsMigration([project('flydreamer', { story: retired }), project('nimbus', { story: 'Mine.' })], PROJECTS_MIGRATION);
+    expect(plan.stories.map((s) => s.id)).toContain('flydreamer');
     expect(plan.stories.map((s) => s.id)).not.toContain('nimbus');
   });
   test('replaces the retired FlaxDiff flowers and fills media where unset', () => {
@@ -146,16 +148,18 @@ describe('planProjectsMigration', () => {
         project('ashishkumar4-flaxdiff', { imageUrl: '/api/images/images/projects/flaxdiff.jpg' }),
         project('nimbus', { imageUrl: '/api/images/images/projects/nimbus.png' }),
         project('flydreamer', { imageUrl: '/api/images/images/projects/flydreamer.png' }),
-        project('kinu'),
+        project('kinu', { imageUrl: '/projects/kinu.webp' }),
+        project('dew'),
       ],
       PROJECTS_MIGRATION,
     );
     const set = (id: string, field: string) => plan.fields.find((f) => f.id === id && f.field === field)?.value;
+    expect(set('dew', 'imageUrl')).toBe('/projects/dew.svg');
     expect(set('ashishkumar4-flaxdiff', 'imageUrl')).toBe('/projects/flaxdiff.webp');
     expect(set('nimbus', 'imageUrl')).toBe('/projects/nimbus.webp');
     expect(set('flydreamer', 'imageUrl')).toBe('/projects/flydreamer.webp');
     expect(set('flydreamer', 'videoUrl')).toBe('/projects/flydreamer.webm /projects/flydreamer.mp4');
-    expect(set('kinu', 'imageUrl')).toBe('/projects/kinu.webp');
+    expect(set('kinu', 'imageUrl')).toBe('/projects/kinu-landing.webp');
     expect(set('kinu', 'homepage')).toBe('https://kinu.run');
     expect(set('ashishkumar4-flaxdiff', 'homepage')).toBe('https://pypi.org/project/flaxdiff/');
   });
@@ -179,7 +183,7 @@ describe('planProjectsMigration', () => {
   });
 
   test('keeps explicit admin ordering', () => {
-    const plan = planProjectsMigration([project('do86', { order: 0 }), project('nimbus')], PROJECTS_MIGRATION);
+    const plan = planProjectsMigration([project('flydreamer', { order: 0 }), project('nimbus')], PROJECTS_MIGRATION);
     expect(plan.orders).toEqual([{ id: 'nimbus', order: 5 }]);
   });
 
@@ -224,7 +228,7 @@ describe('runProjectsMigration', () => {
   test('migrates production content in one pass', async () => {
     const store = new MemoryStore(LIVE_IDS.map((id) => project(id)));
     expect(await runProjectsMigration(store)).toBe('applied');
-    expect(store.sorted()).toEqual(['kinu', 'cloudflare-vibesdk', 'dew', 'do86', 'nimbus', 'ashishkumar4-flaxdiff', 'flydreamer', 'ashishkumar4-aqeous']);
+    expect(store.sorted()).toEqual(['kinu', 'cloudflare-vibesdk', 'dew', 'nimbus', 'ashishkumar4-flaxdiff', 'flydreamer', 'ashishkumar4-aqeous']);
     expect(store.marker.status).toBe('done');
   });
 
@@ -248,7 +252,7 @@ describe('runProjectsMigration', () => {
     );
     expect(outcomes.filter((o) => o === 'applied')).toHaveLength(1);
     expect(outcomes.every((o) => o === 'applied' || o === 'busy' || o === 'already-done')).toBe(true);
-    expect(store.sorted().slice(0, 4)).toEqual(['kinu', 'cloudflare-vibesdk', 'dew', 'do86']);
+    expect(store.sorted().slice(0, 4)).toEqual(['kinu', 'cloudflare-vibesdk', 'dew', 'nimbus']);
   });
 
   test('is safe to execute twice after a crashed claim', async () => {
@@ -258,7 +262,7 @@ describe('runProjectsMigration', () => {
     await store.addProjectIfAbsent(SEED_PROJECTS[0]);
     expect(await runProjectsMigration(store, PROJECTS_MIGRATION, () => 10_000)).toBe('busy');
     expect(await runProjectsMigration(store, PROJECTS_MIGRATION, () => 120_000)).toBe('applied');
-    expect(store.sorted()).toEqual(['kinu', 'cloudflare-vibesdk', 'dew', 'do86', 'nimbus', 'ashishkumar4-flaxdiff', 'flydreamer', 'ashishkumar4-aqeous']);
+    expect(store.sorted()).toEqual(['kinu', 'cloudflare-vibesdk', 'dew', 'nimbus', 'ashishkumar4-flaxdiff', 'flydreamer', 'ashishkumar4-aqeous']);
   });
 
   test('moves production media to the new assets without touching other images', async () => {
@@ -270,10 +274,10 @@ describe('runProjectsMigration', () => {
     expect(store.docs.get('ashishkumar4-flaxdiff')!.imageUrl).toBe('/projects/flaxdiff.webp');
     expect(store.docs.get('nimbus')!.imageUrl).toBe('/projects/nimbus.webp');
     expect(store.docs.get('flydreamer')!.videoUrl).toBe('/projects/flydreamer.webm /projects/flydreamer.mp4');
-    expect(store.docs.get('kinu')!.imageUrl).toBe('/projects/kinu.webp');
-    expect(store.docs.get('do86')!.imageUrl).toBe('/api/images/images/projects/do86.png');
+    expect(store.docs.get('kinu')!.imageUrl).toBe('/projects/kinu-landing.webp');
+    expect(store.index.has('do86')).toBe(false);
     expect(store.docs.get('cloudflare-vibesdk')!.imageUrl).toBe('/api/images/images/projects/vibesdk.png');
-    expect(store.docs.get('do86')!.homepage).toBe('https://do86.ashishkumarsingh.com');
+    expect(store.docs.get('cloudflare-vibesdk')!.homepage).toBe('https://build.cloudflare.dev');
     expect(store.docs.get('ashishkumar4-aqeous')!.homepage).toBeUndefined();
   });
 
@@ -292,11 +296,11 @@ describe('runProjectsMigration', () => {
     const store = new MemoryStore(LIVE_IDS.map((id) => project(id)));
     const original = store.setOrderIfUnset.bind(store);
     store.setOrderIfUnset = async (id, order) => {
-      if (id === 'do86') store.docs.set('do86', { ...store.docs.get('do86')!, order: 0 });
+      if (id === 'flydreamer') store.docs.set('flydreamer', { ...store.docs.get('flydreamer')!, order: 0 });
       return original(id, order);
     };
     await runProjectsMigration(store);
-    expect(store.docs.get('do86')!.order).toBe(0);
-    expect(store.sorted()[0]).toBe('do86');
+    expect(store.docs.get('flydreamer')!.order).toBe(0);
+    expect(store.sorted()[0]).toBe('flydreamer');
   });
 });

@@ -26,7 +26,6 @@ export interface Frame {
   varA: Variation;
   varB: Variation;
   mq: number;
-  ridge: number;
   emu: number;
   drone: Float32Array;
   beacon: [number, number, number, number];

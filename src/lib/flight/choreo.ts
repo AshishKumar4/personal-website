@@ -15,17 +15,7 @@ export interface IntroShot {
   reveal: number;
 }
 
-export interface Crest {
-  climb: number;
-  up: number;
-  down: number;
-  breath: number;
-  ridge: number;
-}
-
 export const INTRO_GO = 0.4;
-
-export const NO_CREST: Crest = { climb: 0, up: 0, down: 0, breath: 0, ridge: 0 };
 
 export function introDuration(small: boolean): number {
   return small ? 2.9 : 3.8;
@@ -48,16 +38,5 @@ export function introShot(p: number, small: boolean): IntroShot {
     exposure: 0.6 * smoothstep(0, 0.12, q) + 0.4 * smoothstep(0.4, 0.75, q),
     cloud: 1 - smoothstep(0.5, 0.66, q),
     reveal: smoothstep(0.36, 0.82, q),
-  };
-}
-
-export function crestAt(t: number): Crest {
-  const x = clamp01(t);
-  return {
-    climb: smoothstep(0, 0.36, x) * (1 - smoothstep(0.4, 0.6, x)),
-    up: smoothstep(0.02, 0.22, x) * (1 - smoothstep(0.22, 0.4, x)),
-    down: smoothstep(0.3, 0.44, x) * (1 - smoothstep(0.46, 0.6, x)),
-    breath: bump(smoothstep(0.28, 0.6, x)) ** 2,
-    ridge: smoothstep(0.02, 0.26, x) * (1 - smoothstep(0.4, 0.58, x)),
   };
 }
