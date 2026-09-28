@@ -53,8 +53,13 @@ void main() {
   lambert += fm.w * smoothstep(0.93, 0.995, n.y) * smoothstep(40.0, 56.0, h0) * (1.0 - cloud) * 0.5;
   t_pos = vec4(xz, h, h0);
   t_mix = vec4(m, rp.y, seam, j);
-  t_look = vec4(waveOut, water, cloud, g.y);
-  t_lit = vec4(lambert, rim, row, 0.0);
+  vec4 f3 = mix(u_form3A, u_form3B, m);
+  float glow = 0.0;
+  if (f3.x > 0.001) glow += f3.x * smoothstep(40.0, 160.0, h0);
+  if (f3.y > 0.001) glow += f3.y * smoothstep(40.0, 70.0, h0) * 1.6;
+  if (f3.w > 0.001) glow += f3.w * smoothstep(70.0, 110.0, h0);
+  t_look = vec4(waveOut, water, cloud, max(g.y, f3.z));
+  t_lit = vec4(lambert, rim, row, glow);
   gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
   gl_PointSize = 1.0;
 }`;
@@ -92,6 +97,7 @@ void main() {
   v_water = a_look.y;
   v_cloud = a_look.z;
   v_build = a_look.w;
+  v_glow = a_lit.w;
 #ifdef LIT
   float lambert = a_lit.x;
   float rim = a_lit.y;
@@ -126,7 +132,7 @@ void main() {
   v_seam = a_mix.z;
 }`;
 
-const VARYINGS = (q: string) => ['vec3 v_world', 'float v_alpha', 'float v_fog', 'float v_light', 'float v_dist', 'float v_ring', 'float v_rim', 'float v_row', 'float v_mix', 'float v_seam', 'float v_mist', 'float v_wave', 'float v_water', 'float v_cloud', 'float v_build', 'float v_grain'].map(v => `${q} ${v};`).join('\n');
+const VARYINGS = (q: string) => ['vec3 v_world', 'float v_alpha', 'float v_fog', 'float v_light', 'float v_dist', 'float v_ring', 'float v_rim', 'float v_row', 'float v_mix', 'float v_seam', 'float v_mist', 'float v_wave', 'float v_water', 'float v_cloud', 'float v_build', 'float v_grain', 'float v_glow'].map(v => `${q} ${v};`).join('\n');
 
 const MESH_IN = `
 ${VARYINGS('in')}
@@ -167,6 +173,8 @@ uniform vec3 u_rimA;
 uniform vec3 u_rimB;
 uniform vec4 u_lsA;
 uniform vec4 u_lsB;
+uniform vec3 u_hiA;
+uniform vec3 u_hiB;
 void main() {
   vec4 ls = mix(u_lsA, u_lsB, v_mix);
   vec3 line = mix(u_lineA, u_lineB, v_mix);
@@ -200,6 +208,15 @@ void main() {
       float tw = pow(0.5 + 0.5 * sin(u_time * (0.35 + fract(hd * 71.0) * 0.5) + hd * 400.0), 6.0);
       col += vec3(0.94, 0.97, 1.0) * spot * tw * min(catchL, 1.5) * w * 4.0 * (1.0 - smoothstep(0.15, 0.3, v_dist));
     }
+  }
+  if (v_glow > 0.001) {
+    float gl = v_glow;
+    if (motifOn(${M.mind}.0)) {
+      float w = motifW(${M.mind}.0, v_mix);
+      float pulse = pow(0.5 + 0.5 * sin(dot(v_world.xz, vec2(0.0042, 0.0118)) + u_time * 0.9), 10.0);
+      gl *= 1.0 + w * (pulse * 3.0 - 0.6);
+    }
+    col += mix(u_hiA, u_hiB, v_mix) * gl * (0.3 + v_light * 0.8);
   }
   float alpha = v_alpha;
   if (v_grain > 0.001) alpha *= mix(1.0, step(0.5, hash12(vec2(floor(v_world.x / 1.7), v_row * 1.37))) * 1.8, v_grain * 0.9);
@@ -254,6 +271,8 @@ uniform vec3 u_fillB;
 uniform vec3 u_lineA;
 uniform vec3 u_lineB;
 uniform float u_moon;
+uniform vec3 u_hiA;
+uniform vec3 u_hiB;
 ${ATMOS}
 vec3 waterAt(vec3 p) {
   vec3 d = normalize(p - u_cam);
@@ -291,6 +310,7 @@ void main() {
     vec3 under = vec3(1.0, 0.45, 0.14) * (0.008 + 0.1 * pocket * pocket) * (1.0 - v_fog * 0.5) * motifW(${M.agents}.0, v_mix);
     col = mix(col, top + under, v_cloud);
   }
+  if (v_glow > 0.001) col += mix(u_hiA, u_hiB, v_mix) * v_glow * 0.022 * (1.0 - v_fog);
   if (v_build > 0.001) {
     vec2 gq = v_world.xz / 24.0;
     vec2 fw = fwidth(gq);
@@ -550,7 +570,7 @@ export class TerrainRenderer {
   private drawFill(prog: Program, f: Frame, warm: boolean) {
     const gl = this.gl;
     this.mesh(prog, f);
-    prog.set('u_fillA', f.a.fill).set('u_fillB', f.b.fill).set('u_lineA', f.lineA).set('u_lineB', f.lineB).set('u_moon', f.p.moon);
+    prog.set('u_fillA', f.a.fill).set('u_fillB', f.b.fill).set('u_lineA', f.lineA).set('u_lineB', f.lineB).set('u_moon', f.p.moon).set('u_hiA', f.a.hi).set('u_hiB', f.b.hi);
     this.atmos(prog, f);
     gl.depthMask(true);
     gl.disable(gl.BLEND);
@@ -573,7 +593,9 @@ export class TerrainRenderer {
       .set('u_rimA', a.rim)
       .set('u_rimB', b.rim)
       .set('u_lsA', [a.farMix, a.lineGain, a.rimAmt, 0])
-      .set('u_lsB', [b.farMix, b.lineGain, b.rimAmt, 0]);
+      .set('u_lsB', [b.farMix, b.lineGain, b.rimAmt, 0])
+      .set('u_hiA', a.hi)
+      .set('u_hiB', b.hi);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
     gl.depthMask(false);

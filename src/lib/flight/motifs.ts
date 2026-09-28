@@ -2,7 +2,7 @@ import type { SceneId } from '@shared/types';
 import type { SceneParams } from './scenes';
 import { smoothstep } from './math';
 
-export const MOTIF_IDS = ['boot', 'ctf', 'lab', 'packets', 'denoise', 'waveform', 'agents', 'build', 'drone', 'emulator', 'workspaces', 'clouds', 'dew', 'fog'] as const;
+export const MOTIF_IDS = ['boot', 'ctf', 'lab', 'packets', 'denoise', 'waveform', 'agents', 'build', 'drone', 'emulator', 'workspaces', 'clouds', 'dew', 'fog', 'crystal', 'quantum', 'arena', 'mind', 'canyon'] as const;
 export type MotifId = typeof MOTIF_IDS[number];
 
 export const M = Object.fromEntries(MOTIF_IDS.map((id, i) => [id, i + 1])) as Record<MotifId, number>;
@@ -22,6 +22,11 @@ export const MOTIF_SCENE: Record<MotifId, SceneId> = {
   clouds: 'signal',
   dew: 'noise',
   fog: 'night',
+  crystal: 'signal',
+  quantum: 'noise',
+  arena: 'kernel',
+  mind: 'night',
+  canyon: 'night',
 };
 
 const SET = new Set<string>(MOTIF_IDS);
@@ -48,6 +53,11 @@ export function variation(seed: number | null): Variation {
   return [Math.cos(a) * r, Math.sin(a) * r, fract(s * 7.31 + 0.13) * 1.3 - 0.45, fract(s * 3.17 + 0.52) * 0.6 - 0.12];
 }
 
+export function alpineOf(seed: number | null): number {
+  if (seed === null || !Number.isFinite(seed)) return 0;
+  return smoothstep(0.3, 0.85, fract(fract(seed) * 5.73 + 0.29));
+}
+
 export const MOTIF_PROGRESS: Partial<Record<MotifId, number>> = { denoise: 0.45, build: 0.55, dew: 0.6 };
 
 const WORLDS: Record<MotifId, Partial<SceneParams>> = {
@@ -67,6 +77,7 @@ const WORLDS: Record<MotifId, Partial<SceneParams>> = {
     clouds: 0.2,
     mist: 0.3,
     amp: 1.22,
+    alpine: 1,
   },
   lab: {
     line: [0.72, 0.93, 0.96],
@@ -178,7 +189,7 @@ const WORLDS: Record<MotifId, Partial<SceneParams>> = {
     altitude: 60,
     lookUp: 6,
   },
-  drone: {},
+  drone: { alpine: 1 },
   emulator: {
     line: [0.72, 0.9, 1],
     lineFar: [0.5, 0.8, 1],
@@ -267,6 +278,97 @@ const WORLDS: Record<MotifId, Partial<SceneParams>> = {
     altitude: -100,
     lookUp: 110,
     speed: 0.7,
+  },
+  crystal: {
+    line: [0.66, 0.6, 1],
+    lineFar: [0.4, 0.85, 1],
+    farMix: 0.55,
+    lineGain: 1.05,
+    fill: [0.012, 0.01, 0.032],
+    skyTop: [0.004, 0.003, 0.014],
+    skyHorizon: [0.03, 0.03, 0.085],
+    glow: [0.5, 0.45, 1],
+    glowAmt: 0.2,
+    rim: [0.45, 0.95, 1],
+    rimAmt: 0.9,
+    lantern: [0.7, 0.8, 1],
+    hi: [0.45, 0.85, 1],
+    stars: 0.9,
+    clouds: 0.15,
+    mist: 0.25,
+    amp: 1,
+    crystal: 1,
+    altitude: -45,
+    lookUp: 40,
+    speed: 0.8,
+  },
+  quantum: {
+    line: [0.56, 0.52, 1],
+    lineFar: [1, 0.78, 0.42],
+    farMix: 0.45,
+    lineGain: 1.3,
+    fill: [0.012, 0.01, 0.04],
+    skyTop: [0.004, 0.003, 0.018],
+    skyHorizon: [0.035, 0.03, 0.1],
+    glow: [0.7, 0.55, 1],
+    glowAmt: 0.14,
+    rim: [1, 0.8, 0.5],
+    rimAmt: 0.35,
+    lantern: [1, 0.85, 0.6],
+    hi: [1, 0.78, 0.4],
+    stars: 0.7,
+    clouds: 0.2,
+    mist: 0.3,
+    jitter: 0,
+    quantum: 1,
+    altitude: 35,
+    lookUp: -18,
+    fov: 0,
+    speed: 0.7,
+  },
+  arena: {
+    lineGain: 1,
+    terrace: 0,
+    arena: 1,
+    scanlines: 0.35,
+    altitude: -100,
+    lookUp: 70,
+    fov: 4,
+    roll: 0.4,
+    speed: 1.6,
+  },
+  mind: {
+    line: [0.7, 0.76, 0.9],
+    lineFar: [0.98, 0.78, 0.62],
+    farMix: 0.5,
+    fill: [0.02, 0.024, 0.04],
+    skyTop: [0.008, 0.011, 0.026],
+    skyHorizon: [0.07, 0.07, 0.11],
+    glow: [1, 0.7, 0.5],
+    glowAmt: 0.16,
+    band: 0.18,
+    rim: [0.85, 0.9, 1],
+    rimAmt: 0.35,
+    hi: [0.8, 0.88, 1],
+    stars: 1,
+    moon: 0,
+    clouds: 0.3,
+    mist: 0.5,
+    mind: 1,
+    lineGain: 1.2,
+    altitude: -60,
+    lookUp: 125,
+    speed: 0.65,
+  },
+  canyon: {
+    lineFar: [1, 0.66, 0.46],
+    farMix: 0.45,
+    rimAmt: 0.3,
+    mist: 0.7,
+    canyon: 1,
+    altitude: -125,
+    lookUp: 100,
+    speed: 1.1,
   },
 };
 

@@ -2,7 +2,7 @@ import { emitFlight, onFlight } from './bus';
 import { INTRO_GO, introDuration, introShot } from './choreo';
 import { FlightInput } from './input';
 import { DRONE_TRAIL, Particles } from './particles';
-import { applyMotif, motifCode, variation, type MotifId, type Variation } from './motifs';
+import { alpineOf, applyMotif, motifCode, variation, type MotifId, type Variation } from './motifs';
 import { Post, type PostUniforms } from './post';
 import { SceneTracker, mixParams, sceneAt, type V3 } from './scenes';
 import { TerrainRenderer } from './terrain-renderer';
@@ -336,6 +336,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
     field.b = B;
     field.va = varA;
     field.vb = varB;
+    field.alp = [A.alpine * alpineOf(s.sa), B.alpine * alpineOf(s.sb)];
     field.time = time;
 
     if (animate) cruise += dt * CRUISE * lerp(A.speed, B.speed, tc) * (1 + dip * 0.8);
@@ -470,6 +471,7 @@ export function startFlight(canvas: HTMLCanvasElement, veil: HTMLElement | null,
       motif: [motifCode(s.ma), motifCode(s.mb)],
       varA,
       varB,
+      alpine: field.alp,
       mq: small ? 0.6 : 1,
       emu: weight('emulator'),
       drone,
