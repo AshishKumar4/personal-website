@@ -50,7 +50,19 @@ export function ReaderPanel({ prefs }: { prefs: Prefs }) {
           label="Text size"
           value={prefs.size}
           onChange={prefs.setSize}
-          options={SIZES.map(s => ({ v: s.v, label: s.label, content: <span className="font-text leading-none" style={{ fontSize: s.px }}>A</span> }))}
+          options={SIZES.map(s => ({ v: s.v, label: s.label, content: <span className={cn('leading-none', prefs.font === 'serif' ? 'reader-serif' : 'font-sans')} style={{ fontSize: s.px }}>A</span> }))}
+        />
+      </div>
+      <div>
+        <div className="reader-panel-label">Typeface</div>
+        <Segment
+          label="Typeface"
+          value={prefs.font}
+          onChange={prefs.setFont}
+          options={[
+            { v: 'sans', label: 'Sans serif', content: <><span className="font-sans text-[1rem] leading-none">Aa</span>Sans</> },
+            { v: 'serif', label: 'Serif', content: <><span className="reader-serif text-[1rem] leading-none">Aa</span>Serif</> },
+          ]}
         />
       </div>
       <div>
@@ -74,8 +86,8 @@ export function ReaderControls({ prefs, className, side = 'right', align = 'star
     <Popover>
       <PopoverTrigger asChild>
         <button type="button" className={cn('reader-aa', className)} aria-label="Reading settings">
-          <span aria-hidden="true" className="font-text text-[1.05rem] leading-none">A</span>
-          <span aria-hidden="true" className="font-text text-[0.8rem] leading-none">a</span>
+          <span aria-hidden="true" className="font-sans text-[1rem] font-[450] leading-none">A</span>
+          <span aria-hidden="true" className="font-sans text-[0.78rem] font-[450] leading-none">a</span>
         </button>
       </PopoverTrigger>
       <PopoverContent side={side} align={align} sideOffset={10} className="reader-pop w-[15.5rem]">

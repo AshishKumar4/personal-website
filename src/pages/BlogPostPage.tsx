@@ -18,6 +18,9 @@ import { scrollToHeading, useArticleNav } from '@/components/reading/useArticleN
 import { useReaderPrefs } from '@/components/reading/reader-prefs';
 import { ReaderDock, TocRail } from '@/components/reading/Toc';
 import { EndMatter } from '@/components/reading/EndMatter';
+import '@fontsource-variable/mona-sans/wdth-italic.css';
+import '@fontsource-variable/literata/opsz.css';
+import '@fontsource-variable/literata/opsz-italic.css';
 
 const ColabIcon = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
@@ -100,7 +103,7 @@ function PostBody() {
   return (
     <>
       <div ref={nav.barRef} className="reading-progress" style={{ transform: 'scaleX(0)' }} aria-hidden="true" />
-      <article className="article" data-size={prefs.size} data-theme={prefs.theme}>
+      <article className="article" data-size={prefs.size} data-theme={prefs.theme} data-font={prefs.font}>
         <header className="article-head relative isolate">
           <NightSky />
           <Container className="pt-24 md:pt-32">
@@ -116,9 +119,9 @@ function PostBody() {
                     <Skeleton className="h-16 w-3/4 bg-white/5" />
                   </div>
                 ) : ready && date ? (
-                  <div className="mt-12 md:mt-14">
+                  <div className="mt-12 flex flex-col items-start md:mt-14 md:items-center">
                     <MonoMeta
-                      className="text-foreground/60"
+                      className="article-meta text-foreground/60"
                       items={[
                         <time key="d" dateTime={date.toISOString()}>{formatDate(post.createdAt)}</time>,
                         <span key="r" className="tabular">{minutes} min read</span>,

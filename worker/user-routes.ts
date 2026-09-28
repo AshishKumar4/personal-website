@@ -9,7 +9,7 @@ import { ok, bad, notFound, isStr, mergeUnique, Index } from './core-utils';
 import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, ApiTokenPublic, ApiTokenCreated, R2FileItem, MultipartUploadPart, SiteFact, PostSummary, HomePayload, GitHubSnapshot, RepoStats } from "@shared/types";
 import { runProjectsMigration, PROJECTS_MIGRATION } from './content-migration';
 import { EMAIL_DOMAIN, clampTtlMinutes, ACCENT_PRESETS, DEFAULT_SITE_EXTRAS, SCENE_IDS } from "@shared/types";
-import { postExcerpt, postReadingTime } from '@shared/post-preview';
+import { postCoverImage, postExcerpt, postReadingTime } from '@shared/post-preview';
 import { getEmailRaw, getAttachment, generateThreadId } from './email-utils';
 import { arrayBufferToBase64, isSafeMessageIdHeader, contentDispositionHeader } from './mail-encoding';
 import { generateThrowawayLocalPart, getActiveFromAddress } from './address-utils';
@@ -235,8 +235,9 @@ async function ensureContentMigrations(env: Env): Promise<void> {
 }
 
 function summarizePost(post: BlogPost): PostSummary {
-  const { content: _content, ...rest } = post;
-  return { ...rest, excerpt: postExcerpt(post, 220), readingTime: postReadingTime(post) };
+  const { content: _content, coverImage: _cover, ...rest } = post;
+  const coverImage = postCoverImage(post);
+  return { ...rest, excerpt: postExcerpt(post, 220), readingTime: postReadingTime(post), ...(coverImage ? { coverImage } : {}) };
 }
 
 async function fetchGitHubSnapshot(repos: string[], token?: string): Promise<GitHubSnapshot> {
