@@ -8,6 +8,7 @@ import { Reveal } from '@/components/site/Reveal';
 import { Words } from '@/components/site/Words';
 import { useStageRegion } from '@/components/site/stage';
 import { ProjectMedia } from '@/components/site/ProjectMedia';
+import { CompanyMark } from '@/components/site/CompanyMark';
 import { hasMedia, siteLabel } from '@/components/site/project-links';
 import { SCENE_TONE, buildTimeline, entryMotif, projectHue, type TimelineEntry } from '@/components/site/timeline';
 import { emitFlight } from '@/lib/flight/bus';
@@ -54,6 +55,7 @@ function ExperienceNode({ entry, item }: { entry: TimelineEntry; item: Experienc
       <div ref={head} className="reveal-title flex min-h-[84svh] items-end pb-8 md:min-h-[96svh] md:pb-12">
         <RailContainer>
           <div className="t-kicker legible flex items-center gap-4 text-foreground/70">
+            <CompanyMark src={item.logoUrl} className="reveal-sub" />
             <span className="text-[hsl(var(--tone))]">{item.duration}</span>
             <span aria-hidden="true" className="reveal-rule hidden h-px w-14 bg-foreground/35 sm:block" />
           </div>
@@ -189,10 +191,10 @@ function GroupCard({ item, github, media }: { item: Project; github: GitHubSnaps
   return (
     <div id={anchorId(item.id)} onMouseEnter={focus} onMouseLeave={blur} className="scrim">
       {media && <ProjectMedia project={item} href={item.homepage || href} size="card" className="mb-8 md:mb-9" />}
-      <Words as="h3" text={item.name} wdth="114%" className="t-name text-[clamp(1.9rem,2.7vw,2.75rem)] leading-[1] text-foreground" />
+      <Words as="h3" text={item.name} wdth="114%" className="t-name text-[clamp(2rem,3.2vw,3.25rem)] leading-[1] text-foreground" />
       <div className="reveal-sub">
         {narrative(item).map((para, i) => (
-          <p key={i} className="t-narration legible mt-5 text-[1rem] leading-[1.66] text-foreground/90 text-pretty">{para}</p>
+          <p key={i} className="t-narration legible mt-5 max-w-[60ch] text-[1.0625rem] leading-[1.66] text-foreground/90 text-pretty">{para}</p>
         ))}
         <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
           {(href || repoHref) && (
@@ -239,14 +241,14 @@ function GroupNode({ entry, items, lead, github }: { entry: TimelineEntry; items
       className="relative py-[24svh] md:py-[30svh]"
       style={{ '--tone': SCENE_TONE[entry.scene] } as React.CSSProperties}
     >
-      <RailContainer className="lg:pr-60">
+      <RailContainer>
         <div ref={head} className="reveal-title">
           <div className="t-kicker legible flex items-center gap-3 text-foreground/60">
             <span aria-hidden="true" className="h-1.5 w-1.5 rotate-45 bg-[hsl(var(--tone))]" />
             <span className="text-foreground/80">Projects</span>
             {when && <span>{when}</span>}
           </div>
-          <div className="mt-8 grid grid-cols-1 gap-y-14 md:mt-10 md:grid-cols-3 md:gap-x-10">
+          <div className={cn('mt-8 grid grid-cols-1 gap-y-16 md:mt-10', items.length === 2 ? 'md:grid-cols-2 md:gap-x-14 xl:gap-x-20' : items.length >= 3 ? 'md:grid-cols-3 md:gap-x-10' : '')}>
             {items.map(item => (
               <GroupCard key={item.id} item={item} github={github} media={media} />
             ))}

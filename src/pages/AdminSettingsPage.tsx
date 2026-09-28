@@ -224,6 +224,9 @@ export function AdminSettingsPage() {
         <Field id="aboutStory" label="Markdown">
           <Textarea id="aboutStory" value={config.aboutStory} onChange={e => set('aboutStory', e.target.value)} rows={22} className="font-mono text-[13px] leading-relaxed" />
         </Field>
+        <Field id="origins" label="Homepage chapters" hint="Shown after the hero. Start each chapter with ## Title | Label; the first four get their own illustration and landscape.">
+          <Textarea id="origins" value={config.origins ?? ''} onChange={e => set('origins', e.target.value)} placeholder={DEFAULT_SITE_EXTRAS.origins} rows={14} className="font-mono text-[13px] leading-relaxed" />
+        </Field>
       </Panel>
 
       <Panel index="04 · Appearance" title="Signal colour" description="One accent, used sparingly across the site. Previewed live, applied on save.">

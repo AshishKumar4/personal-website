@@ -6,13 +6,15 @@ import './project-media.css';
 
 type Size = 'feature' | 'card';
 
-const VIDEO_TYPES: Record<string, string> = { webm: 'video/webm', mp4: 'video/mp4', mov: 'video/quicktime', ogv: 'video/ogg' };
+const VIDEO_TYPES: Record<string, string> = { webm: 'video/webm', mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', ogv: 'video/ogg' };
+const VIDEO_RANK: Record<string, number> = { 'video/mp4': 0, 'video/quicktime': 1, 'video/webm': 2, 'video/ogg': 3 };
 
 function videoSources(value: string) {
   return value
     .split(/[\s,]+/)
     .filter(Boolean)
-    .map(src => ({ src, type: VIDEO_TYPES[src.split('?')[0].split('.').pop()?.toLowerCase() ?? ''] }));
+    .map(src => ({ src, type: VIDEO_TYPES[src.split('?')[0].split('.').pop()?.toLowerCase() ?? ''] }))
+    .sort((a, b) => (VIDEO_RANK[a.type ?? ''] ?? 9) - (VIDEO_RANK[b.type ?? ''] ?? 9));
 }
 
 function useReducedMotion() {
@@ -54,39 +56,66 @@ function LoopVideo({ sources, poster }: { sources: string; poster?: string }) {
   const video = useRef<HTMLVideoElement>(null);
   const near = useNear(video, '400px 0px');
   const [playing, setPlaying] = useState(false);
+  const [failed, setFailed] = useState(false);
   const visible = useRef(false);
+  const loaded = useRef(false);
 
   useEffect(() => {
     const el = video.current;
     if (!el) return;
+    el.muted = true;
+    el.defaultMuted = true;
+    const tryPlay = () => {
+      if (!loaded.current || !visible.current || document.hidden) return;
+      const run = el.play();
+      if (run) run.catch(() => undefined);
+    };
     const seenIo = new IntersectionObserver(
       entries => {
         for (const entry of entries) {
-          visible.current = entry.intersectionRatio > 0.1;
-          if (visible.current && !document.hidden) el.play().catch(() => undefined);
+          visible.current = entry.isIntersecting && entry.intersectionRatio > 0.05;
+          if (visible.current) tryPlay();
           else if (!el.paused) el.pause();
         }
       },
-      { threshold: [0, 0.1, 0.5] },
+      { threshold: [0, 0.05, 0.25, 0.5] },
     );
     seenIo.observe(el);
     const onVisibility = () => {
       if (document.hidden) el.pause();
-      else if (visible.current) el.play().catch(() => undefined);
+      else tryPlay();
     };
+    const onGesture = () => {
+      if (el.paused) tryPlay();
+    };
+    const onReady = () => tryPlay();
     document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pointerdown', onGesture, { passive: true });
+    window.addEventListener('touchstart', onGesture, { passive: true });
+    el.addEventListener('canplay', onReady);
+    el.addEventListener('loadeddata', onReady);
     return () => {
       seenIo.disconnect();
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pointerdown', onGesture);
+      window.removeEventListener('touchstart', onGesture);
+      el.removeEventListener('canplay', onReady);
+      el.removeEventListener('loadeddata', onReady);
     };
   }, []);
 
   useEffect(() => {
     const el = video.current;
     if (!near || !el) return;
+    loaded.current = true;
     el.load();
-    if (visible.current) el.play().catch(() => undefined);
+    if (visible.current) {
+      const run = el.play();
+      if (run) run.catch(() => undefined);
+    }
   }, [near]);
+
+  if (failed) return poster ? <MediaImg src={poster} /> : null;
 
   return (
     <>
@@ -95,13 +124,17 @@ function LoopVideo({ sources, poster }: { sources: string; poster?: string }) {
         ref={video}
         muted
         loop
+        autoPlay
         playsInline
         disablePictureInPicture
         preload="none"
         onPlaying={() => setPlaying(true)}
         className={cn('pm-media pm-video', !playing && 'pm-hidden')}
       >
-        {near && videoSources(sources).map(({ src, type }) => <source key={src} src={src} type={type} />)}
+        {near &&
+          videoSources(sources).map(({ src, type }, i, all) => (
+            <source key={src} src={src} type={type} onError={i === all.length - 1 ? () => setFailed(true) : undefined} />
+          ))}
       </video>
     </>
   );

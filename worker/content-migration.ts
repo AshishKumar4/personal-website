@@ -93,6 +93,9 @@ export interface ProjectsMigrationSpec {
   year: Record<string, string>;
   story: Record<string, string>;
   experienceStory: Record<string, string>;
+  experienceLogo: Record<string, string>;
+  retiredLogos: string[];
+  aboutEdits: [string, string][];
   fields: Record<string, Partial<Record<MigratedField, string>>>;
   retired: Record<string, Partial<Record<MigratedField, string[]>>>;
 }
@@ -101,16 +104,50 @@ export type MigratedField = "homepage" | "imageUrl" | "videoUrl";
 
 const MIGRATED_FIELDS: MigratedField[] = ["homepage", "imageUrl", "videoUrl"];
 
+export const EXPERIENCE_LOGOS: Record<string, string> = {
+  cloudflare: "/logos/cloudflare.svg",
+  umd: "/logos/umd.svg",
+  "17fc1af8-ce45-40aa-8f95-a1647d2d0931": "/logos/umd.svg",
+  dyte: "/logos/dyte.svg",
+  hyperverge: "/logos/hyperverge.webp",
+  vit: "/logos/vit.webp",
+  "eaf0515c-3715-4c2c-a138-38540c251a0d": "/logos/vit.webp",
+};
+
+const RETIRED_LOGOS = [
+  "https://www.cloudflare.com/favicon.ico",
+  "https://umd.edu/default/static/icons/favicon.png",
+  "https://cdn.prod.website-files.com/63ca2acc6352c221abe583d0/63cb76071fe6f5c0f6478cfa_favicon.svg",
+  "https://cdn.hyperverge.co/wp-content/uploads/2025/08/favicon.png",
+  "https://www.google.com/s2/favicons?domain=vit.ac.in&sz=64",
+];
+
+const ABOUT_EDITS: [string, string][] = [
+  [" The code is still on my GitHub, teenage mess and all.", " The code is still on my GitHub."],
+  [" It was never really finished, but it set the way I still learn today:", " It set the way I still learn today:"],
+  [
+    "There is a question that has been stuck in my head since I was a kid: can intelligence actually be built? Not simulated or approximated, but understood and constructed from first principles. I don't know if the answer is yes. But everything I do in my free time orbits it. I wrote FlaxDiff, a diffusion library in JAX/Flax, and trained a ~100M-parameter text-to-image model from scratch on 128 TPUv4s, implementing 17+ diffusion techniques along the way because I wanted to understand what each one was really doing, not just how to call an API.",
+    "Since I was a kid I've wondered whether a machine can actually think, and it's a big part of why I keep coming back to machine learning. I learn it the way I learn anything, by building it: FlaxDiff started as a way to train a text-to-image diffusion model from scratch, and became a JAX alternative to diffusers, written from the ground up for distributed training on TPUs, with tutorials. I used it to train a ~100M-parameter model on 128 TPUv4s.",
+  ],
+];
+
+export function editAboutStory(story: string, edits: [string, string][]): string {
+  return edits.reduce((text, [from, to]) => (text.includes(from) ? text.split(from).join(to) : text), story);
+}
+
 const seedById = new Map(SEED_PROJECTS.map((p) => [p.id, p]));
 
 export const PROJECTS_MIGRATION: ProjectsMigrationSpec = {
-  id: "2026-09-projects-v9",
+  id: "2026-09-projects-v10",
   remove: ["mossaic", "ashishkumar4-cf-git", "game-servers", "do86"],
   add: ["kinu", "dew"].map((id) => seedById.get(id)!),
   order: Object.fromEntries(SEED_PROJECTS.map((p) => [p.id, p.order!])),
   year: Object.fromEntries(SEED_PROJECTS.filter((p) => p.year).map((p) => [p.id, p.year!])),
   story: PROJECT_STORIES,
   experienceStory: EXPERIENCE_STORIES,
+  experienceLogo: EXPERIENCE_LOGOS,
+  retiredLogos: RETIRED_LOGOS,
+  aboutEdits: ABOUT_EDITS,
   fields: Object.fromEntries(
     SEED_PROJECTS.map((p) => [p.id, Object.fromEntries(MIGRATED_FIELDS.filter((f) => p[f]).map((f) => [f, p[f]!]))]),
   ),
@@ -209,6 +246,8 @@ export interface ProjectsMigrationStore {
   setStoryIfUnset(id: string, story: string): Promise<void>;
   setExperienceStoryIfUnset(id: string, story: string): Promise<void>;
   setFieldIfReplaceable(id: string, field: MigratedField, value: string, retired: string[]): Promise<void>;
+  setExperienceLogoIfReplaceable(id: string, logoUrl: string, retired: string[]): Promise<void>;
+  editAboutStory(edit: (story: string) => string): Promise<void>;
 }
 
 export type MigrationOutcome = "already-done" | "applied" | "busy";
@@ -233,6 +272,8 @@ export async function runProjectsMigration(
   for (const { id, story } of plan.stories) await store.setStoryIfUnset(id, story);
   for (const [id, story] of Object.entries(spec.experienceStory)) await store.setExperienceStoryIfUnset(id, story);
   for (const { id, field, value, retired } of plan.fields) await store.setFieldIfReplaceable(id, field, value, retired);
+  for (const [id, logoUrl] of Object.entries(spec.experienceLogo)) await store.setExperienceLogoIfReplaceable(id, logoUrl, spec.retiredLogos);
+  if (spec.aboutEdits.length) await store.editAboutStory((story) => editAboutStory(story, spec.aboutEdits));
   await store.updateMarker((current) => finishMarker(current, now()));
   return "applied";
 }

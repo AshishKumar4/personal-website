@@ -183,20 +183,34 @@ export interface SiteConfig {
   location?: string;
   facts?: SiteFact[];
   accent?: AccentPreset;
+  origins?: string;
 }
-export const DEFAULT_SITE_EXTRAS: Required<Pick<SiteConfig, 'heroPrompt' | 'portraitUrl' | 'now' | 'location' | 'facts' | 'accent'>> = {
+export const DEFAULT_ORIGINS = `## A lab at home | Chemistry
+In fifth grade I found my father's master's-level chemistry books and started working through them. By seventh grade I had set up a small chemistry lab of my own at home.
+
+## Past Rutherford | Physics
+Chemistry led me to physics, and physics to quantum mechanics. While my class was learning the Rutherford model of the atom, I was learning to derive Schrödinger's equation.
+
+## One hour a day | Computers
+The other obsession was computers, rationed to an hour a day. A lot of that hour went to Counter-Strike: by 11 I was running game servers for some of the bigger Indian hosts. At 15 I wrote my own x86 operating system, just to see what really happens inside the machine.
+
+## Can machines think? | The question
+My parents wanted me to be an engineer, so I studied computer science. The question I carried the whole way was whether a machine can actually think, and it's why I keep coming back to machine learning.`;
+
+export const DEFAULT_SITE_EXTRAS: Required<Pick<SiteConfig, 'heroPrompt' | 'portraitUrl' | 'now' | 'location' | 'facts' | 'accent' | 'origins'>> = {
   heroPrompt: 'a person who builds things from scratch to understand them, first principles, high detail',
   portraitUrl: '/portrait-1200.webp',
   now: '',
   location: '',
   accent: 'vermilion',
+  origins: DEFAULT_ORIGINS,
   facts: [
     { label: 'First kernel', value: 'Aqeous, written at 15, mostly from a smartphone over remote desktop' },
     { label: 'Compute budget', value: '1 hour a day, rationed. Later: 128 TPUv4s' },
     { label: 'Security', value: 'GreyFang CTF, once #7 in India. Nullcon Goa hardware CTF winners, 2022' },
     { label: 'Interests', value: 'Diffusion, world models, reinforcement learning' },
     { label: 'Off-screen', value: 'FPV drones, Valorant, Minecraft, open-source microscopy' },
-    { label: 'Open question', value: 'Can intelligence actually be built?' },
+    { label: 'Open question', value: 'Can a machine actually think?' },
   ],
 };
 export type PostSummary = Omit<BlogPost, 'content'> & { excerpt: string; readingTime: number };

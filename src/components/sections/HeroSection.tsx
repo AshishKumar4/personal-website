@@ -4,6 +4,7 @@ import { useSiteConfig } from '@/contexts/SiteConfigContext';
 import { Container } from '@/components/site/SectionHeader';
 import { useStageRegion } from '@/components/site/stage';
 import { armIntro } from '@/components/flight/intro-gate';
+import { CompanyMark } from '@/components/site/CompanyMark';
 
 export function HeroSection() {
   const ref = useRef<HTMLElement>(null);
@@ -32,7 +33,11 @@ export function HeroSection() {
             <p className="legible max-w-md">
               {current && (
                 <span className="block text-[1.125rem] font-[480] leading-snug tracking-[-0.01em] text-foreground" style={{ fontStretch: '106%' }}>
-                  {current.role}, {current.company}
+                  {current.role},{' '}
+                  <span className="whitespace-nowrap">
+                    <CompanyMark src={current.logoUrl} bare className="mr-[0.35em] inline-block h-[0.92em] w-auto -translate-y-[0.06em] align-baseline" />
+                    {current.company}
+                  </span>
                 </span>
               )}
               {config?.subtitle && <span className="mt-1 block font-text text-[1.1875rem] font-[380] italic leading-snug text-foreground/75">{config.subtitle}</span>}

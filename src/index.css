@@ -343,6 +343,28 @@
     color: hsl(var(--foreground));
     background: hsl(var(--tone, var(--signal)) / 0.08);
   }
+  .mark-tile {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.8rem;
+    border: 1px solid hsl(var(--foreground) / 0.14);
+    background: linear-gradient(160deg, hsl(var(--foreground) / 0.1), hsl(var(--foreground) / 0.03) 60%), hsl(var(--background) / 0.55);
+    box-shadow: 0 8px 24px -10px hsl(228 30% 3% / 0.8), inset 0 1px 0 hsl(var(--foreground) / 0.08);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+  @media (min-width: 768px) {
+    .mark-tile { width: 3.125rem; height: 3.125rem; border-radius: 0.9rem; }
+  }
+  .mark-tile .mark-img {
+    width: 62%;
+    height: 62%;
+    object-fit: contain;
+    filter: drop-shadow(0 1px 1px hsl(228 30% 3% / 0.5));
+  }
 
   .hero-line {
     display: block;
@@ -389,7 +411,7 @@
     position: absolute;
     inset: -3rem -1.25rem;
     z-index: -1;
-    background: radial-gradient(closest-side, hsl(var(--background) / 0.62), hsl(var(--background) / 0.3) 60%, transparent);
+    background: radial-gradient(closest-side, hsl(var(--background) / 0.74), hsl(var(--background) / 0.42) 62%, transparent);
     pointer-events: none;
   }
   .w { position: relative; display: inline-block; }
