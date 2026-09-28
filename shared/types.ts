@@ -67,6 +67,7 @@ export interface BlogPost {
   format?: 'markdown' | 'notebook';
   /** Highlighted on the blog index. */
   featured?: boolean;
+  coverImage?: string;
 }
 
 // A normalized Jupyter notebook, stored as JSON in BlogPost.content when format==='notebook'.
@@ -185,17 +186,9 @@ export interface SiteConfig {
   accent?: AccentPreset;
   origins?: string;
 }
-export const DEFAULT_ORIGINS = `## A lab at home | Chemistry
-In fifth grade I found my father's master's-level chemistry books and started working through them. By seventh grade I had set up a small chemistry lab of my own at home.
+export const DEFAULT_ORIGINS = `I grew up wanting to know how everything works. In fifth grade I found my father's master's-level chemistry books and worked through them, and by seventh grade I had a small chemistry lab at home. Chemistry led to physics and quantum mechanics: while my class was learning the Rutherford model, I was learning to derive Schrödinger's equation.
 
-## Past Rutherford | Physics
-Chemistry led me to physics, and physics to quantum mechanics. While my class was learning the Rutherford model of the atom, I was learning to derive Schrödinger's equation.
-
-## One hour a day | Computers
-The other obsession was computers, rationed to an hour a day. A lot of that hour went to Counter-Strike: by 11 I was running game servers for some of the bigger Indian hosts. At 15 I wrote my own x86 operating system, just to see what really happens inside the machine.
-
-## Can machines think? | The question
-My parents wanted me to be an engineer, so I studied computer science. The question I carried the whole way was whether a machine can actually think, and it's why I keep coming back to machine learning.`;
+Computers were the other obsession, rationed to an hour a day. A lot of that hour went to Counter-Strike, and by 11 I was running game servers for some of the bigger Indian hosts. At 15 I wrote my own x86 operating system. My parents wanted me to be an engineer, so I studied computer science, but the question I carried the whole way was whether a machine can actually think. It's why I keep coming back to machine learning.`;
 
 export const DEFAULT_SITE_EXTRAS: Required<Pick<SiteConfig, 'heroPrompt' | 'portraitUrl' | 'now' | 'location' | 'facts' | 'accent' | 'origins'>> = {
   heroPrompt: 'a person who builds things from scratch to understand them, first principles, high detail',
