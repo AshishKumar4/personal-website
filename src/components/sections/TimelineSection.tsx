@@ -45,6 +45,7 @@ function ExperienceNode({ entry, item }: { entry: TimelineEntry; item: Experienc
       data-scene={entry.scene}
       data-motif={entryMotif(entry.id)}
       data-seed={projectHue(entry.id).toFixed(4)}
+      data-kind="experience"
       aria-label={item.company}
       className="relative"
       style={{ '--tone': SCENE_TONE[entry.scene] } as React.CSSProperties}
@@ -115,6 +116,7 @@ function ProjectNode({ entry, item, github, flip }: { entry: TimelineEntry; item
       data-scene={entry.scene}
       data-motif={entryMotif(entry.id)}
       data-seed={projectHue(entry.id).toFixed(4)}
+      data-kind="project"
       aria-label={item.name}
       onMouseEnter={focus}
       onMouseLeave={blur}
@@ -225,6 +227,7 @@ function GroupNode({ entry, items, lead, github }: { entry: TimelineEntry; items
       data-scene={entry.scene}
       data-motif={entryMotif(lead.id)}
       data-seed={projectHue(lead.id).toFixed(4)}
+      data-kind="group"
       aria-label={label}
       className="relative py-[24svh] md:py-[30svh]"
       style={{ '--tone': SCENE_TONE[entry.scene] } as React.CSSProperties}

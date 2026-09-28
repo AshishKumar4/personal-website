@@ -351,6 +351,10 @@
   .hero-late {
     animation: hero-late 1.4s cubic-bezier(0.16, 1, 0.3, 1) 1.1s both;
   }
+  html[data-intro='hold'] :is(.hero-line, .hero-late),
+  html[data-intro='dive'] :is(.hero-line, .hero-late) {
+    animation-play-state: paused;
+  }
   .hero-body {
     opacity: calc(1 - clamp(0, var(--p, 0) * 1.6, 1));
     transform: translate3d(0, calc(var(--p, 0) * -9vh), 0);

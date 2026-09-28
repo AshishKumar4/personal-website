@@ -25,6 +25,7 @@ void main() {
   vec2 rp = ripple(xz);
   float seam = seamAt(xz);
   float h = h0 + rp.x * 13.0 + seam * 9.0;
+  if (u_ridge > 0.001) h += ridgeAt(xz);
   float j = mix(u_jitter.x, u_jitter.y, m);
   j = j > 0.001 ? clamp((j - 0.5) * 2.2 + 0.5 + 0.6 * snoise(xz * 0.0035 + 2.7), 0.0, 1.0) * smoothstep(0.0, 0.1, j) : 0.0;
   if (j > 0.001) h += (hash12(vec2(floor(xz.x / u_spacing.x + 0.5), row)) - 0.5) * j * j * 2.5;

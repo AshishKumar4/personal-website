@@ -59,6 +59,8 @@ Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage i
 - `motifs.ts` layers a subtle per-entry motif (e.g. `boot`, `ctf`, `lab`, `drone`, `clouds`, `dew`, `fog`) that can switch the terrain archetype (mirror lake, open plain, rolling hills, cloud sea, block build, mesas) plus a terrain variation from `data-seed` on top of the scene; timeline regions get both from `entryMotif`/`projectHue` in `timeline.ts`, and neighbours merge only when scene, motif and seed all match
 - Debug params: `?scene=<id>&progress=0..1` forces a scene, `?motif=<id>&seed=0..1` forces a motif, `?flightq=hi` pins quality, `?freeze=<seconds>` freezes time for deterministic frames (and exposes `window.__flightBench`)
 - `quality.ts` is the adaptive resolution controller (targets ~60fps, defers resizes until scrolling is idle); terrain is evaluated once per frame and shared by the fill, line and mirror passes, and every program is compiled and warmed up front so no world stalls on first appearance
+- Opening shot: once per session on a fresh load of `/` at the top, the camera dives through a cloud layer into the hero (`intro-gate.ts` holds the hero name via `html[data-intro]` until the dive releases it; any scroll, key or touch aborts it; `?nointro` skips it)
+- Transitions into an experience region (`data-kind="experience"`) crest a rising ridge before the new world opens up (`choreo.ts`, a pure function of scroll progress, finished before the entry's text arrives); project transitions are unchanged
 - Respects `prefers-reduced-motion` (static frames) and adapts resolution to frame time; small screens get lower density and no bloom
 
 ### Timeline

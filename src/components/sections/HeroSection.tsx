@@ -1,13 +1,15 @@
-import { useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { PERSONAL_INFO } from '@/components/config/constants';
 import { useSiteConfig } from '@/contexts/SiteConfigContext';
 import { Container } from '@/components/site/SectionHeader';
 import { useStageRegion } from '@/components/site/stage';
+import { armIntro } from '@/components/flight/intro-gate';
 
 export function HeroSection() {
   const ref = useRef<HTMLElement>(null);
   const { config, data } = useSiteConfig();
   useStageRegion(ref, { kind: 'hero' });
+  useLayoutEffect(armIntro, []);
 
   const current = data?.experiences?.[0];
   const [first, ...rest] = PERSONAL_INFO.nameLines;

@@ -1,4 +1,5 @@
 import { FULLSCREEN_VERT, Program, fullscreenTriangle } from './gl';
+import { NOISE } from './glsl';
 
 const PREFILTER = `#version 300 es
 precision highp float;
@@ -75,7 +76,40 @@ uniform float u_exposure;
 uniform float u_dpr;
 uniform vec3 u_rays;
 uniform vec3 u_rayColor;
+uniform vec4 u_cloud;
+uniform vec4 u_cloudT;
+uniform mat4 u_inv;
+uniform vec3 u_eye;
+uniform vec3 u_cloudCol;
 out vec4 o;
+${NOISE}
+vec3 cloudLayer(vec3 col, vec2 uv) {
+  vec4 a = u_inv * vec4(uv * 2.0 - 1.0, 1.0, 1.0);
+  vec3 d = normalize(a.xyz / a.w - u_eye);
+  float n = u_cloud.w;
+  float tr = 1.0;
+  vec3 acc = vec3(0.0);
+  for (int i = 0; i < 5; i++) {
+    if (float(i) >= n) break;
+    float k = d.y < 0.0 ? n - 1.0 - float(i) : float(i);
+    float h = mix(u_cloud.y, u_cloud.z, (k + 0.5) / n);
+    float t = (h - u_eye.y) / d.y;
+    if (t <= 0.0 || t > 7000.0) continue;
+    vec2 q = u_eye.xz + d.xz * t + vec2(k * 131.7 + u_cloudT.x * 9.0, k * 57.3 - u_cloudT.x * 3.0);
+    float f = snoise(q * 0.0011) * 0.55 + snoise(q * 0.0034 + 3.1) * 0.3 + snoise(q * 0.011 + 7.7) * 0.15 + snoise(q * 0.034 + 2.3) * 0.1 * smoothstep(900.0, 150.0, t);
+    float dens = smoothstep(-0.6, 0.3, f) * smoothstep(7000.0, 1500.0, t) * smoothstep(0.0, 40.0, t);
+    float alpha = dens * 0.55 * u_cloud.x;
+    float top = k / max(n - 1.0, 1.0);
+    float lit = mix(0.3, 1.0, top) * (0.4 + 0.9 * smoothstep(-0.35, 0.6, f)) + u_cloudT.y * pow(max(dot(normalize(d.xz), vec2(0.41, -0.91)), 0.0), 8.0) * top * 0.8;
+    acc += tr * alpha * u_cloudCol * lit;
+    tr *= 1.0 - alpha;
+  }
+  col = col * tr + acc;
+  float inside = smoothstep(u_cloud.y - 30.0, u_cloud.y + 20.0, u_eye.y) * smoothstep(u_cloud.z + 30.0, u_cloud.z - 20.0, u_eye.y);
+  vec2 sv = (uv - 0.5) * vec2(1.6 * u_cloudT.z, 1.6) + vec2(0.0, u_eye.y * 0.012);
+  float puff = smoothstep(-0.5, 0.7, snoise(sv + vec2(1.7, 0.0)) * 0.7 + snoise(sv * 2.3 + vec2(4.1, u_eye.y * 0.01)) * 0.3);
+  return mix(col, u_cloudCol * (0.75 + 0.35 * uv.y), clamp(inside * (0.35 + 0.6 * puff) * u_cloud.x, 0.0, 1.0));
+}
 float hash(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
   p3 += dot(p3, p3.yzx + 33.33);
@@ -124,6 +158,7 @@ void main() {
     float fall = 1.0 - smoothstep(0.1, 1.1, length((u_rays.xy - uv) * vec2(u_res.x / u_res.y, 1.0)));
     col += u_rayColor * acc * u_rays.z * 0.05 * fall;
   }
+  if (u_cloud.x > 0.001) col = cloudLayer(col, uv);
   col = tone(col * u_exposure);
   float v = length(dc * vec2(u_res.x / u_res.y, 1.0) * 0.9);
   col *= mix(1.0, smoothstep(1.05, 0.25, v), 0.55 + u_warp * 0.25);
@@ -154,6 +189,7 @@ export interface PostUniforms {
   dpr: number;
   rays: [number, number, number];
   rayColor: number[];
+  cloud?: { amt: number; base: number; top: number; slabs: number; time: number; moon: number; inv: Float32Array; eye: number[]; color: number[] };
 }
 
 export class Post {
@@ -328,6 +364,10 @@ export class Post {
       .set('u_dpr', u.dpr)
       .set('u_rays', bloom ? u.rays : [0, 0, 0])
       .set('u_rayColor', u.rayColor);
+    const c = u.cloud;
+    if (c && c.amt > 0.001) {
+      this.composite.set('u_cloud', [c.amt, c.base, c.top, c.slabs]).set('u_cloudT', [c.time, c.moon, this.w / Math.max(1, this.h), 0]).set('u_inv', c.inv).set('u_eye', c.eye).set('u_cloudCol', c.color);
+    } else this.composite.set('u_cloud', [0, 0, 0, 0]);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindVertexArray(null);

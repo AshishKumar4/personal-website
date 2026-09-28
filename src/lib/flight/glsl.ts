@@ -56,6 +56,7 @@ uniform vec3 u_front;
 uniform vec4 u_rip[4];
 uniform vec2 u_motif;
 uniform float u_mq;
+uniform float u_ridge;
 float motifW(float id, float m) {
   return (u_motif.x == id ? 1.0 - m : 0.0) + (u_motif.y == id ? m : 0.0);
 }
@@ -199,8 +200,15 @@ vec2 ripple(vec2 xz) {
 float groundAt(vec2 p) {
   return terrainH(p, sweepAt(p));
 }
+float ridgeAt(vec2 xz) {
+  float x = (length(xz - u_cam.xz) - u_front.x) / 85.0;
+  float dp = (xz.x - pathX(xz.y)) / 160.0;
+  return exp(-x * x) * u_ridge * (1.0 - 0.5 * exp(-dp * dp)) * (0.8 + 0.35 * snoise(xz * 0.004 + 5.3));
+}
 float groundH(vec2 p) {
-  return groundAt(p) + ripple(p).x * 13.0 + seamAt(p) * 9.0;
+  float g = groundAt(p) + ripple(p).x * 13.0 + seamAt(p) * 9.0;
+  if (u_ridge > 0.001) g += ridgeAt(p);
+  return g;
 }
 `;
 
@@ -215,6 +223,7 @@ interface TerrainSource {
   varB: number[];
   motif: number[];
   mq: number;
+  ridge: number;
   a: TerrainForm;
   b: TerrainForm;
 }
@@ -250,5 +259,6 @@ export function setTerrain(prog: Setter, f: TerrainSource) {
     .set('u_front', f.front)
     .set('u_rip', f.ripples)
     .set('u_motif', f.motif)
-    .set('u_mq', f.mq);
+    .set('u_mq', f.mq)
+    .set('u_ridge', f.ridge);
 }
