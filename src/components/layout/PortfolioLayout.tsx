@@ -56,9 +56,18 @@ export function PortfolioLayout({ children, variant = 'default', footer = true }
 
   useEffect(() => {
     if (location.hash) {
-      const hash = location.hash;
-      const timer = window.setTimeout(() => scrollToSection(hash.replace('#', '')), 160);
-      return () => window.clearTimeout(timer);
+      const id = location.hash.replace('#', '');
+      let tries = 0;
+      let settle = 0;
+      const timer = window.setInterval(() => {
+        tries++;
+        const timeline = document.getElementById('timeline');
+        const ready = document.getElementById(id) && (!timeline || timeline.childElementCount > 0);
+        if (!ready && tries < 60) return;
+        scrollToSection(id, true);
+        if (++settle >= 3 || tries >= 60) window.clearInterval(timer);
+      }, 90);
+      return () => window.clearInterval(timer);
     }
     window.scrollTo(0, 0);
   }, [location.pathname, location.hash]);

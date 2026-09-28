@@ -47,7 +47,7 @@ function BlogIndex() {
       <NightMasthead
         seed="notes"
         meta={[count > 0 ? `${count} ${count === 1 ? 'post' : 'posts'}` : null]}
-        title="Writing"
+        title="Blog"
       />
       <Container className="pb-28 md:pb-40">
         {loading && posts.length === 0 ? (

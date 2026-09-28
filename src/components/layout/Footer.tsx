@@ -9,7 +9,7 @@ export function Footer() {
       <div className="mx-auto flex max-w-[1480px] flex-col gap-4 border-t border-foreground/10 px-5 py-8 text-[0.8125rem] text-foreground/50 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
         <span>© {YEAR} {PERSONAL_INFO.name}</span>
         <div className="flex flex-wrap gap-x-6 gap-y-2">
-          <Link to="/blog" className="transition-colors hover:text-foreground">Writing</Link>
+          <Link to="/blog" className="transition-colors hover:text-foreground">Blog</Link>
           <Link to="/about" className="transition-colors hover:text-foreground">About</Link>
           {SOCIAL_LINKS.map(s => (
             <a key={s.name} href={s.url} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">

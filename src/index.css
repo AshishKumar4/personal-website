@@ -156,10 +156,10 @@
   }
   .reading .prose-styles {
     font-family: theme('fontFamily.text');
-    font-size: 1.1875rem;
-    line-height: 1.72;
+    font-size: clamp(1.1875rem, 1.06rem + 0.3vw, 1.3125rem);
+    line-height: 1.75;
     letter-spacing: 0;
-    color: hsl(var(--foreground) / 0.9);
+    color: hsl(var(--foreground) / 0.93);
     font-variant-numeric: oldstyle-nums proportional-nums;
   }
   .reading .prose-styles code, .reading .prose-styles pre, .reading .prose-styles table, .reading .prose-styles .katex { font-variant-numeric: normal; }
@@ -185,6 +185,7 @@
   .prose-styles h3 { @apply text-xl font-semibold; letter-spacing: -0.01em; }
   .prose-styles h4, .prose-styles h5, .prose-styles h6 { @apply text-base font-semibold; }
   .prose-styles p { margin-bottom: 1.4rem; }
+  .reading .prose-styles p { margin-bottom: 1.3em; }
   .prose-styles strong { color: hsl(var(--foreground)); font-weight: 620; }
   .prose-styles em { font-style: italic; }
   .prose-styles a {

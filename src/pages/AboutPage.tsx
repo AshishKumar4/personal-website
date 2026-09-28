@@ -115,7 +115,7 @@ function Story() {
                     Work <ArrowUpRight size={15} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                   </Link>
                   <Link to="/blog" className="group inline-flex items-center gap-2 text-foreground/55 transition-colors hover:text-foreground">
-                    Writing <ArrowUpRight size={15} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                    Blog <ArrowUpRight size={15} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                   </Link>
                 </div>
               </div>

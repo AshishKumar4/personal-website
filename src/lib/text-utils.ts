@@ -16,3 +16,10 @@ export function getInitials(name: string): string {
   }
   return name.slice(0, 2).toUpperCase();
 }
+
+export function paragraphize(markdown: string): string {
+  return markdown
+    .split(/(^```[\s\S]*?^```[^\n]*$)/m)
+    .map((part, i) => (i % 2 === 1 ? part : part.replace(/([^\s|])[ \t]{2,}\n(?=[^\s\n|>*\-#\d`])/g, '$1\n\n')))
+    .join('');
+}

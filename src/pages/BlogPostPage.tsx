@@ -8,7 +8,7 @@ import { api } from '@/lib/api-client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MarkdownContent } from '@/components/MarkdownContent';
 import { NotebookFromJson } from '@/components/NotebookRenderer';
-import { getReadingTime } from '@/lib/text-utils';
+import { getReadingTime, paragraphize } from '@/lib/text-utils';
 import { useSiteConfig } from '@/contexts/SiteConfigContext';
 import { Container } from '@/components/site/SectionHeader';
 import { PostRow } from '@/components/site/PostRow';
@@ -97,7 +97,7 @@ function PostBody() {
 
   const isNotebook = post?.format === 'notebook';
   const colabUrl = post && isNotebook ? notebookColab(post.content) : undefined;
-  const body = post && !isNotebook ? post.content : '';
+  const body = post && !isNotebook ? paragraphize(post.content) : '';
   const more = (data?.posts ?? []).filter(p => p.slug !== slug).slice(0, 3);
 
   const date = post ? new Date(post.createdAt) : null;
@@ -174,7 +174,7 @@ function PostBody() {
       </article>
       {post && more.length > 0 && (
         <Container className="mt-28 pb-24 md:mt-36 md:pb-32">
-          <div className={cn(MONO_LABEL, 'mb-4 text-foreground/40')}>More writing</div>
+          <div className={cn(MONO_LABEL, 'mb-4 text-foreground/40')}>More posts</div>
           <ol className="border-b border-white/10">
             {more.map((p, i) => <PostRow key={p.slug} post={p} index={i + 1} />)}
           </ol>
