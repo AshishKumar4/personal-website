@@ -1,10 +1,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, BookOpen, Briefcase, FileText, FolderGit2, Home, Mail, Settings, User } from 'lucide-react';
+import { ArrowUpRight, Briefcase, FileText, Home, Mail, Settings, User } from 'lucide-react';
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { useSiteConfig } from '@/contexts/SiteConfigContext';
-import { scrollToHash } from '@/lib/site-events';
 import { PERSONAL_INFO, SOCIAL_LINKS } from '@/components/config/constants';
+import { scrollToSection } from '@/components/site/stage';
 
 interface CommandMenuProps {
   open: boolean;
@@ -21,7 +21,7 @@ export default function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
   };
 
   const section = (hash: string) => () => {
-    if (window.location.pathname === '/') scrollToHash(hash);
+    if (window.location.pathname === '/') scrollToSection(hash);
     else navigate(`/#${hash}`);
   };
 
@@ -34,11 +34,10 @@ export default function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
         <CommandEmpty className="py-8 text-center text-sm text-muted-foreground">Nothing found.</CommandEmpty>
         <CommandGroup heading="Navigate">
           <CommandItem className={itemClass} onSelect={() => run(() => { navigate('/'); window.scrollTo({ top: 0, behavior: 'smooth' }); })}><Home /> Home</CommandItem>
-          <CommandItem className={itemClass} onSelect={() => run(section('about'))}><User /> About</CommandItem>
-          <CommandItem className={itemClass} onSelect={() => run(section('experience'))}><Briefcase /> Experience</CommandItem>
-          <CommandItem className={itemClass} onSelect={() => run(section('work'))}><FolderGit2 /> Selected work</CommandItem>
-          <CommandItem className={itemClass} onSelect={() => run(() => navigate('/blog'))}><FileText /> Writing</CommandItem>
-          <CommandItem className={itemClass} onSelect={() => run(() => navigate('/about'))}><BookOpen /> The longer story</CommandItem>
+          <CommandItem className={itemClass} onSelect={() => run(section('timeline'))}><Briefcase /> Timeline</CommandItem>
+          <CommandItem className={itemClass} onSelect={() => run(section('writing'))}><FileText /> Writing</CommandItem>
+          <CommandItem className={itemClass} onSelect={() => run(() => navigate('/blog'))}><FileText /> All posts</CommandItem>
+          <CommandItem className={itemClass} onSelect={() => run(() => navigate('/about'))}><User /> About</CommandItem>
           <CommandItem className={itemClass} onSelect={() => run(section('contact'))}><Mail /> Contact</CommandItem>
         </CommandGroup>
         {data && data.posts.length > 0 && (
@@ -48,6 +47,18 @@ export default function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
               {data.posts.map(p => (
                 <CommandItem key={p.slug} value={`post ${p.title}`} className={itemClass} onSelect={() => run(() => navigate(`/blog/${p.slug}`))}>
                   <FileText /> {p.title}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </>
+        )}
+        {data && data.experiences.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Timeline">
+              {data.experiences.map(e => (
+                <CommandItem key={e.id} value={`timeline ${e.company} ${e.role}`} className={itemClass} onSelect={() => run(() => (window.location.pathname === '/' ? scrollToSection(e.id) : navigate(`/#t-${e.id.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`)))}>
+                  <Briefcase /> {e.company}
                 </CommandItem>
               ))}
             </CommandGroup>

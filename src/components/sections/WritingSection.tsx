@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { useSiteConfig } from '@/contexts/SiteConfigContext';
-import { Container, SectionHeader } from '@/components/site/SectionHeader';
 import { PostRow } from '@/components/site/PostRow';
+import { Scene } from '@/components/site/Scene';
 
 export function WritingSection() {
   const { data, loading } = useSiteConfig();
@@ -11,21 +11,22 @@ export function WritingSection() {
   if (!loading && posts.length === 0) return null;
 
   return (
-    <section id="writing" className="relative pb-32 md:pb-48" aria-label="Writing">
-      <Container>
-        <SectionHeader
-          label="Writing"
-          title="Notes on systems and learning machines."
-          aside={
-            <Link to="/blog" className="group inline-flex items-center gap-1.5 text-foreground/60 transition-colors hover:text-foreground">
-              All posts <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-            </Link>
-          }
-        />
-        <ol className="mt-14 border-b border-white/10 md:mt-20">
+    <div data-motif="fog" className="contents">
+      <Scene
+        id="writing"
+        label="Writing"
+        scene="noise"
+        aside={
+          <Link to="/blog" className="pill group">
+            All posts
+            <ArrowUpRight size={13} className="opacity-60 transition-transform duration-300 group-hover:-translate-y-px group-hover:translate-x-px" />
+          </Link>
+        }
+      >
+        <ol className="border-b border-foreground/10">
           {posts.map((post, i) => <PostRow key={post.slug} post={post} index={i + 1} />)}
         </ol>
-      </Container>
-    </section>
+      </Scene>
+    </div>
   );
 }

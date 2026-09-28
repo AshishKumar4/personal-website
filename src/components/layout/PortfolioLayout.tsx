@@ -3,7 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { SiteConfigProvider } from '@/contexts/SiteConfigContext';
-import { onOpenCommandMenu, scrollToHash } from '@/lib/site-events';
+import { onOpenCommandMenu } from '@/lib/site-events';
+import { scrollToSection } from '@/components/site/stage';
 import { useTheme } from '@/hooks/use-theme';
 import { cn } from '@/lib/utils';
 
@@ -56,7 +57,7 @@ export function PortfolioLayout({ children, variant = 'default', footer = true }
   useEffect(() => {
     if (location.hash) {
       const hash = location.hash;
-      const timer = window.setTimeout(() => scrollToHash(hash), 120);
+      const timer = window.setTimeout(() => scrollToSection(hash.replace('#', '')), 160);
       return () => window.clearTimeout(timer);
     }
     window.scrollTo(0, 0);

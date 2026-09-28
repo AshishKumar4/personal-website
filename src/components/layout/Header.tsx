@@ -2,12 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { SOCIAL_LINKS } from '@/components/config/constants';
-import { scrollToHash } from '@/lib/site-events';
+import { scrollToSection } from '@/components/site/stage';
 
 const NAV = [
-  { label: 'Work', to: '/#work' },
-  { label: 'Experience', to: '/#experience' },
-  { label: 'Writing', to: '/blog' },
+  { label: 'Timeline', to: '/#timeline' },
+  { label: 'Writing', to: '/#writing' },
   { label: 'About', to: '/about' },
 ];
 
@@ -40,10 +39,11 @@ export function Header() {
     if (!hash) return;
     e.preventDefault();
     setMenuOpen(false);
-    if (location.pathname === (path || '/')) scrollToHash(hash);
+    if (location.pathname === (path || '/')) scrollToSection(hash);
     else navigate(`${path || '/'}#${hash}`);
   };
 
+  const home = location.pathname === '/';
   const linkClass = 'text-[0.875rem] text-foreground/65 transition-colors duration-300 hover:text-foreground';
 
   return (
@@ -51,11 +51,18 @@ export function Header() {
       <header
         className={cn(
           'fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,backdrop-filter] duration-500',
-          scrolled && !menuOpen ? 'border-b border-white/[0.06] bg-background/60 backdrop-blur-xl' : 'border-b border-transparent',
+          !home && scrolled && !menuOpen ? 'border-b border-foreground/[0.06] bg-background/70 backdrop-blur-xl' : 'border-b border-transparent',
         )}
       >
-        <nav className="mx-auto flex h-16 max-w-[1480px] items-center justify-between px-5 sm:px-8 lg:px-12" aria-label="Primary">
-          <Link to="/" className="relative z-10 text-[0.9375rem] font-medium tracking-[-0.01em] text-foreground" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+        <div
+          aria-hidden="true"
+          className={cn(
+            'pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-background via-background/85 to-transparent transition-opacity duration-500',
+            home && scrolled && !menuOpen ? 'opacity-100' : 'opacity-0',
+          )}
+        />
+        <nav className="relative mx-auto flex h-16 max-w-[1480px] items-center justify-between px-5 sm:px-8 lg:px-12" aria-label="Primary">
+          <Link to="/" className="relative z-10 text-[0.9375rem] font-[520] tracking-[-0.01em] text-foreground" style={{ fontStretch: '110%' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             Ashish Kumar Singh
           </Link>
           <div className="hidden items-center gap-8 md:flex">
@@ -67,7 +74,7 @@ export function Header() {
             <Link
               to="/#contact"
               onClick={go('/#contact')}
-              className="rounded-full border border-white/15 px-4 py-1.5 text-[0.875rem] text-foreground transition-colors duration-300 hover:border-white/40 hover:bg-white/[0.04]"
+              className="rounded-full border border-foreground/20 px-4 py-1.5 text-[0.875rem] text-foreground transition-colors duration-300 hover:border-foreground/50 hover:bg-foreground/[0.05]"
             >
               Contact
             </Link>
@@ -91,7 +98,7 @@ export function Header() {
       >
         <nav className="flex flex-1 flex-col gap-1" aria-label="Mobile">
           {[{ label: 'Home', to: '/' }, ...NAV, { label: 'Contact', to: '/#contact' }].map(item => (
-            <Link key={item.label} to={item.to} onClick={go(item.to)} className="py-2 font-display text-[2.6rem] font-[480] leading-none tracking-[-0.04em] text-foreground">
+            <Link key={item.label} to={item.to} onClick={go(item.to)} className="t-section py-2 text-[2.75rem] leading-none text-foreground">
               {item.label}
             </Link>
           ))}

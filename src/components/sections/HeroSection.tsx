@@ -1,67 +1,42 @@
-import { useEffect, useState } from 'react';
-import { ArrowDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { PERSONAL_INFO, SOCIAL_LINKS } from '@/components/config/constants';
+import { useRef } from 'react';
+import { PERSONAL_INFO } from '@/components/config/constants';
 import { useSiteConfig } from '@/contexts/SiteConfigContext';
-import { scrollToHash } from '@/lib/site-events';
+import { Container } from '@/components/site/SectionHeader';
+import { useStageRegion } from '@/components/site/stage';
 
 export function HeroSection() {
+  const ref = useRef<HTMLElement>(null);
   const { config, data } = useSiteConfig();
-  const [shown, setShown] = useState(false);
-
-  useEffect(() => {
-    const t = window.setTimeout(() => setShown(true), 350);
-    return () => window.clearTimeout(t);
-  }, []);
+  useStageRegion(ref, { kind: 'hero' });
 
   const current = data?.experiences?.[0];
-  const role = current ? current.role.split(',')[0] : null;
-  const headline = config?.now || (current ? `${role} at ${current.company.replace(/\s*\(.*\)$/, '')}.` : '');
-  const location = config?.location || current?.location?.split('·')[0].replace(/, United States$/, '').trim() || '';
+  const [first, ...rest] = PERSONAL_INFO.nameLines;
 
   return (
-    <section id="top" className="relative flex h-[100svh] min-h-[560px] flex-col justify-end" aria-label="Introduction">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-[70%] bg-gradient-to-t from-background/95 via-background/55 to-transparent" />
-      <div className="relative mx-auto w-full max-w-[1480px] px-5 pb-10 sm:px-8 md:pb-14 lg:px-12">
-        <h1
-          className={cn(
-            'font-display text-[clamp(3.4rem,10.2vw,11.5rem)] font-[560] leading-[0.86] tracking-[-0.055em] text-foreground transition-[opacity,transform,filter] duration-[1600ms] ease-out-expo',
-            shown ? 'translate-y-0 opacity-100 blur-0' : 'translate-y-6 opacity-0 blur-md',
-          )}
-        >
-          Ashish Kumar
-          <br />
-          Singh
-        </h1>
-        <div
-          className={cn(
-            'mt-8 grid grid-cols-1 gap-6 border-t border-white/15 pt-6 transition-opacity delay-700 duration-1000 md:mt-12 md:grid-cols-12',
-            shown ? 'opacity-100' : 'opacity-0',
-          )}
-        >
-          <p className="max-w-md text-[1.05rem] leading-snug text-foreground/85 md:col-span-5">
-            {headline && <span className="text-foreground">{headline} </span>}
-            <span className="text-foreground/60">{config?.subtitle}</span>
-          </p>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-[0.95rem] text-foreground/60 md:col-span-4 md:col-start-7">
-            {location && <span>{location}</span>}
-            {SOCIAL_LINKS.map(s => (
-              <a key={s.name} href={s.url} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
-                {s.name}
-              </a>
-            ))}
-            <a href={`mailto:${PERSONAL_INFO.email}`} className="transition-colors hover:text-foreground">Email</a>
+    <section ref={ref} id="top" data-scene="night" aria-label="Introduction" className="hero relative flex h-[100svh] min-h-[600px] flex-col justify-end">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-background/85 via-background/35 to-transparent" />
+      <div className="hero-body relative pb-9 md:pb-12">
+        <Container>
+          <h1 className="t-hero legible text-[clamp(3.6rem,20vw,6.5rem)] text-foreground sm:text-[clamp(4.5rem,10.4vw,12.25rem)]">
+            <span className="sr-only">{PERSONAL_INFO.name}</span>
+            <span aria-hidden="true">
+              <span className="hero-line sm:hidden" style={{ animationDelay: '0.15s' }}>{first}</span>
+              <span className="hero-line sm:hidden" style={{ animationDelay: '0.3s' }}>{rest[0]}</span>
+              <span className="hero-line hidden sm:block" style={{ animationDelay: '0.15s' }}>{first} {rest[0]}</span>
+              <span className="hero-line" style={{ animationDelay: '0.32s' }}>{rest[1]}</span>
+            </span>
+          </h1>
+          <div className="hero-late mt-9 border-t border-foreground/15 pt-6 md:mt-12">
+            <p className="legible max-w-md">
+              {current && (
+                <span className="block text-[1.125rem] font-[480] leading-snug tracking-[-0.01em] text-foreground" style={{ fontStretch: '106%' }}>
+                  {current.role}, {current.company}
+                </span>
+              )}
+              {config?.subtitle && <span className="t-narration mt-1 block text-[1.1875rem] italic leading-snug text-foreground/75">{config.subtitle}</span>}
+            </p>
           </div>
-          <div className="hidden justify-end md:col-span-2 md:col-start-11 md:flex">
-            <button
-              onClick={() => scrollToHash('#about')}
-              className="group inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/20 text-foreground/70 transition-colors hover:border-white/50 hover:text-foreground"
-              aria-label="Scroll to content"
-            >
-              <ArrowDown size={16} className="transition-transform duration-500 group-hover:translate-y-0.5" />
-            </button>
-          </div>
-        </div>
+        </Container>
       </div>
     </section>
   );

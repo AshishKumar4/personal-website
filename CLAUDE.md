@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A personal site built around a night flight: the homepage background is a raw WebGL2 hidden-line mountain range that the camera flies through as you scroll, ending at dawn by the contact section. It features a React frontend with a Cloudflare Workers backend using Durable Objects for persistent storage. The site includes a public portfolio, blog system, and admin panel.
+A personal site built around a night flight: the homepage is one chronological story (experiences and projects interleaved by start date) flown over a raw WebGL2 hidden-line mountain range whose landscape morphs per entry, ending at dawn by the contact section. It features a React frontend with a Cloudflare Workers backend using Durable Objects for persistent storage. The site includes a public portfolio, blog system, and admin panel.
 
 ## Commands
 
@@ -46,16 +46,27 @@ Routes are added in `worker/user-routes.ts`. Do NOT modify `worker/index.ts` or 
 ### Frontend Routing
 
 Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage is in the entry chunk; every other route is lazy-loaded.
-- `/` - Homepage (Hero, About, Selected work, Experience, Writing, Contact sections)
+- `/` - Homepage (Hero, chronological Timeline, Writing, Contact)
 - `/about` - Long-form story rendered from `aboutStory` markdown
 - `/blog`, `/blog/:slug` - Blog pages
 - `/admin/*` - Admin panel (protected routes, includes `/admin/messages` for contact form submissions)
 
 ### Flight scene
 
-- `src/lib/flight/` - camera math and the WebGL2 `TerrainRenderer` (procedural terrain in the vertex shader, depth-filled mesh plus row lines for hidden-line removal, sky with dawn glow)
-- `src/components/flight/FlightCanvas.tsx` - fixed background; flight distance = cruise over time + scroll, mouse steers, a veil dims it behind content and lifts at the end
-- Respects `prefers-reduced-motion` (static frame) and lowers density on small screens
+- `src/lib/flight/` - lazy-loaded WebGL2 engine: `engine.ts` (loop, camera choreography), `scenes.ts` (7 scenes and the `[data-scene]` region tracker), `terrain-renderer.ts` + `glsl.ts` (procedural terrain, hidden-line fill plus row lines, sky), `particles.ts` (fireflies, city lights), `post.ts` (bloom, grain), `input.ts` (cursor lantern, click ripple), `terrain-js.ts` (CPU terrain height for picking), `bus.ts` (`pulse`, `focus`, `telemetry` events)
+- `src/components/flight/FlightCanvas.tsx` - fixed background; every story region in the DOM declares `data-scene="<SceneId>"` and the engine sweeps between scenes as they cross the viewport centre; adjacent regions with the same scene merge
+- Scenes: `night`, `kernel`, `breach`, `signal`, `noise`, `swarm`, `dawn` (`SCENE_IDS` in `shared/types.ts`)
+- `motifs.ts` layers a subtle per-entry motif (e.g. `boot`, `ctf`, `lab`, `drone`, `clouds`, `dew`, `fog`) that can switch the terrain archetype (mirror lake, open plain, rolling hills, cloud sea, block build, mesas) plus a terrain variation from `data-seed` on top of the scene; timeline regions get both from `entryMotif`/`projectHue` in `timeline.ts`, and neighbours merge only when scene, motif and seed all match
+- Debug params: `?scene=<id>&progress=0..1` forces a scene, `?motif=<id>&seed=0..1` forces a motif, `?flightq=hi` pins quality, `?freeze=<seconds>` freezes time for deterministic frames (and exposes `window.__flightBench`)
+- `quality.ts` is the adaptive resolution controller (targets ~60fps, defers resizes until scrolling is idle); terrain is evaluated once per frame and shared by the fill, line and mirror passes, and every program is compiled and warmed up front so no world stalls on first appearance
+- Respects `prefers-reduced-motion` (static frames) and adapts resolution to frame time; small screens get lower density and no bloom
+
+### Timeline
+
+- `src/components/site/timeline.ts` merges experiences (start parsed from `duration`) and projects (`year`, `YYYY-MM`) oldest first; undated projects go last. Consecutive projects that start within about a month of each other become one `group` stop (one landscape, taken from the lowest `order` project, with the projects side by side)
+- Each entry's scene is its `scene` field when set, otherwise a default by id in `timeline.ts`; both are editable in the admin ("Landscape", "Started")
+- Each entry shows its `story` (first-person narrative, blank lines split paragraphs) and falls back to `description`; default stories live in `worker/entry-stories.ts` and are editable per entry in the admin
+- `worker/content-migration.ts` holds the project seeds and a one-time, marker-guarded migration that runs from the public read routes
 
 ### Public data
 
@@ -67,7 +78,8 @@ Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage i
 
 - `src/components/ui/` - shadcn/ui primitives (excluded from react-refresh lint rule)
 - `src/components/sections/` - Portfolio page sections
-- `src/components/site/` - Shared site pieces (section header, reveal, post row, ridgeline art, command menu)
+- `src/components/site/` - Shared site pieces (timeline model, scroll stage, year rail, word reveals, post row, command menu)
+- `src/components/reading/` - Masthead and type styles shared by About, Writing and post pages
 - `src/components/layout/` - Layout wrappers (Header, Footer, PortfolioLayout, AdminLayout)
 
 ## Key Configuration
@@ -86,7 +98,7 @@ Custom rules prevent common React bugs:
 ### Worker Previews
 
 - Every non-production branch builds a [Worker Preview](https://developers.cloudflare.com/workers/previews/) via Workers Builds (`npx wrangler preview`), and the URL is posted on the pull request
-- The `previews` block in `wrangler.jsonc` is intentionally empty: Previews get their own Durable Object storage (seeded with default content) and no R2 or email bindings, so nothing in a Preview can touch production data
+- The `previews` block in `wrangler.jsonc` only redeclares the `GlobalDurableObject` binding (Previews do not inherit bindings, and without it every data route returns 500). Each Preview gets its own Durable Object storage seeded with default content, and no R2 or email bindings, so nothing in a Preview can touch production data
 - Admin login stays blocked in Previews unless `TWO_FACTOR_KEY` is added to the Preview base config; do not add it, since Previews seed the default admin password
 - `bun run preview:deploy` creates a Preview for the current branch from a local machine
 

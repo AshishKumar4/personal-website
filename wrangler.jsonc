@@ -52,7 +52,16 @@
     ],
     "vars": {
     },
-    "previews": {},
+    "previews": {
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "GlobalDurableObject",
+            "class_name": "GlobalDurableObject"
+          }
+        ]
+      }
+    },
     "routes": [
       {
         "pattern": "ashishkumarsingh.com",

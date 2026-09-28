@@ -20,6 +20,8 @@ export interface ChatMessage {
   ts: number; // epoch millis
 }
 // Portfolio types
+export const SCENE_IDS = ['night', 'kernel', 'breach', 'signal', 'noise', 'swarm', 'dawn'] as const;
+export type SceneId = typeof SCENE_IDS[number];
 export interface Experience {
   id: string;
   company: string;
@@ -31,6 +33,8 @@ export interface Experience {
   skills: string[];
   /** Display position in the timeline (ascending). */
   order?: number;
+  scene?: SceneId;
+  story?: string;
 }
 export interface Project {
   id: string;
@@ -40,6 +44,9 @@ export interface Project {
   url: string;
   imageUrl?: string;
   order?: number;
+  year?: string;
+  scene?: SceneId;
+  story?: string;
 }
 export interface GitHubRepo {
   stars: number;

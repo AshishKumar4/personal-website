@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { ArrowUpRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api-client';
-import { PERSONAL_INFO } from '@/components/config/constants';
-import { Container } from '@/components/site/SectionHeader';
+import { PERSONAL_INFO, SOCIAL_LINKS } from '@/components/config/constants';
 import { Reveal } from '@/components/site/Reveal';
+import { Scene } from '@/components/site/Scene';
 
 type Status = { kind: 'idle' } | { kind: 'sending' } | { kind: 'sent' } | { kind: 'error'; message: string };
 
 const inputClass =
-  'block w-full rounded-none border-0 border-b border-white/15 bg-transparent px-0 py-3 text-[1rem] text-foreground placeholder:text-foreground/30 transition-colors focus:border-white/60 focus:outline-none focus:ring-0 focus-visible:outline-none disabled:opacity-60';
+  'block w-full rounded-none border-0 border-b border-foreground/30 bg-transparent px-0 py-3 text-[1.0625rem] text-foreground placeholder:text-foreground/55 transition-colors focus:border-foreground/70 focus:outline-none focus:ring-0 focus-visible:outline-none disabled:opacity-60';
 
 export function ContactSection() {
   const [name, setName] = useState('');
@@ -38,58 +38,52 @@ export function ContactSection() {
   const sending = status.kind === 'sending';
 
   return (
-    <section id="contact" className="relative flex min-h-[100svh] flex-col justify-end pb-16 pt-40" aria-label="Contact">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-[-6rem] h-[62%] bg-gradient-to-t from-background via-background/85 to-transparent" />
-      <Container className="relative">
-        <Reveal>
-          <h2 className="font-display text-[clamp(3rem,8.5vw,9.5rem)] font-[540] leading-[0.9] tracking-[-0.05em] text-foreground">
-            Let&rsquo;s build
-            <br />
-            something.
-          </h2>
+    <Scene id="contact" label="Contact" scene="dawn" hold className="relative pb-24 pt-6 md:pb-32 md:pt-10">
+      <div className="grid grid-cols-1 gap-12 md:grid-cols-12 md:gap-x-8">
+        <Reveal className="md:col-span-4">
+          <a href={`mailto:${PERSONAL_INFO.email}`} className="group legible inline-flex items-center gap-2 text-[clamp(1.25rem,1.9vw,1.625rem)] font-[400] tracking-[-0.015em] text-foreground transition-colors hover:text-[hsl(var(--tone))]" style={{ fontStretch: '106%' }}>
+            {PERSONAL_INFO.email}
+            <ArrowUpRight size={18} className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+          </a>
+          <div className="t-kicker legible mt-6 flex gap-6 text-foreground/55">
+            {SOCIAL_LINKS.map(s => (
+              <a key={s.name} href={s.url} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
+                {s.name}
+              </a>
+            ))}
+          </div>
         </Reveal>
-        <div className="mt-14 grid grid-cols-1 gap-12 border-t border-white/15 pt-8 md:mt-20 md:grid-cols-12 md:gap-x-8">
-          <Reveal className="md:col-span-4">
-            <p className="max-w-sm text-[1rem] leading-relaxed text-foreground/65">
-              Working on something ambitious, or want to talk kernels, diffusion or drones? I read everything.
-            </p>
-            <a href={`mailto:${PERSONAL_INFO.email}`} className="group mt-6 inline-flex items-center gap-1.5 text-[1.05rem] text-foreground transition-colors hover:text-signal">
-              {PERSONAL_INFO.email}
-              <ArrowUpRight size={16} className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-            </a>
-          </Reveal>
-          <Reveal delay={100} className="md:col-span-7 md:col-start-6">
-            <form onSubmit={submit} noValidate className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
-              <label className="block">
-                <span className="sr-only">Name</span>
-                <input autoComplete="name" value={name} onChange={e => setName(e.target.value)} disabled={sending} placeholder="Name" className={inputClass} />
-              </label>
-              <label className="block">
-                <span className="sr-only">Email</span>
-                <input type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} disabled={sending} placeholder="Email" className={inputClass} />
-              </label>
-              <label className="block sm:col-span-2">
-                <span className="sr-only">Message</span>
-                <textarea rows={3} maxLength={5000} value={message} onChange={e => setMessage(e.target.value)} disabled={sending} placeholder="What are you working on?" className={cn(inputClass, 'resize-none')} />
-              </label>
-              <div className="flex flex-wrap items-center justify-between gap-4 sm:col-span-2">
-                <p role="status" aria-live="polite" className={cn('text-[0.875rem]', status.kind === 'error' ? 'text-destructive' : 'text-foreground/55')}>
-                  {status.kind === 'sent' && 'Thank you. I’ll get back to you soon.'}
-                  {status.kind === 'error' && status.message}
-                </p>
-                <button
-                  type="submit"
-                  disabled={sending}
-                  className="inline-flex h-11 items-center gap-2 rounded-full bg-foreground px-6 text-[0.9375rem] font-medium text-background transition-opacity hover:opacity-85 disabled:opacity-60"
-                >
-                  {sending && <Loader2 size={15} className="animate-spin" />}
-                  {sending ? 'Sending' : 'Send message'}
-                </button>
-              </div>
-            </form>
-          </Reveal>
-        </div>
-      </Container>
-    </section>
+        <Reveal delay={100} className="md:col-span-7 md:col-start-6">
+          <form onSubmit={submit} noValidate className="grid grid-cols-1 gap-x-8 gap-y-6 rounded-[20px] border border-white/10 bg-[#07080c]/55 p-6 backdrop-blur-xl sm:grid-cols-2 md:p-8">
+            <label className="block">
+              <span className="sr-only">Name</span>
+              <input autoComplete="name" value={name} onChange={e => setName(e.target.value)} disabled={sending} placeholder="Name" className={inputClass} />
+            </label>
+            <label className="block">
+              <span className="sr-only">Email</span>
+              <input type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} disabled={sending} placeholder="Email" className={inputClass} />
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="sr-only">Message</span>
+              <textarea rows={3} maxLength={5000} value={message} onChange={e => setMessage(e.target.value)} disabled={sending} placeholder="Message" className={cn(inputClass, 'resize-none')} />
+            </label>
+            <div className="flex flex-wrap items-center justify-between gap-4 sm:col-span-2">
+              <p role="status" aria-live="polite" className={cn('text-[0.875rem]', status.kind === 'error' ? 'text-destructive' : 'text-foreground/60')}>
+                {status.kind === 'sent' && 'Thank you. I’ll get back to you soon.'}
+                {status.kind === 'error' && status.message}
+              </p>
+              <button
+                type="submit"
+                disabled={sending}
+                className="inline-flex h-11 items-center gap-2 rounded-full bg-foreground px-6 text-[0.9375rem] font-[500] text-background transition-opacity hover:opacity-85 disabled:opacity-60"
+              >
+                {sending && <Loader2 size={15} className="animate-spin" />}
+                {sending ? 'Sending' : 'Send message'}
+              </button>
+            </div>
+          </form>
+        </Reveal>
+      </div>
+    </Scene>
   );
 }

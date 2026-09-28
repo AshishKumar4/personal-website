@@ -1,7 +1,11 @@
 /**
  * Minimal real-world demo: One Durable Object instance per entity (User, ChatBoard), with Indexes for listing.
  */
-import { Entity, IndexedEntity } from "./core-utils";
+import { Entity, IndexedEntity, Index } from "./core-utils";
+import type { Env } from "./core-utils";
+import { SEED_PROJECTS, EMPTY_MIGRATION_MARKER } from "./content-migration";
+import { EXPERIENCE_STORIES, isReplaceableStory } from "./entry-stories";
+import type { MigrationMarker, ProjectsMigrationStore } from "./content-migration";
 import type { BlogPost, AuthUser, PendingAuth, SiteConfig, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAddress, BlockedSender, EmailFeed, ApiTokenPublic } from "@shared/types";
 import { EMAIL_DOMAIN } from "@shared/types";
 
@@ -22,33 +26,63 @@ export class BlogEntity extends IndexedEntity<BlogPost> {
 const SEED_EXPERIENCE: Experience[] = [
   {
     id: "cloudflare",
+    story: EXPERIENCE_STORIES["cloudflare"],
     company: "Cloudflare",
     logoUrl: "https://www.cloudflare.com/favicon.ico",
-    role: "Software Engineer Intern",
-    duration: "Jun 2025 - Present · 4 mos",
-    location: "Maryland, United States · Remote",
-    description: "Building and leading development of Vibesdk - OSS Reference vibe coding platform for building full-stack apps, slides from prompts, purely on Cloudflare developer platform - Workers, Durable Objects etc. Also helping multiple startups and enterprises build their own vibe-coding platforms",
-    skills: ["Generative AI", "Distributed Systems", "Cloudflare Workers"],
+    role: "Systems Engineer, Emerging Technologies & Incubation",
+    duration: "Jun 2025 - Present",
+    location: "Austin, TX, United States",
+    description: "I created Seal, now Cloudflare OS, our internal platform for agentic work automation: long-running background agents, sandboxed execution and multi-tenant workspaces on Durable Objects, grown from a solo prototype to a platform with a dedicated team. Also created VibeSDK, our open-source AI app-generation platform (5K+ GitHub stars), built Mossaic, a version-controlled distributed file-system layer that powers Cloudflare OS storage, and worked with Monday.com on adapting VibeSDK for their AI app-building platform.",
+    skills: ["Agentic Systems", "Durable Objects", "Distributed Systems", "Generative AI", "TypeScript"],
+    order: 1,
+  },
+  {
+    id: "umd",
+    story: EXPERIENCE_STORIES["umd"],
+    company: "University of Maryland, College Park",
+    logoUrl: "https://umd.edu/default/static/icons/favicon.png",
+    role: "M.S. in Applied Machine Learning",
+    duration: "Aug 2024 - May 2026",
+    location: "College Park, MD, United States",
+    description: "Went back to school for the ML depth I wanted: coursework and research across deep learning, computer vision and large-scale ML systems. Worked on Diff2Lip 2, an audio-guided diffusion lip-sync research project, running large ablation studies on UMD's SLURM clusters.",
+    skills: ["Deep Learning", "Diffusion Models", "Computer Vision", "Research"],
+    order: 2,
   },
   {
     id: "dyte",
-    company: "Dyte (now Cloudflare)",
-    logoUrl: "https://cdn.prod.website-files.com/63ca2acc6352c21abe583d0/63cb76071fe6f5c0f6478cfa_favicon.svg",
+    story: EXPERIENCE_STORIES["dyte"],
+    company: "Dyte (acquired by Cloudflare)",
+    logoUrl: "https://cdn.prod.website-files.com/63ca2acc6352c221abe583d0/63cb76071fe6f5c0f6478cfa_favicon.svg",
     role: "Machine Learning and Systems Engineer",
-    duration: "Jun 2021 - Aug 2024 · 3 yrs 3 mos",
-    location: "India · Hybrid",
-    description: "Spearheaded architecture design and development of WebRTC SFU/Networking Stack, increasing load handling capacity/scalability by 15x. Engineered voice-to-voice bot SDK (Deepgram + LLaMA) with <800ms latency using speculative execution. Developed LLM powered automations to monitor GitHub repository changes and auto-generate reports, cutting manual reporting by 15 hours weekly and improving code review efficiency by 20%.",
-    skills: ["WebRTC", "Generative AI", "Distributed Systems", "Golang", "Python"],
+    duration: "Jun 2021 - Jul 2024 · 3 yrs 2 mos",
+    location: "Bengaluru, India · Hybrid",
+    description: "I was one of the founding engineers at Dyte, a programmable video SDK startup that Cloudflare later acquired. I designed and built Hive, our distributed WebRTC SFU and networking stack in Go, raising load handling capacity by about 15x. I also built a voice-to-voice bot SDK (Deepgram + LLaMA) with sub-800ms latency using speculative execution, and LLM automations that watched our GitHub repos and auto-generated reports, saving around 15 hours of manual reporting a week.",
+    skills: ["WebRTC", "Golang", "Distributed Systems", "Generative AI", "Python"],
+    order: 3,
   },
   {
     id: "hyperverge",
+    story: EXPERIENCE_STORIES["hyperverge"],
     company: "HyperVerge Inc.",
     logoUrl: "https://cdn.hyperverge.co/wp-content/uploads/2025/08/favicon.png",
     role: "Machine Learning Researcher",
-    duration: "Jul 2020 - Jun 2021 · 1 yr",
+    duration: "Dec 2019 - Jun 2021 · 1 yr 7 mos",
     location: "Bengaluru, Karnataka, India",
-    description: "Spearheaded research and development to build state-of-the-art facial anti-spoofing CV models, achieved ISO 30107-3 certification with nearly 0% false positives. Implemented distributed and parallelized data processing and TPU training pipelines, drastically reducing training times from weeks to hours—a 30x performance increase.",
-    skills: ["Computer Vision", "PyTorch", "TensorFlow", "Distributed Training", "C++"],
+    description: "Led R&D on facial anti-spoofing and liveness detection models on Google TPUs, work that got the company its ISO 30107-3 certification. Built distributed data processing and TPU training pipelines that cut training times from weeks to hours and enabled 250+ experiments per week with Bayesian hyperparameter tuning.",
+    skills: ["Computer Vision", "TensorFlow", "TPUs", "Distributed Training", "C++"],
+    order: 4,
+  },
+  {
+    id: "vit",
+    story: EXPERIENCE_STORIES["vit"],
+    company: "Vellore Institute of Technology",
+    logoUrl: "https://www.google.com/s2/favicons?domain=vit.ac.in&sz=64",
+    role: "B.Tech in Computer Science",
+    duration: "Jul 2016 - Jun 2020",
+    location: "Vellore, India",
+    description: "Where the tinkering got structure. I was the Technology Head of the Technology and Gaming Club, spent my weekends on CTFs with GreyFang (at one point #7 in India on CTFTime), and built autonomous drones with a bio-inspired robotics team on the side.",
+    skills: ["Computer Science", "CTF / Security", "Robotics"],
+    order: 5,
   },
 ];
 export class ExperienceEntity extends IndexedEntity<Experience> {
@@ -58,48 +92,48 @@ export class ExperienceEntity extends IndexedEntity<Experience> {
     static seedData = SEED_EXPERIENCE;
 }
 // PROJECT ENTITY
-const SEED_PROJECTS: Project[] = [
-  {
-    id: "cloudflare-vibesdk",
-    name: "Cloudflare Vibesdk",
-    description: "An open-source text-to-app platform built on Cloudflare's developer ecosystem, allowing users to generate, deploy, and iterate on web applications using natural language.",
-    repo: "cloudflare/vibesdk",
-    url: "https://github.com/cloudflare/vibesdk",
-  },
-  {
-    id: "cloudflare-vibesdk-templates",
-    name: "Cloudflare VibeSDK Templates",
-    description: "This repository contains the official template catalog used by the Cloudflare VibeSDK project — a modern, open source “vibe coding” starter kit where users can build apps with AI agents.",
-    repo: "cloudflare/vibesdk-templates",
-    url: "https://github.com/cloudflare/vibesdk-templates",
-  },
-  {
-    id: "ashishkumar4-flaxdiff",
-    name: "FlaxDiff",
-    description: "A JAX/Flax-based diffusion library replicating 17+ techniques. Trained 100M-parameter models on 250M+ images using 128 TPUv4s.",
-    repo: "AshishKumar4/FlaxDiff",
-    url: "https://github.com/AshishKumar4/FlaxDiff",
-  },
-  {
-    id: "ashishkumar4-cf-git",
-    name: "Cloudflare Workers-native isomorphic-git",
-    description: "A Cloudflare Workers-native fork of isomorphic-git, Ported to work with the Cloudflare Workers runtime.",
-    repo: "AshishKumar4/cf-git",
-    url: "https://github.com/AshishKumar4/cf-git",
-  },
-  {
-    id: "ashishkumar4-aqeous",
-    name: "Aqeous OS",
-    description: "A hobbyist operating system and kernel built from scratch in x86 Assembly and C.",
-    repo: "AshishKumar4/Aqeous",
-    url: "https://github.com/AshishKumar4/Aqeous",
-  },
-];
 export class ProjectEntity extends IndexedEntity<Project> {
     static readonly entityName = "project";
     static readonly indexName = "projects";
     static readonly initialState: Project = { id: "", name: "", description: "", repo: "", url: "" };
     static seedData = SEED_PROJECTS;
+}
+export class MigrationEntity extends Entity<MigrationMarker> {
+    static readonly entityName = "migration";
+    static readonly initialState: MigrationMarker = EMPTY_MIGRATION_MARKER;
+}
+export function projectsMigrationStore(env: Env, migrationId: string): ProjectsMigrationStore {
+    const marker = new MigrationEntity(env, migrationId);
+    return {
+        readMarker: () => marker.getState(),
+        updateMarker: (fn) => marker.mutate((current) => fn({ ...current, id: migrationId })),
+        listProjects: async () => (await ProjectEntity.list(env)).items,
+        deleteProject: async (id) => { await ProjectEntity.delete(env, id); },
+        addProjectIfAbsent: async (project) => {
+            await new ProjectEntity(env, project.id).mutate((current) => (current.name ? current : project));
+            await new Index<string>(env, ProjectEntity.indexName).add(project.id);
+        },
+        setOrderIfUnset: async (id, order) => {
+            const entity = new ProjectEntity(env, id);
+            if (!(await entity.exists())) return;
+            await entity.mutate((current) => (current.name && typeof current.order !== "number" ? { ...current, order } : current));
+        },
+        setYearIfUnset: async (id, year) => {
+            const entity = new ProjectEntity(env, id);
+            if (!(await entity.exists())) return;
+            await entity.mutate((current) => (current.name && !current.year ? { ...current, year } : current));
+        },
+        setStoryIfUnset: async (id, story) => {
+            const entity = new ProjectEntity(env, id);
+            if (!(await entity.exists())) return;
+            await entity.mutate((current) => (current.name && isReplaceableStory(current.story) ? { ...current, story } : current));
+        },
+        setExperienceStoryIfUnset: async (id, story) => {
+            const entity = new ExperienceEntity(env, id);
+            if (!(await entity.exists())) return;
+            await entity.mutate((current) => (current.company && isReplaceableStory(current.story) ? { ...current, story } : current));
+        },
+    };
 }
 // AUTH ENTITY
 function bytesToHex(bytes: Uint8Array): string {

@@ -9,9 +9,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { SceneSelect } from '@/components/admin/SceneSelect';
 import { toast } from 'sonner';
 import { PlusCircle, Edit, Trash2, Search, Loader2, ExternalLink } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
+function ProjectThumb({ project }: { project: Project }) {
+  const [failed, setFailed] = useState(false);
+  if (project.imageUrl && !failed) {
+    return <img src={project.imageUrl} alt="" loading="lazy" onError={() => setFailed(true)} className="h-10 w-16 shrink-0 border border-border object-cover" />;
+  }
+  return (
+    <div className="flex h-10 w-16 shrink-0 items-center justify-center border border-dashed border-border font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground" title="No image">
+      {project.name.slice(0, 2) || 'NA'}
+    </div>
+  );
+}
 
 export function AdminProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -86,7 +99,13 @@ export function AdminProjectsPage() {
     const isEditing = !!currentProject.id;
     const url = isEditing ? `/api/projects/${currentProject.id}` : '/api/projects';
     const method = isEditing ? 'PUT' : 'POST';
-    const payload = { ...currentProject };
+    const payload: Partial<Omit<Project, 'order' | 'scene'>> & { order?: number | null; scene?: Project['scene'] | null } = {
+      ...currentProject,
+      imageUrl: currentProject.imageUrl?.trim() || '',
+      year: currentProject.year?.trim() || '',
+      scene: currentProject.scene ?? null,
+      order: typeof currentProject.order === 'number' && Number.isFinite(currentProject.order) ? currentProject.order : isEditing ? null : undefined,
+    };
     if (!isEditing) {
       payload.id = payload.name?.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
     }
@@ -141,6 +160,7 @@ export function AdminProjectsPage() {
               <TableHeader>
                 <TableRow className="border-border hover:bg-muted/50">
                   <TableHead className="w-16 text-muted-foreground">Order</TableHead>
+                  <TableHead className="w-20 text-muted-foreground">Image</TableHead>
                   <TableHead className="text-muted-foreground">Name</TableHead>
                   <TableHead className="text-muted-foreground">Repo</TableHead>
                   <TableHead className="text-right text-muted-foreground">Actions</TableHead>
@@ -149,7 +169,7 @@ export function AdminProjectsPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
                       <p className="text-muted-foreground mt-2">Loading projects...</p>
                     </TableCell>
@@ -157,8 +177,12 @@ export function AdminProjectsPage() {
                 ) : filteredProjects.length > 0 ? (
                   filteredProjects.map((proj) => (
                     <TableRow key={proj.id} className="border-border hover:bg-muted/50">
-                      <TableCell className="font-mono text-xs text-muted-foreground">{proj.order ?? '—'}</TableCell>
-                      <TableCell className="font-medium text-foreground">{proj.name}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{typeof proj.order === 'number' ? proj.order : 'auto'}</TableCell>
+                      <TableCell><ProjectThumb project={proj} /></TableCell>
+                      <TableCell className="font-medium text-foreground">
+                        {proj.name}
+                        {!proj.imageUrl && <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">no image</span>}
+                      </TableCell>
                       <TableCell className="text-muted-foreground">
                         {proj.repo && (
                           <a
@@ -210,7 +234,7 @@ export function AdminProjectsPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                       {search ? 'No projects match your search.' : 'No projects found. Add your first project!'}
                     </TableCell>
                   </TableRow>
@@ -280,8 +304,41 @@ export function AdminProjectsPage() {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="story" className="text-muted-foreground">
+                  Story (shown on the homepage timeline in place of the description; blank lines start new paragraphs)
+                </Label>
+                <Textarea
+                  id="story"
+                  value={currentProject.story ?? ''}
+                  onChange={(e) => setCurrentProject({ ...currentProject, story: e.target.value })}
+                  className="bg-background border-border font-serif text-[15px] leading-relaxed"
+                  rows={7}
+                  placeholder="The same entry, told in your own words."
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="year" className="text-muted-foreground">
+                    Started (places it on the homepage timeline)
+                  </Label>
+                  <Input
+                    id="year"
+                    value={currentProject.year ?? ''}
+                    onChange={(e) => setCurrentProject({ ...currentProject, year: e.target.value })}
+                    className="bg-background border-border"
+                    placeholder="2024-06"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="scene" className="text-muted-foreground">
+                    Landscape
+                  </Label>
+                  <SceneSelect id="scene" value={currentProject.scene} onChange={(scene) => setCurrentProject({ ...currentProject, scene })} />
+                </div>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="order" className="text-muted-foreground">
-                  Display order (lower comes first, optional)
+                  Display order (lower comes first; blank places it after ordered projects)
                 </Label>
                 <Input
                   id="order"
