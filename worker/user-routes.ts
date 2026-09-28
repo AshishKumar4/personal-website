@@ -584,6 +584,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       repo: body.repo || '',
       url: body.url || '',
       ...(body.imageUrl ? { imageUrl: body.imageUrl } : {}),
+      ...(body.videoUrl ? { videoUrl: body.videoUrl } : {}),
+      ...(body.homepage ? { homepage: body.homepage } : {}),
       ...(typeof body.order === 'number' ? { order: body.order } : {}),
       ...(typeof body.story === 'string' && body.story.trim() ? { story: body.story.trim() } : {}),
       ...fields,

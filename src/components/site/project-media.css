@@ -1,0 +1,149 @@
+@property --lift {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
+.pm {
+  --p: -1;
+  --r: clamp(0, var(--p), 1);
+  --e: calc(1 - (1 - var(--r)) * (1 - var(--r)) * (1 - var(--r)));
+  --lift: 0;
+  position: relative;
+  perspective: 1600px;
+  transition: --lift 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pm-window {
+  position: relative;
+  display: block;
+  transform-origin: 50% 100%;
+  transform: translate3d(0, calc((1 - var(--e)) * 48px), 0) rotateX(calc((1 - var(--e)) * 16deg)) scale(calc(0.94 + var(--e) * 0.06));
+  opacity: clamp(0, var(--p) * 2.2, 1);
+}
+
+.pm-card .pm-window {
+  transform: translate3d(0, calc((1 - var(--e)) * 28px), 0) rotateX(calc((1 - var(--e)) * 12deg));
+}
+
+.pm-window::before {
+  content: '';
+  position: absolute;
+  inset: 12% 6% -14%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, hsl(var(--tone) / 0.2), hsl(var(--tone) / 0.06) 55%, transparent);
+  filter: blur(28px);
+  opacity: calc(var(--e) * (0.7 + var(--lift) * 0.5));
+  pointer-events: none;
+}
+
+.pm-frame {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 10px;
+  background: hsl(228 32% 5%);
+  clip-path: inset(calc((1 - var(--e)) * 10%) calc((1 - var(--e)) * 6%) round 10px);
+  box-shadow:
+    0 0 0 1px hsl(var(--tone) / calc(0.16 + var(--lift) * 0.22)),
+    0 1px 0 0 hsl(0 0% 100% / 0.06) inset,
+    0 40px 90px -40px hsl(228 50% 2% / 0.95);
+}
+
+.pm-card .pm-frame {
+  border-radius: 8px;
+  clip-path: inset(calc((1 - var(--e)) * 8%) calc((1 - var(--e)) * 5%) round 8px);
+}
+
+.pm-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 0%;
+  transform: scale(calc(1.12 - var(--e) * 0.1 + var(--lift) * 0.02));
+  transform-origin: 50% 30%;
+  filter: saturate(calc(0.2 + var(--e) * 0.5 + var(--lift) * 0.3)) brightness(calc(0.6 + var(--e) * 0.2 + var(--lift) * 0.2));
+}
+
+.pm-video {
+  background: transparent;
+}
+
+.pm-hidden {
+  opacity: 0;
+}
+
+.pm-tint {
+  position: absolute;
+  inset: 0;
+  background: hsl(var(--tone));
+  mix-blend-mode: color;
+  opacity: calc(0.55 - var(--e) * 0.4 - var(--lift) * 0.15);
+  pointer-events: none;
+}
+
+.pm-glass {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(to top, hsl(228 40% 3% / 0.6), transparent 42%),
+    linear-gradient(155deg, hsl(0 0% 100% / 0.07), transparent 32%);
+  box-shadow: inset 0 0 0 1px hsl(0 0% 100% / 0.05), inset 0 0 70px hsl(228 45% 3% / 0.55);
+  opacity: calc(1 - var(--lift) * 0.45);
+  pointer-events: none;
+}
+
+.pm-tick {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: hsl(var(--tone) / calc(0.3 + var(--lift) * 0.5));
+  border-style: solid;
+  border-width: 0;
+  opacity: clamp(0, var(--p) * 1.6 - 0.6, 1);
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.pm-tick-tl { top: -9px; left: -9px; border-top-width: 1px; border-left-width: 1px; }
+.pm-tick-tr { top: -9px; right: -9px; border-top-width: 1px; border-right-width: 1px; }
+.pm-tick-bl { bottom: -9px; left: -9px; border-bottom-width: 1px; border-left-width: 1px; }
+.pm-tick-br { bottom: -9px; right: -9px; border-bottom-width: 1px; border-right-width: 1px; }
+
+.pm-plate {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    repeating-linear-gradient(to bottom, hsl(var(--tone) / 0.07) 0 1px, transparent 1px 9px),
+    radial-gradient(ellipse at 50% 120%, hsl(var(--tone) / 0.16), transparent 70%);
+}
+.pm-plate-name {
+  font-family: 'Geist Mono Variable', ui-monospace, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: hsl(var(--foreground) / 0.45);
+}
+
+@media (hover: hover) {
+  .pm:hover, .pm:focus-within { --lift: 1; }
+  .pm-feature:hover .pm-tick-tl { transform: translate(-3px, -3px); }
+  .pm-feature:hover .pm-tick-tr { transform: translate(3px, -3px); }
+  .pm-feature:hover .pm-tick-bl { transform: translate(-3px, 3px); }
+  .pm-feature:hover .pm-tick-br { transform: translate(3px, 3px); }
+}
+
+@media (hover: none) {
+  .pm { --lift: 0.6; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pm { --p: 1 !important; }
+}

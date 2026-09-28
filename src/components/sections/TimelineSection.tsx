@@ -7,6 +7,8 @@ import { Container } from '@/components/site/SectionHeader';
 import { Reveal } from '@/components/site/Reveal';
 import { Words } from '@/components/site/Words';
 import { useStageRegion } from '@/components/site/stage';
+import { ProjectMedia } from '@/components/site/ProjectMedia';
+import { hasMedia, siteLabel } from '@/components/site/project-links';
 import { SCENE_TONE, buildTimeline, entryMotif, projectHue, type TimelineEntry } from '@/components/site/timeline';
 import { emitFlight } from '@/lib/flight/bus';
 import { formatCount, repoStats } from '@/lib/site-data';
@@ -95,15 +97,13 @@ function ExperienceNode({ entry, item }: { entry: TimelineEntry; item: Experienc
 function ProjectNode({ entry, item, github, flip }: { entry: TimelineEntry; item: Project; github: GitHubSnapshot | null; flip: boolean }) {
   const node = useRef<HTMLElement>(null);
   const head = useRef<HTMLDivElement>(null);
-  const image = useRef<HTMLDivElement>(null);
   useStageRegion(node, { kind: 'node', id: entry.id, label: item.name, year: entry.start, scene: entry.scene });
   useStageRegion(head, { kind: 'reveal', id: entry.id });
-  useStageRegion(image, { kind: 'reveal', anchor: 'top', span: 0.75 });
 
   const stats = repoStats(github, item.repo);
   const href = item.url || (item.repo ? `https://github.com/${item.repo}` : undefined);
   const repoHref = item.repo ? `https://github.com/${item.repo}` : undefined;
-  const hasImage = Boolean(item.imageUrl);
+  const hasImage = hasMedia(item);
   const when = yearLabel(item.year);
 
   const focus = () => emitFlight('focus', { hue: projectHue(item.id), strength: 1 });
@@ -126,11 +126,7 @@ function ProjectNode({ entry, item, github, flip }: { entry: TimelineEntry; item
       <RailContainer>
         <div className="grid grid-cols-1 gap-y-10 md:grid-cols-12 md:items-end md:gap-x-8">
           {hasImage && (
-            <div ref={image} className={cn('reveal-image md:col-span-7', flip ? 'md:col-start-6 md:row-start-1' : 'md:col-start-1')}>
-              <a href={href} target="_blank" rel="noopener noreferrer" tabIndex={-1} aria-hidden="true" className="block overflow-hidden rounded-md bg-foreground/[0.03] ring-1 ring-foreground/10">
-                <img src={item.imageUrl} alt="" loading="lazy" decoding="async" className="aspect-[16/10] w-full object-cover object-top" />
-              </a>
-            </div>
+            <ProjectMedia project={item} href={item.homepage || href} className={cn('md:col-span-7', flip ? 'md:col-start-6 md:row-start-1' : 'md:col-start-1')} />
           )}
           <div
             ref={head}
@@ -153,6 +149,12 @@ function ProjectNode({ entry, item, github, flip }: { entry: TimelineEntry; item
                 {(href || repoHref) && (
                   <a href={repoHref ?? href} target="_blank" rel="noopener noreferrer" className="pill group">
                     {repoHref ? 'GitHub' : 'Visit'}
+                    <ArrowUpRight size={13} className="opacity-60 transition-transform duration-300 group-hover:-translate-y-px group-hover:translate-x-px" />
+                  </a>
+                )}
+                {item.homepage && (
+                  <a href={item.homepage} target="_blank" rel="noopener noreferrer" className="pill group">
+                    {siteLabel(item.homepage)}
                     <ArrowUpRight size={13} className="opacity-60 transition-transform duration-300 group-hover:-translate-y-px group-hover:translate-x-px" />
                   </a>
                 )}
@@ -180,7 +182,7 @@ function spanLabel(items: Project[]) {
   return fy && ly && fy === ly ? `${fm} to ${lm} ${ly}` : `${first} to ${last}`;
 }
 
-function GroupCard({ item, github }: { item: Project; github: GitHubSnapshot | null }) {
+function GroupCard({ item, github, media }: { item: Project; github: GitHubSnapshot | null; media: boolean }) {
   const stats = repoStats(github, item.repo);
   const href = item.url || (item.repo ? `https://github.com/${item.repo}` : undefined);
   const repoHref = item.repo ? `https://github.com/${item.repo}` : undefined;
@@ -188,6 +190,7 @@ function GroupCard({ item, github }: { item: Project; github: GitHubSnapshot | n
   const blur = () => emitFlight('focus', { hue: null });
   return (
     <div id={anchorId(item.id)} onMouseEnter={focus} onMouseLeave={blur} className="scrim">
+      {media && <ProjectMedia project={item} href={item.homepage || href} size="card" className="mb-8 md:mb-9" />}
       <Words as="h3" text={item.name} wdth="114%" className="t-name text-[clamp(1.9rem,2.7vw,2.75rem)] leading-[1] text-foreground" />
       <div className="reveal-sub">
         {narrative(item).map((para, i) => (
@@ -197,6 +200,12 @@ function GroupCard({ item, github }: { item: Project; github: GitHubSnapshot | n
           {(href || repoHref) && (
             <a href={repoHref ?? href} target="_blank" rel="noopener noreferrer" className="pill group">
               {repoHref ? 'GitHub' : 'Visit'}
+              <ArrowUpRight size={13} className="opacity-60 transition-transform duration-300 group-hover:-translate-y-px group-hover:translate-x-px" />
+            </a>
+          )}
+          {item.homepage && (
+            <a href={item.homepage} target="_blank" rel="noopener noreferrer" className="pill group">
+              {siteLabel(item.homepage)}
               <ArrowUpRight size={13} className="opacity-60 transition-transform duration-300 group-hover:-translate-y-px group-hover:translate-x-px" />
             </a>
           )}
@@ -219,6 +228,7 @@ function GroupNode({ entry, items, lead, github }: { entry: TimelineEntry; items
   useStageRegion(node, { kind: 'node', id: entry.id, label, year: entry.start, scene: entry.scene });
   useStageRegion(head, { kind: 'reveal', id: entry.id, anchor: 'top', span: 0.45 });
   const when = spanLabel(items);
+  const media = items.some(hasMedia);
 
   return (
     <article
@@ -232,7 +242,7 @@ function GroupNode({ entry, items, lead, github }: { entry: TimelineEntry; items
       className="relative py-[24svh] md:py-[30svh]"
       style={{ '--tone': SCENE_TONE[entry.scene] } as React.CSSProperties}
     >
-      <RailContainer>
+      <RailContainer className="lg:pr-60">
         <div ref={head} className="reveal-title">
           <div className="t-kicker legible flex items-center gap-3 text-foreground/60">
             <span aria-hidden="true" className="h-1.5 w-1.5 rotate-45 bg-[hsl(var(--tone))]" />
@@ -241,7 +251,7 @@ function GroupNode({ entry, items, lead, github }: { entry: TimelineEntry; items
           </div>
           <div className="mt-8 grid grid-cols-1 gap-y-14 md:mt-10 md:grid-cols-3 md:gap-x-10">
             {items.map(item => (
-              <GroupCard key={item.id} item={item} github={github} />
+              <GroupCard key={item.id} item={item} github={github} media={media} />
             ))}
           </div>
         </div>

@@ -8,6 +8,7 @@ import {
   claimMarker,
   finishMarker,
   runProjectsMigration,
+  isReplaceableField,
   type MigrationMarker,
   type ProjectsMigrationStore,
 } from './content-migration';
@@ -79,6 +80,13 @@ class MemoryStore implements ProjectsMigrationStore {
     if (!current || current.year) return;
     this.docs.set(id, { ...current, year });
   }
+  async setFieldIfReplaceable(id: string, field: 'homepage' | 'imageUrl' | 'videoUrl', value: string, retired: string[]) {
+    await this.tick();
+    const current = this.docs.get(id);
+    if (!current || !isReplaceableField(current[field], retired)) return;
+    this.writes++;
+    this.docs.set(id, { ...current, [field]: value });
+  }
   async setOrderIfUnset(id: string, order: number) {
     await this.tick();
     const current = this.docs.get(id);
@@ -132,6 +140,44 @@ describe('planProjectsMigration', () => {
     expect(plan.stories.map((s) => s.id)).toContain('do86');
     expect(plan.stories.map((s) => s.id)).not.toContain('nimbus');
   });
+  test('replaces the retired FlaxDiff flowers and fills media where unset', () => {
+    const plan = planProjectsMigration(
+      [
+        project('ashishkumar4-flaxdiff', { imageUrl: '/api/images/images/projects/flaxdiff.jpg' }),
+        project('nimbus', { imageUrl: '/api/images/images/projects/nimbus.png' }),
+        project('flydreamer', { imageUrl: '/api/images/images/projects/flydreamer.png' }),
+        project('kinu'),
+      ],
+      PROJECTS_MIGRATION,
+    );
+    const set = (id: string, field: string) => plan.fields.find((f) => f.id === id && f.field === field)?.value;
+    expect(set('ashishkumar4-flaxdiff', 'imageUrl')).toBe('/projects/flaxdiff.webp');
+    expect(set('nimbus', 'imageUrl')).toBe('/projects/nimbus.webp');
+    expect(set('flydreamer', 'imageUrl')).toBe('/projects/flydreamer.webp');
+    expect(set('flydreamer', 'videoUrl')).toBe('/projects/flydreamer.webm /projects/flydreamer.mp4');
+    expect(set('kinu', 'imageUrl')).toBe('/projects/kinu.webp');
+    expect(set('kinu', 'homepage')).toBe('https://kinu.run');
+    expect(set('ashishkumar4-flaxdiff', 'homepage')).toBe('https://pypi.org/project/flaxdiff/');
+  });
+
+  test('never overwrites media or live sites the admin set', () => {
+    const plan = planProjectsMigration(
+      [
+        project('ashishkumar4-flaxdiff', { imageUrl: '/api/images/images/mine.png' }),
+        project('flydreamer', { videoUrl: '/mine.mp4' }),
+        project('kinu', { homepage: 'https://example.com' }),
+        project('cloudflare-vibesdk', { imageUrl: '/api/images/images/projects/vibesdk.png' }),
+      ],
+      PROJECTS_MIGRATION,
+    );
+    const touched = plan.fields.map((f) => `${f.id}.${f.field}`);
+    expect(touched).not.toContain('ashishkumar4-flaxdiff.imageUrl');
+    expect(touched).not.toContain('flydreamer.videoUrl');
+    expect(touched).not.toContain('kinu.homepage');
+    expect(touched).not.toContain('cloudflare-vibesdk.imageUrl');
+    expect(touched).toContain('cloudflare-vibesdk.homepage');
+  });
+
   test('keeps explicit admin ordering', () => {
     const plan = planProjectsMigration([project('do86', { order: 0 }), project('nimbus')], PROJECTS_MIGRATION);
     expect(plan.orders).toEqual([{ id: 'nimbus', order: 5 }]);
@@ -146,7 +192,7 @@ describe('planProjectsMigration', () => {
 
   test('is a no-op once applied', () => {
     const after = SEED_PROJECTS.map((p) => ({ ...p }));
-    expect(planProjectsMigration(after, PROJECTS_MIGRATION)).toEqual({ deleteIds: [], add: [], orders: [], years: [], stories: [] });
+    expect(planProjectsMigration(after, PROJECTS_MIGRATION)).toEqual({ deleteIds: [], add: [], orders: [], years: [], stories: [], fields: [] });
   });
 
   test('restores index entries that point at missing documents', () => {
@@ -213,6 +259,33 @@ describe('runProjectsMigration', () => {
     expect(await runProjectsMigration(store, PROJECTS_MIGRATION, () => 10_000)).toBe('busy');
     expect(await runProjectsMigration(store, PROJECTS_MIGRATION, () => 120_000)).toBe('applied');
     expect(store.sorted()).toEqual(['kinu', 'cloudflare-vibesdk', 'dew', 'do86', 'nimbus', 'ashishkumar4-flaxdiff', 'flydreamer', 'ashishkumar4-aqeous']);
+  });
+
+  test('moves production media to the new assets without touching other images', async () => {
+    const live = LIVE_IDS.map((id) =>
+      project(id, ['ashishkumar4-flaxdiff', 'nimbus', 'flydreamer', 'do86', 'cloudflare-vibesdk'].includes(id) ? { imageUrl: `/api/images/images/projects/${id === 'ashishkumar4-flaxdiff' ? 'flaxdiff.jpg' : id === 'cloudflare-vibesdk' ? 'vibesdk.png' : `${id}.png`}` } : {}),
+    );
+    const store = new MemoryStore(live);
+    await runProjectsMigration(store);
+    expect(store.docs.get('ashishkumar4-flaxdiff')!.imageUrl).toBe('/projects/flaxdiff.webp');
+    expect(store.docs.get('nimbus')!.imageUrl).toBe('/projects/nimbus.webp');
+    expect(store.docs.get('flydreamer')!.videoUrl).toBe('/projects/flydreamer.webm /projects/flydreamer.mp4');
+    expect(store.docs.get('kinu')!.imageUrl).toBe('/projects/kinu.webp');
+    expect(store.docs.get('do86')!.imageUrl).toBe('/api/images/images/projects/do86.png');
+    expect(store.docs.get('cloudflare-vibesdk')!.imageUrl).toBe('/api/images/images/projects/vibesdk.png');
+    expect(store.docs.get('do86')!.homepage).toBe('https://do86.ashishkumarsingh.com');
+    expect(store.docs.get('ashishkumar4-aqeous')!.homepage).toBeUndefined();
+  });
+
+  test('does not clobber media the admin sets mid-flight', async () => {
+    const store = new MemoryStore(LIVE_IDS.map((id) => project(id, id === 'nimbus' ? { imageUrl: '/api/images/images/projects/nimbus.png' } : {})));
+    const original = store.setFieldIfReplaceable.bind(store);
+    store.setFieldIfReplaceable = async (id, field, value, retired) => {
+      if (id === 'nimbus' && field === 'imageUrl') store.docs.set('nimbus', { ...store.docs.get('nimbus')!, imageUrl: '/mine.png' });
+      return original(id, field, value, retired);
+    };
+    await runProjectsMigration(store);
+    expect(store.docs.get('nimbus')!.imageUrl).toBe('/mine.png');
   });
 
   test('does not clobber an order the admin sets mid-flight', async () => {

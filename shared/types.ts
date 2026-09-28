@@ -42,7 +42,9 @@ export interface Project {
   description: string;
   repo: string;
   url: string;
+  homepage?: string;
   imageUrl?: string;
+  videoUrl?: string;
   order?: number;
   year?: string;
   scene?: SceneId;
