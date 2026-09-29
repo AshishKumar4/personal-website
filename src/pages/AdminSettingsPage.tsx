@@ -224,8 +224,8 @@ export function AdminSettingsPage() {
         <Field id="aboutStory" label="Markdown">
           <Textarea id="aboutStory" value={config.aboutStory} onChange={e => set('aboutStory', e.target.value)} rows={22} className="font-mono text-[13px] leading-relaxed" />
         </Field>
-        <Field id="origins" label="Homepage chapters" hint="Shown after the hero. Start each chapter with ## Title | Label; the first four get their own illustration and landscape.">
-          <Textarea id="origins" value={config.origins ?? ''} onChange={e => set('origins', e.target.value)} placeholder={DEFAULT_SITE_EXTRAS.origins} rows={14} className="font-mono text-[13px] leading-relaxed" />
+        <Field id="origins" label="Homepage About" hint="Shown after the hero next to the portrait. Separate paragraphs with a blank line; keep it short.">
+          <Textarea id="origins" value={config.origins ?? ''} onChange={e => set('origins', e.target.value)} placeholder={DEFAULT_SITE_EXTRAS.origins} rows={8} className="font-mono text-[13px] leading-relaxed" />
         </Field>
       </Panel>
 

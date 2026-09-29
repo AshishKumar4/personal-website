@@ -46,7 +46,7 @@ Routes are added in `worker/user-routes.ts`. Do NOT modify `worker/index.ts` or 
 ### Frontend Routing
 
 Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage is in the entry chunk; every other route is lazy-loaded.
-- `/` - Homepage (Hero, About chapters, chronological Timeline, Writing, Contact)
+- `/` - Homepage (Hero, About, chronological Timeline, Writing, Contact)
 - `/about` - Long-form story rendered from `aboutStory` markdown
 - `/blog`, `/blog/:slug` - Blog pages
 - `/admin/*` - Admin panel (protected routes, includes `/admin/messages` for contact form submissions)
@@ -62,10 +62,10 @@ Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage i
 - Opening shot: once per session on a fresh load of `/` at the top, the camera glides over a moonlit volumetric cloud sea (raymarched in `post.ts`), dives through it and flares out into the hero, always looking along its flight path (`choreo.ts` shapes the dive as a pure function of time; `intro-gate.ts` holds the hero name via `html[data-intro]` until the dive releases it; any scroll, key or touch aborts it; `?nointro` skips it)
 - Respects `prefers-reduced-motion` (static frames) and adapts resolution to frame time; small screens get lower density and no bloom
 
-### About chapters
+### About
 
-- `OriginsSection.tsx` sits right after the hero: an intro (the `about` text and the portrait) followed by one full-screen chapter per `## Title | Label` block of `SiteConfig.origins` (admin: Settings, "Homepage chapters"; falls back to `DEFAULT_ORIGINS` in `shared/types.ts`)
-- The first four chapters each get a line illustration from `OriginArt.tsx` that draws itself as it scrolls in (`--p` from the stage, `.og-d` stroke dashes in `origins.css`) and their own landscape (`crystal`, `quantum`, `arena`, `mind` motifs)
+- `OriginsSection.tsx` sits right after the hero: one compact section with a short story (`SiteConfig.origins`, paragraphs separated by blank lines; admin: Settings, "Homepage About"; falls back to `DEFAULT_ORIGINS` in `shared/types.ts`), the portrait and a link to `/about`, flown over the `mind` world
+- The `crystal`, `quantum` and `arena` worlds in `motifs.ts` are available for entries but not assigned by default
 
 ### Timeline
 
