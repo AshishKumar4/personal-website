@@ -8,7 +8,8 @@ import type { RegistrationResponseJSON, AuthenticationResponseJSON } from '@simp
 import { isoBase64URL } from '@simplewebauthn/server/helpers';
 import type { Env } from './core-utils';
 import type { AuthUser, StoredTwoFactor, StoredPasskey, PendingAuth, TwoFactorStatus, SessionGrant, LoginStep } from '@shared/types';
-import { AuthEntity, PendingAuthEntity, generateSessionToken } from './entities';
+import { AuthEntity, PendingAuthEntity } from './entities';
+import { generateSessionToken } from './auth-crypto';
 import {
   encryptSecret, decryptSecret, newTotp, verifyTotp,
   generateBackupCodes, hashBackupCodes, matchBackupCode,

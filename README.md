@@ -20,6 +20,16 @@ bun run lint
 bun test
 ```
 
-Optional Worker secrets: `TWO_FACTOR_KEY` (required for admin 2FA), `GITHUB_TOKEN` (raises the GitHub API rate limit for `/api/github`).
+Optional Worker secrets: `TWO_FACTOR_KEY` (required for admin 2FA), `GITHUB_TOKEN` (raises the GitHub API rate limit for `/api/github`), `ADMIN_RECOVERY_PASSWORD` (account recovery, below).
+
+## Admin recovery
+
+If you lose the admin password and every second factor:
+
+1. Run `bunx wrangler secret put ADMIN_RECOVERY_PASSWORD` and type a new, strong password at the prompt.
+2. Sign in at `/admin/login` as `admin` with that password. This replaces the old password, removes all second factors and sessions, and opens 2FA setup. Save the new backup codes.
+3. Run `bunx wrangler secret delete ADMIN_RECOVERY_PASSWORD`.
+
+Each recovery password works once. Signing in with the same value again does not remove the new second factor. Failed sign-ins still count toward the 15-minute lockout. Recovery leaves API tokens alone; they expire within 24 hours, and you can revoke them under Security.
 
 Pushes to `main` deploy through Cloudflare Workers Builds.

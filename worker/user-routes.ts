@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import type { Env, Entity } from './core-utils';
-import { BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEntity, projectsMigrationStore, ContactEntity, EmailEntity, EmailThreadEntity, EmailLabelEntity, EmailDraftEntity, EmailAddressEntity, BlockedSenderEntity, EmailFeedEntity, ApiTokenEntity, hashPasswordPBKDF2, hashPasswordLegacySHA256, generateSalt } from "./entities";
+import { BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEntity, projectsMigrationStore, ContactEntity, EmailEntity, EmailThreadEntity, EmailLabelEntity, EmailDraftEntity, EmailAddressEntity, BlockedSenderEntity, EmailFeedEntity, ApiTokenEntity } from "./entities";
+import { hashPasswordPBKDF2, hashPasswordLegacySHA256, generateSalt } from './auth-crypto';
+import { recoveredAdmin } from './admin-recovery';
 import { generateApiToken, parseApiToken, isApiTokenString, hashSecret, timingSafeEqualHex } from './api-token';
 import * as twoFactor from './two-factor';
 import { TwoFactorError, type TwoFactorEnv } from './two-factor';
@@ -24,6 +26,7 @@ interface ExtendedEnv extends Env {
   FILES_BUCKET?: R2Bucket;
   EMAIL_SENDER?: any;
   GITHUB_TOKEN?: string;
+  ADMIN_RECOVERY_PASSWORD?: string;
 }
 
 function generateMessageId(): string {
@@ -287,6 +290,9 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     if (await twoFactor.isLocked(c.env)) {
       return c.json({ success: false, error: 'Too many attempts. Try again later.' }, 429);
     }
+
+    const recovered = await recoveredAdmin(await user.getState(), password, (c.env as ExtendedEnv).ADMIN_RECOVERY_PASSWORD);
+    if (recovered) await user.save(recovered);
 
     if (!(await verifyAdminPassword(user, await user.getState(), password))) {
       await twoFactor.recordFailure(c.env);
