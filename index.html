@@ -27,13 +27,12 @@
     <script>
       (function () {
         var d = document.documentElement;
+        var p = location.pathname;
         try {
-          var t = localStorage.getItem('theme');
-          if (t === 'light') d.classList.remove('dark');
+          if (/^\/(admin(?!\/login)|mail)(\/|$)/.test(p) && localStorage.getItem('theme') === 'light') d.classList.remove('dark');
           var a = localStorage.getItem('accent');
           if (a) d.setAttribute('data-accent', a);
         } catch (e) {}
-        var p = location.pathname;
         if (p === '/' || p === '/about' || p.indexOf('/blog') === 0) {
           var l = document.createElement('link');
           l.rel = 'preload';

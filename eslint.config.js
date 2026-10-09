@@ -61,7 +61,7 @@ export default tseslint.config(
     },
     settings: {
       'import/resolver': {
-        typescript: true,
+        typescript: { bun: true },
         node: true,
       },
     },

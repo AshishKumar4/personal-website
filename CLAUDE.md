@@ -13,6 +13,7 @@ bun install        # Install dependencies
 bun dev            # Start dev server (Vite + Workers) on port 3000
 bun run build      # Build for production
 bun run lint       # Run ESLint (outputs JSON format)
+bun test           # Run unit tests (DOM tests register happy-dom per file)
 bun deploy         # Build and deploy to Cloudflare
 ```
 
@@ -50,6 +51,12 @@ Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage i
 - `/about` - Long-form story rendered from `aboutStory` markdown
 - `/blog`, `/blog/:slug` - Blog pages
 - `/admin/*` - Admin panel (protected routes, includes `/admin/messages` for contact form submissions)
+
+### Theme
+
+- The public site (every `PortfolioLayout` page, including `/admin/login`) is always dark. Only the admin and mail apps follow the stored `theme` preference ("Paper mode" / "Ink mode")
+- The layout that renders the page owns the `dark` class and `theme-color` through `useDocumentTheme`; `ThemeProvider` only stores the preference
+- The pre-paint script in `index.html` applies a stored light preference only on `/admin` (not `/admin/login`) and `/mail` paths, to avoid a flash; `src/components/layout/theme.test.tsx` pins this
 
 ### Flight scene
 

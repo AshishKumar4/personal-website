@@ -1,1 +1,1 @@
-export { useTheme } from '@/contexts/ThemeContext';
+export { useTheme, useDocumentTheme } from '@/contexts/ThemeContext';

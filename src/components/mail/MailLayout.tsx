@@ -8,8 +8,11 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { MailProvider } from '@/contexts/MailContext';
 import { MailShortcutsDialog } from './MailShortcutsDialog';
 import { useMailHotkeys } from '@/hooks/useMailHotkeys';
+import { useDocumentTheme, useTheme } from '@/hooks/use-theme';
 
 export function MailLayout() {
+  const { isDark } = useTheme();
+  useDocumentTheme(isDark);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const location = useLocation();
