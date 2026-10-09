@@ -107,6 +107,7 @@ export interface AuthUser {
     twoFactor?: StoredTwoFactor;
     failedAttempts?: number;
     lockedUntil?: number;
+    recoveryMarker?: string;
 }
 export interface PendingAuth {
     id: string;

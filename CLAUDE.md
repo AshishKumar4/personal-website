@@ -84,6 +84,11 @@ Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage i
 - Project media (`imageUrl`, optional `videoUrl` as a space-separated source list, curated assets in `public/projects/`) renders through `ProjectMedia.tsx` as a tone-tinted glass window that tilts in on scroll and comes to full colour on hover; `homepage` adds a live-site pill labelled with its domain (`project-links.ts`)
 - `worker/content-migration.ts` holds the project seeds and a one-time, marker-guarded migration that runs from the public read routes
 
+### Admin auth
+
+- One `admin` account (`AuthEntity`): a PBKDF2 password (`worker/auth-crypto.ts`), mandatory 2FA (`worker/two-factor.ts`) and a 5-failure, 15-minute lockout
+- Recovery: while the `ADMIN_RECOVERY_PASSWORD` Worker secret is set, signing in with exactly that value makes it the password and clears 2FA, sessions and the lockout, so login continues into 2FA setup. A salted marker applies each value once (`worker/admin-recovery.ts`); delete the secret afterwards. The procedure is in `README.md`
+
 ### Public data
 
 - `GET /api/home` returns config, experiences, projects and post summaries in one request (preloaded from `index.html`)
