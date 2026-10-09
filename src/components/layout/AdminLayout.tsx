@@ -6,7 +6,7 @@ import { getToken, clearToken } from '@/lib/auth';
 import { api } from '@/lib/api-client';
 import { Toaster } from '@/components/ui/sonner';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
-import { useTheme } from '@/hooks/use-theme';
+import { useDocumentTheme, useTheme } from '@/hooks/use-theme';
 import { toast } from 'sonner';
 
 const TITLES: Record<string, string> = {
@@ -24,6 +24,7 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isDark } = useTheme();
+  useDocumentTheme(isDark);
   const [loggingOut, setLoggingOut] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 

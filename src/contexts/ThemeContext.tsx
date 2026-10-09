@@ -1,9 +1,8 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, ReactNode } from 'react';
 
 type ThemeContextType = {
   isDark: boolean;
   toggleTheme: () => void;
-  setTheme: (dark: boolean) => void;
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -21,9 +20,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [isDark, setIsDark] = useState(readInitialTheme);
 
   useEffect(() => {
-    const root = document.documentElement;
-    root.classList.toggle('dark', isDark);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#09090a' : '#f0ede6');
     try {
       localStorage.setItem('theme', isDark ? 'dark' : 'light');
     } catch {
@@ -32,10 +28,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [isDark]);
 
   const toggleTheme = useCallback(() => setIsDark(prev => !prev), []);
-  const setTheme = useCallback((dark: boolean) => setIsDark(dark), []);
 
   return (
-    <ThemeContext.Provider value={{ isDark, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ isDark, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -47,4 +42,11 @@ export function useTheme() {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
   return context;
+}
+
+export function useDocumentTheme(dark: boolean) {
+  useLayoutEffect(() => {
+    document.documentElement.classList.toggle('dark', dark);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#07080c' : '#f0ede6');
+  }, [dark]);
 }

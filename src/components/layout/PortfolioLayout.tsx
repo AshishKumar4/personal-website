@@ -5,7 +5,7 @@ import { Footer } from './Footer';
 import { SiteConfigProvider } from '@/contexts/SiteConfigContext';
 import { onOpenCommandMenu } from '@/lib/site-events';
 import { scrollToSection } from '@/components/site/stage';
-import { useTheme } from '@/hooks/use-theme';
+import { useDocumentTheme } from '@/hooks/use-theme';
 import { cn } from '@/lib/utils';
 
 const CommandMenu = lazy(() => import('@/components/site/CommandMenu'));
@@ -44,15 +44,7 @@ function Overlays() {
 
 export function PortfolioLayout({ children, variant = 'default', footer = true }: PortfolioLayoutProps) {
   const location = useLocation();
-  const { isDark } = useTheme();
-
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.add('dark');
-    return () => {
-      root.classList.toggle('dark', isDark);
-    };
-  }, [isDark]);
+  useDocumentTheme(true);
 
   useEffect(() => {
     if (location.hash) {
