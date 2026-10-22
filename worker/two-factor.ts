@@ -8,6 +8,7 @@ import type { RegistrationResponseJSON, AuthenticationResponseJSON } from '@simp
 import { isoBase64URL } from '@simplewebauthn/server/helpers';
 import type { Env } from './core-utils';
 import type { AuthUser, StoredTwoFactor, StoredPasskey, PendingAuth, TwoFactorStatus, SessionGrant, LoginStep } from '@shared/types';
+import { EMAIL_DOMAIN } from '@shared/types';
 import { AuthEntity, PendingAuthEntity } from './entities';
 import { generateSessionToken } from './auth-crypto';
 import {
@@ -27,6 +28,8 @@ const LOGIN_TTL_MS = 5 * 60 * 1000;
 const MAX_PENDING_ATTEMPTS = 5;
 const MAX_LOGIN_FAILURES = 5;
 const LOCKOUT_MS = 15 * 60 * 1000;
+const RP_ID = EMAIL_DOMAIN;
+const PASSKEY_ORIGINS = [`https://${RP_ID}`, `https://mail.${RP_ID}`];
 
 export type FlowKind = PendingAuth['kind'];
 
@@ -37,8 +40,8 @@ export class TwoFactorError extends Error {
 }
 
 function deriveRp(origin: string | undefined): { rpID: string; origin: string } {
-  if (!origin) throw new TwoFactorError(400, 'Missing origin');
-  return { rpID: new URL(origin).hostname, origin };
+  if (!origin || !PASSKEY_ORIGINS.includes(origin)) throw new TwoFactorError(400, 'Passkeys only work on the site itself');
+  return { rpID: RP_ID, origin };
 }
 
 // ---------- state helpers ----------

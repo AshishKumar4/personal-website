@@ -88,6 +88,7 @@ Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage i
 
 - One `admin` account (`AuthEntity`): a PBKDF2 password (`worker/auth-crypto.ts`), mandatory 2FA (`worker/two-factor.ts`) and a 5-failure, 15-minute lockout
 - There is no default password. While the `auth` record is missing, sign-in fails; only the recovery password below can create it
+- Passkeys use the RP ID `ashishkumarsingh.com` and are accepted only from `https://ashishkumarsingh.com` and `https://mail.ashishkumarsingh.com`, so one passkey works on both hosts. Local development signs in with TOTP
 - Recovery: while the `ADMIN_RECOVERY_PASSWORD` Worker secret is set, signing in with exactly that value makes it the password and clears 2FA, sessions and the lockout, so login continues into 2FA setup. A salted marker applies each value once (`worker/admin-recovery.ts`); delete the secret afterwards. The procedure is in `README.md`
 
 ### Files and share links
