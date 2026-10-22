@@ -357,6 +357,16 @@ export interface R2ListResponse {
   cursor?: string;
   truncated: boolean;
 }
+export interface ShareLink {
+  id: string;
+  key: string;
+  createdAt: number;
+  expiresAt: number | null;
+}
+export interface CreateShareLinkPayload {
+  key: string;
+  ttlSeconds: number | null;
+}
 export interface MultipartUploadInit {
   uploadId: string;
   key: string;

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Env, Entity } from './core-utils';
-import { BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEntity, projectsMigrationStore, ContactEntity, EmailEntity, EmailThreadEntity, EmailLabelEntity, EmailDraftEntity, EmailAddressEntity, BlockedSenderEntity, EmailFeedEntity, ApiTokenEntity } from "./entities";
+import { BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEntity, projectsMigrationStore, ContactEntity, EmailEntity, EmailThreadEntity, EmailLabelEntity, EmailDraftEntity, EmailAddressEntity, BlockedSenderEntity, EmailFeedEntity, ApiTokenEntity, ShareLinkEntity } from "./entities";
 import { hashPasswordPBKDF2, hashPasswordLegacySHA256, generateSalt } from './auth-crypto';
 import { recoveredAdmin } from './admin-recovery';
 import { generateApiToken, parseApiToken, isApiTokenString, hashSecret, timingSafeEqualHex } from './api-token';
@@ -8,7 +8,7 @@ import * as twoFactor from './two-factor';
 import { TwoFactorError, type TwoFactorEnv } from './two-factor';
 import type { AuthUser } from '@shared/types';
 import { ok, bad, notFound, isStr, mergeUnique, Index } from './core-utils';
-import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, ApiTokenPublic, ApiTokenCreated, R2FileItem, MultipartUploadPart, SiteFact, PostSummary, HomePayload, GitHubSnapshot, RepoStats } from "@shared/types";
+import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, ApiTokenPublic, ApiTokenCreated, R2FileItem, MultipartUploadPart, CreateShareLinkPayload, SiteFact, PostSummary, HomePayload, GitHubSnapshot, RepoStats } from "@shared/types";
 import { runProjectsMigration, PROJECTS_MIGRATION } from './content-migration';
 import { EMAIL_DOMAIN, clampTtlMinutes, ACCENT_PRESETS, DEFAULT_SITE_EXTRAS, SCENE_IDS } from "@shared/types";
 import { postCoverImage, postExcerpt, postReadingTime } from '@shared/post-preview';
@@ -19,6 +19,7 @@ import { normalizeLocalPart, validateLocalPart } from '@shared/address-validatio
 import { createMimeMessage } from 'mimetext';
 import { accessMiddleware } from './access-middleware';
 import { withDurableRetry, mapWithConcurrency, DEFAULT_CONCURRENCY } from './durable-batch';
+import { generateShareToken, isShareToken, isLiveShareLink, sharedFileResponse, SHARE_HEADERS } from './file-shares';
 
 interface ExtendedEnv extends Env {
   IMAGES_BUCKET?: R2Bucket;
@@ -52,6 +53,11 @@ async function listAllEntities<S>(env: Env, EntityClass: IndexedEntityClass<S>):
   return mapWithConcurrency(ids, DEFAULT_CONCURRENCY, (id) =>
     withDurableRetry(() => new EntityClass(env, id).getState())
   );
+}
+
+async function revokeShareLinks(env: Env, matches: (key: string) => boolean): Promise<void> {
+  const links = await listAllEntities(env, ShareLinkEntity);
+  await ShareLinkEntity.deleteMany(env, links.filter(link => matches(link.key)).map(link => link.id));
 }
 
 function getAllEmails(env: Env): Promise<Email[]> {
@@ -1501,6 +1507,9 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 
   // ============ FILE MANAGER ROUTES ============
 
+  app.use('/api/files/*', accessMiddleware);
+  app.use('/api/shares/*', accessMiddleware);
+
   // List files with prefix/delimiter
   app.get('/api/files', adminAuthMiddleware, async (c) => {
     const env = c.env as ExtendedEnv;
@@ -1571,6 +1580,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     if (!file) return bad(c, 'No file provided');
     if (!key) return bad(c, 'No key provided');
 
+    await revokeShareLinks(c.env, linkKey => linkKey === key);
     await env.FILES_BUCKET.put(key, file.stream(), {
       httpMetadata: { contentType: file.type || 'application/octet-stream' },
     });
@@ -1644,6 +1654,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       etag: p.etag,
     }));
 
+    await revokeShareLinks(c.env, linkKey => linkKey === key);
     await multipart.complete(uploadedParts);
 
     return ok(c, { key, completed: true });
@@ -1686,6 +1697,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     if (!prefix) return bad(c, 'No prefix provided');
 
     const folderPrefix = prefix.endsWith('/') ? prefix : `${prefix}/`;
+    await revokeShareLinks(c.env, linkKey => linkKey.startsWith(folderPrefix));
     let cursor: string | undefined;
     let deletedCount = 0;
 
@@ -1711,8 +1723,55 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const key = decodeURIComponent(new URL(c.req.url).pathname.slice('/api/files/'.length));
     if (!key) return bad(c, 'No key provided');
 
+    await revokeShareLinks(c.env, linkKey => linkKey === key);
     await env.FILES_BUCKET.delete(key);
 
     return ok(c, { key, deleted: true });
+  });
+
+  // ============ SHARE LINKS ============
+
+  app.get('/s/:token', async (c) => {
+    const env = c.env as ExtendedEnv;
+    const token = c.req.param('token');
+    const link = isShareToken(token) ? await new ShareLinkEntity(c.env, token).getState() : null;
+    const served = link && env.FILES_BUCKET && isLiveShareLink(link, Date.now())
+      ? await sharedFileResponse(env.FILES_BUCKET, link.key, c.req.raw)
+      : null;
+    return served ?? new Response('Not found', { status: 404, headers: SHARE_HEADERS });
+  });
+
+  app.get('/api/shares', sessionAuthMiddleware, async (c) => {
+    const now = Date.now();
+    const links = await listAllEntities(c.env, ShareLinkEntity);
+    const stale = links.filter(link => !isLiveShareLink(link, now));
+    if (stale.length > 0) await ShareLinkEntity.deleteMany(c.env, stale.map(link => link.id));
+    const items = links.filter(link => isLiveShareLink(link, now)).sort((a, b) => b.createdAt - a.createdAt);
+    return ok(c, { items });
+  });
+
+  app.post('/api/shares', sessionAuthMiddleware, async (c) => {
+    const env = c.env as ExtendedEnv;
+    if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
+    const { key, ttlSeconds } = await c.req.json<Partial<CreateShareLinkPayload>>();
+    if (!isStr(key) || key.endsWith('/')) return bad(c, 'A file key is required');
+    if (ttlSeconds !== null && !(typeof ttlSeconds === 'number' && Number.isSafeInteger(ttlSeconds) && ttlSeconds > 0)) {
+      return bad(c, 'ttlSeconds must be a positive whole number, or null for a link that never expires');
+    }
+    if (!(await env.FILES_BUCKET.head(key))) return notFound(c, 'File not found');
+    const now = Date.now();
+    const link = await ShareLinkEntity.create(c.env, {
+      id: generateShareToken(),
+      key,
+      createdAt: now,
+      expiresAt: ttlSeconds === null ? null : now + ttlSeconds * 1000,
+    });
+    return ok(c, link);
+  });
+
+  app.delete('/api/shares/:token', sessionAuthMiddleware, async (c) => {
+    const token = c.req.param('token');
+    if (!(await ShareLinkEntity.delete(c.env, token))) return notFound(c, 'Link not found');
+    return ok(c, { id: token, deleted: true });
   });
 }

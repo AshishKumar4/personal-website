@@ -6,7 +6,7 @@ import type { Env } from "./core-utils";
 import { SEED_PROJECTS, EMPTY_MIGRATION_MARKER, isReplaceableField } from "./content-migration";
 import { EXPERIENCE_STORIES, isReplaceableStory } from "./entry-stories";
 import type { MigrationMarker, ProjectsMigrationStore } from "./content-migration";
-import type { BlogPost, AuthUser, PendingAuth, SiteConfig, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAddress, BlockedSender, EmailFeed, ApiTokenPublic } from "@shared/types";
+import type { BlogPost, AuthUser, PendingAuth, SiteConfig, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAddress, BlockedSender, EmailFeed, ApiTokenPublic, ShareLink } from "@shared/types";
 import { EMAIL_DOMAIN } from "@shared/types";
 
 export type ApiTokenRecord = ApiTokenPublic & { secretHash: string };
@@ -279,6 +279,12 @@ export class ApiTokenEntity extends IndexedEntity<ApiTokenRecord> {
         lastUsedAt: 0,
     };
     static seedData: ApiTokenRecord[] = [];
+}
+export class ShareLinkEntity extends IndexedEntity<ShareLink> {
+    static readonly entityName = "shareLink";
+    static readonly indexName = "shareLinks";
+    static readonly initialState: ShareLink = { id: "", key: "", createdAt: 0, expiresAt: null };
+    static seedData: ShareLink[] = [];
 }
 export class EmailDraftEntity extends IndexedEntity<EmailDraft> {
     static readonly entityName = "emailDraft";
