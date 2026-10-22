@@ -3,7 +3,8 @@ import type { Env, Entity } from './core-utils';
 import { BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEntity, projectsMigrationStore, ContactEntity, EmailEntity, EmailThreadEntity, EmailLabelEntity, EmailDraftEntity, EmailAddressEntity, BlockedSenderEntity, EmailFeedEntity, ApiTokenEntity, ShareLinkEntity } from "./entities";
 import { hashPasswordPBKDF2, hashPasswordLegacySHA256, generateSalt } from './auth-crypto';
 import { recoveredAdmin } from './admin-recovery';
-import { generateApiToken, parseApiToken, isApiTokenString, hashSecret, timingSafeEqualHex } from './api-token';
+import { generateApiToken, hashSecret } from './api-token';
+import { sessionAuthMiddleware, adminAuthMiddleware, hasValidSession } from './admin-auth';
 import * as twoFactor from './two-factor';
 import { TwoFactorError, type TwoFactorEnv } from './two-factor';
 import type { AuthUser } from '@shared/types';
@@ -109,57 +110,6 @@ function matchesSearch(e: Email, q: SearchQuery): boolean {
     if (!q.text.every(term => haystack.includes(term))) return false;
   }
   return true;
-}
-
-function getBearer(c: any): string | null {
-  const authHeader = c.req.header('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
-  return authHeader.substring(7);
-}
-
-async function isValidSessionToken(c: any, token: string): Promise<boolean> {
-  const adminUser = new AuthEntity(c.env, "admin");
-  if (!(await adminUser.exists())) return false;
-  const storedUser = await adminUser.getState();
-  if (!storedUser.sessionToken || storedUser.sessionToken !== token) return false;
-  if (!storedUser.tokenExpiry || Date.now() > storedUser.tokenExpiry) return false;
-  return true;
-}
-
-async function isValidApiToken(c: any, token: string): Promise<boolean> {
-  const parsed = parseApiToken(token);
-  if (!parsed) return false;
-  const entity = new ApiTokenEntity(c.env, parsed.keyId);
-  if (!(await entity.exists())) return false;
-  const record = await entity.getState();
-  if (Date.now() > record.expiresAt) return false;
-  const presentedHash = await hashSecret(parsed.secret);
-  if (!timingSafeEqualHex(presentedHash, record.secretHash)) return false;
-  await entity.mutate(r => ({ ...r, lastUsedAt: Date.now() })).catch(() => {});
-  return true;
-}
-
-const sessionAuthMiddleware = async (c: any, next: any) => {
-  const token = getBearer(c);
-  if (!token || !(await isValidSessionToken(c, token))) {
-    return c.json({ success: false, error: 'Unauthorized' }, 401);
-  }
-  await next();
-};
-
-const adminAuthMiddleware = async (c: any, next: any) => {
-  const token = getBearer(c);
-  if (!token) return c.json({ success: false, error: 'Unauthorized' }, 401);
-  const valid = isApiTokenString(token)
-    ? await isValidApiToken(c, token)
-    : await isValidSessionToken(c, token);
-  if (!valid) return c.json({ success: false, error: 'Unauthorized' }, 401);
-  await next();
-};
-
-async function hasValidSession(c: any): Promise<boolean> {
-  const token = getBearer(c);
-  return !!token && !isApiTokenString(token) && isValidSessionToken(c, token);
 }
 
 async function verifyAdminPassword(entity: AuthEntity, user: AuthUser, password: string): Promise<boolean> {
