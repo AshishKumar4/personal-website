@@ -4,7 +4,7 @@ import type { Env } from './core-utils';
 import { ok, bad, notFound, isStr } from './core-utils';
 import { ShareLinkEntity } from './entities';
 import { accessMiddleware } from './access-middleware';
-import { adminAuthMiddleware, sessionAuthMiddleware } from './admin-auth';
+import { sessionAuthMiddleware } from './admin-auth';
 import { generateShareToken, isShareToken, isLiveShareLink, sharedFileResponse, SHARE_HEADERS } from './file-shares';
 import type { CreateShareLinkPayload, MultipartUploadPart, R2FileItem } from '@shared/types';
 
@@ -40,10 +40,10 @@ sharedFileRoutes.get('/s/:token', async (c) => {
 
 export const fileAdminRoutes = new Hono<FilesApp>();
 
-fileAdminRoutes.use('/api/files/*', accessMiddleware, withBucket);
-fileAdminRoutes.use('/api/shares/*', accessMiddleware, withBucket);
+fileAdminRoutes.use('/api/files/*', accessMiddleware, sessionAuthMiddleware, withBucket);
+fileAdminRoutes.use('/api/shares/*', accessMiddleware, sessionAuthMiddleware, withBucket);
 
-fileAdminRoutes.get('/api/files', adminAuthMiddleware, async (c) => {
+fileAdminRoutes.get('/api/files', async (c) => {
   const prefix = c.req.query('prefix') || '';
   const cursor = c.req.query('cursor');
   const limit = Math.min(parseInt(c.req.query('limit') || '100', 10), 1000);
@@ -83,7 +83,7 @@ fileAdminRoutes.get('/api/files', adminAuthMiddleware, async (c) => {
   });
 });
 
-fileAdminRoutes.post('/api/files/upload', adminAuthMiddleware, async (c) => {
+fileAdminRoutes.post('/api/files/upload', async (c) => {
   const formData = await c.req.formData();
   const file = formData.get('file');
   const key = formData.get('key');
@@ -99,7 +99,7 @@ fileAdminRoutes.post('/api/files/upload', adminAuthMiddleware, async (c) => {
   return ok(c, { key, size: file.size, contentType: file.type || 'application/octet-stream' });
 });
 
-fileAdminRoutes.post('/api/files/upload/initiate', adminAuthMiddleware, async (c) => {
+fileAdminRoutes.post('/api/files/upload/initiate', async (c) => {
   const { key, contentType } = await c.req.json<{ key?: unknown; contentType?: unknown }>();
   if (!isStr(key)) return bad(c, 'No key provided');
 
@@ -110,7 +110,7 @@ fileAdminRoutes.post('/api/files/upload/initiate', adminAuthMiddleware, async (c
   return ok(c, { uploadId: multipart.uploadId, key: multipart.key });
 });
 
-fileAdminRoutes.put('/api/files/upload/part', adminAuthMiddleware, async (c) => {
+fileAdminRoutes.put('/api/files/upload/part', async (c) => {
   const key = c.req.query('key');
   const uploadId = c.req.query('uploadId');
   const partNumber = parseInt(c.req.query('partNumber') || '0', 10);
@@ -125,7 +125,7 @@ fileAdminRoutes.put('/api/files/upload/part', adminAuthMiddleware, async (c) => 
   return ok(c, { partNumber: part.partNumber, etag: part.etag });
 });
 
-fileAdminRoutes.post('/api/files/upload/complete', adminAuthMiddleware, async (c) => {
+fileAdminRoutes.post('/api/files/upload/complete', async (c) => {
   const { key, uploadId, parts } = await c.req.json<{ key?: unknown; uploadId?: unknown; parts?: MultipartUploadPart[] }>();
   if (!isStr(key) || !isStr(uploadId) || !parts?.length) {
     return bad(c, 'key, uploadId, and parts are required');
@@ -138,7 +138,7 @@ fileAdminRoutes.post('/api/files/upload/complete', adminAuthMiddleware, async (c
   return ok(c, { key, completed: true });
 });
 
-fileAdminRoutes.post('/api/files/upload/abort', adminAuthMiddleware, async (c) => {
+fileAdminRoutes.post('/api/files/upload/abort', async (c) => {
   const { key, uploadId } = await c.req.json<{ key?: unknown; uploadId?: unknown }>();
   if (!isStr(key) || !isStr(uploadId)) return bad(c, 'key and uploadId are required');
 
@@ -147,7 +147,7 @@ fileAdminRoutes.post('/api/files/upload/abort', adminAuthMiddleware, async (c) =
   return ok(c, { key, aborted: true });
 });
 
-fileAdminRoutes.post('/api/files/folder', adminAuthMiddleware, async (c) => {
+fileAdminRoutes.post('/api/files/folder', async (c) => {
   const { path } = await c.req.json<{ path?: unknown }>();
   if (!isStr(path)) return bad(c, 'No path provided');
 
@@ -157,7 +157,7 @@ fileAdminRoutes.post('/api/files/folder', adminAuthMiddleware, async (c) => {
   return ok(c, { key: folderKey, created: true });
 });
 
-fileAdminRoutes.delete('/api/files/folder/*', adminAuthMiddleware, async (c) => {
+fileAdminRoutes.delete('/api/files/folder/*', async (c) => {
   const prefix = decodeURIComponent(new URL(c.req.url).pathname.slice('/api/files/folder/'.length));
   if (!prefix) return bad(c, 'No prefix provided');
 
@@ -180,7 +180,7 @@ fileAdminRoutes.delete('/api/files/folder/*', adminAuthMiddleware, async (c) => 
   return ok(c, { prefix: folderPrefix, deletedCount, deleted: true });
 });
 
-fileAdminRoutes.delete('/api/files/*', adminAuthMiddleware, async (c) => {
+fileAdminRoutes.delete('/api/files/*', async (c) => {
   const key = decodeURIComponent(new URL(c.req.url).pathname.slice('/api/files/'.length));
   if (!key) return bad(c, 'No key provided');
 
@@ -190,7 +190,7 @@ fileAdminRoutes.delete('/api/files/*', adminAuthMiddleware, async (c) => {
   return ok(c, { key, deleted: true });
 });
 
-fileAdminRoutes.get('/api/shares', sessionAuthMiddleware, async (c) => {
+fileAdminRoutes.get('/api/shares', async (c) => {
   const now = Date.now();
   const { items: links } = await ShareLinkEntity.list(c.env);
   const stale = links.filter(link => !isLiveShareLink(link, now));
@@ -199,7 +199,7 @@ fileAdminRoutes.get('/api/shares', sessionAuthMiddleware, async (c) => {
   return ok(c, { items });
 });
 
-fileAdminRoutes.post('/api/shares', sessionAuthMiddleware, async (c) => {
+fileAdminRoutes.post('/api/shares', async (c) => {
   const { key, ttlSeconds } = await c.req.json<Partial<CreateShareLinkPayload>>();
   if (!isStr(key) || key.endsWith('/')) return bad(c, 'A file key is required');
   if (ttlSeconds !== null && !(typeof ttlSeconds === 'number' && Number.isSafeInteger(ttlSeconds) && ttlSeconds > 0)) {
@@ -218,7 +218,7 @@ fileAdminRoutes.post('/api/shares', sessionAuthMiddleware, async (c) => {
   return ok(c, link);
 });
 
-fileAdminRoutes.delete('/api/shares/:token', sessionAuthMiddleware, async (c) => {
+fileAdminRoutes.delete('/api/shares/:token', async (c) => {
   const token = c.req.param('token');
   if (!(await ShareLinkEntity.delete(c.env, token))) return notFound(c, 'Link not found');
   return ok(c, { id: token, deleted: true });

@@ -157,6 +157,17 @@ describe('share links', () => {
     expect((await postJson('/api/shares', { key: 'docs/screencast.webm', ttlSeconds: null }, { bearer: 'not-a-session' })).status).toBe(401);
     expect((await postJson('/api/shares', { key: 'docs/screencast.webm', ttlSeconds: null }, { bearer: apiToken.token })).status).toBe(401);
     expect((await call('/api/shares', { bearer: apiToken.token })).status).toBe(401);
+
+    const form = new FormData();
+    form.set('file', new File([PDF], 'robot.pdf', { type: 'application/pdf' }));
+    form.set('key', 'docs/screencast.webm');
+    expect((await call('/api/files?prefix=docs/', { bearer: apiToken.token })).status).toBe(401);
+    expect((await call('/api/files/upload', { method: 'POST', body: form, bearer: apiToken.token })).status).toBe(401);
+    expect((await postJson('/api/files/upload/initiate', { key: 'docs/screencast.webm' }, { bearer: apiToken.token })).status).toBe(401);
+    expect((await call(`/api/files/${encodeURIComponent('docs/screencast.webm')}`, { method: 'DELETE', bearer: apiToken.token })).status).toBe(401);
+    expect((await call(`/api/files/folder/${encodeURIComponent('docs/')}`, { method: 'DELETE', bearer: apiToken.token })).status).toBe(401);
+    const listed = await data<{ items: { key: string; size: number }[] }>(call('/api/files?prefix=docs/'));
+    expect(listed.items).toContainEqual(expect.objectContaining({ key: 'docs/screencast.webm', size: WEBM.length }));
   });
 
   test('a link streams the file anonymously, with byte ranges, until it is revoked', async () => {

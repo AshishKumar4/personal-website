@@ -94,7 +94,7 @@ Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage i
 ### Files and share links
 
 - The `general-hosting` bucket (`FILES_BUCKET`) is private and nothing serves it by key. The Files admin runs at `mail.ashishkumarsingh.com/admin/files`, behind Cloudflare Access; on the public host `/admin/files` redirects there
-- Every `/api/files` and `/api/shares` route needs the Access JWT (`accessMiddleware`) as well as the admin session. Share routes refuse API tokens
+- Every `/api/files` and `/api/shares` route needs the Access JWT (`accessMiddleware`) as well as the admin session; API tokens are refused. The routes live in `worker/file-routes.ts`, and the auth middleware in `worker/admin-auth.ts`
 - A share link is `https://ashishkumarsingh.com/s/<token>`, where the token is 256 random bits stored as a `ShareLinkEntity`. `worker/file-shares.ts` streams the file with byte ranges. Revoking a link, its expiry, or deleting or overwriting the file makes it 404 at once. Unknown, revoked and expired tokens all get the same 404
 - `worker/share-links.test.ts` runs the real Worker under `wrangler dev`, with a local JWKS standing in for Access
 
