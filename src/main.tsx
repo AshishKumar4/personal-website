@@ -1,11 +1,16 @@
 import '@/lib/errorReporter';
+import { FILES_ADMIN_ORIGIN } from '@/lib/file-utils';
 
 const isMailSubdomain = window.location.hostname.startsWith('mail.');
 const isMailRoute = window.location.pathname.startsWith('/mail');
 const isApiRoute = window.location.pathname.startsWith('/api');
+const isAdminRoute = window.location.pathname.startsWith('/admin');
 
-if (isMailSubdomain && !isMailRoute && !isApiRoute) {
+if (isMailSubdomain && !isMailRoute && !isApiRoute && !isAdminRoute) {
   window.location.replace('/mail/inbox');
+}
+if (FILES_ADMIN_ORIGIN && window.location.pathname.startsWith('/admin/files')) {
+  window.location.replace(`${FILES_ADMIN_ORIGIN}/admin/files`);
 }
 import { StrictMode, Suspense, lazy, type ComponentType } from 'react'
 import { createRoot } from 'react-dom/client'

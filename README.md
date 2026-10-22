@@ -4,7 +4,9 @@ The personal site of Ashish Kumar Singh.
 
 The homepage is a night flight over a mountain range: a hidden-line terrain rendered in raw WebGL2 that drifts forward on its own, carries you through the range as you scroll, follows the cursor, and reaches dawn at the contact section. Everything else stays quiet: Inter Tight and Inter, a single warm accent, and content set with plenty of room.
 
-Content is managed from the admin panel (`/admin`): posts and notebooks, projects (with display order), experience, contact messages, the hero headline, portrait, about facts, accent colour, files, and 2FA security.
+Content is managed from the admin panel (`/admin`): posts and notebooks, projects (with display order), experience, contact messages, the hero headline, portrait, about facts, accent colour, and 2FA security.
+
+Files live in a private R2 bucket. Manage them at `mail.ashishkumarsingh.com/admin/files`, behind Cloudflare Access, and share a file through a link that can expire and be revoked.
 
 ## Stack
 

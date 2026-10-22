@@ -4,11 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Folder, File, Image, Video, Music, FileText, Archive, MoreVertical, Upload, FolderPlus, Trash2, Link, ChevronRight, Home, Loader2, RefreshCw } from 'lucide-react';
+import { Folder, File, Image, Video, Music, FileText, Archive, MoreVertical, Upload, FolderPlus, Trash2, Link2, ChevronRight, Home, Loader2, RefreshCw } from 'lucide-react';
 import { CreateFolderDialog } from '@/components/files/CreateFolderDialog';
 import { FileUploadDialog } from '@/components/files/FileUploadDialog';
-import { formatFileSize, formatDate, getPublicUrl } from '@/lib/file-utils';
-import type { R2FileItem, R2ListResponse } from '@shared/types';
+import { ShareLinksDialog } from '@/components/files/ShareLinksDialog';
+import { formatFileSize, formatDate } from '@/lib/file-utils';
+import { api } from '@/lib/api-client';
+import { getErrorMessage } from '@/lib/error-utils';
+import type { R2FileItem, R2ListResponse, ShareLink } from '@shared/types';
 import { toast } from 'sonner';
 
 const iconMap: Record<string, React.ComponentType<any>> = {
@@ -42,6 +45,8 @@ export function AdminFilesPage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<R2FileItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [links, setLinks] = useState<ShareLink[]>([]);
+  const [shareTarget, setShareTarget] = useState<R2FileItem | null>(null);
 
   const fetchFiles = useCallback(async (newPrefix?: string, loadMore?: boolean) => {
     setLoading(true);
@@ -80,6 +85,19 @@ export function AdminFilesPage() {
     fetchFiles('');
   }, []);
 
+  const fetchLinks = useCallback(async () => {
+    try {
+      const res = await api<{ items: ShareLink[] }>('/api/shares', { headers: { Authorization: `Bearer ${getToken()}` } });
+      setLinks(res.items);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLinks();
+  }, [fetchLinks]);
+
   const navigateToFolder = (folderKey: string) => {
     fetchFiles(folderKey);
   };
@@ -100,12 +118,6 @@ export function AdminFilesPage() {
       crumbs.push({ label: part, path: currentPath });
     }
     return crumbs;
-  };
-
-  const handleCopyUrl = async (item: R2FileItem) => {
-    const url = getPublicUrl(item.key);
-    await navigator.clipboard.writeText(url);
-    toast.success('URL copied to clipboard');
   };
 
   const handleDelete = async () => {
@@ -130,6 +142,7 @@ export function AdminFilesPage() {
       toast.success(isFolder ? 'Folder deleted' : 'File deleted');
       setDeleteTarget(null);
       fetchFiles(prefix);
+      fetchLinks();
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete');
     } finally {
@@ -146,11 +159,11 @@ export function AdminFilesPage() {
           <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">Site</div>
           <h1 className="mt-2 font-display text-5xl leading-none tracking-[-0.02em] text-foreground">Files</h1>
           <p className="text-sm text-muted-foreground">
-            Manage files in R2 storage (r2.ashishkumarsingh.com)
+            Private R2 storage. A file opens only through a share link you create.
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="icon" onClick={() => fetchFiles(prefix)}>
+          <Button variant="outline" size="icon" onClick={() => { fetchFiles(prefix); fetchLinks(); }}>
             <RefreshCw className="h-4 w-4" />
           </Button>
           <Button variant="outline" onClick={() => setCreateFolderOpen(true)}>
@@ -185,8 +198,8 @@ export function AdminFilesPage() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[50%]">Name</TableHead>
-              <TableHead className="w-[15%]">Size</TableHead>
-              <TableHead className="w-[20%]">Modified</TableHead>
+              <TableHead className="w-[15%] whitespace-nowrap">Size</TableHead>
+              <TableHead className="hidden w-[20%] sm:table-cell">Modified</TableHead>
               <TableHead className="w-[15%] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -206,6 +219,7 @@ export function AdminFilesPage() {
             ) : (
               items.map(item => {
                 const Icon = getIcon(item.contentType, item.type === 'folder');
+                const linkCount = links.filter(link => link.key === item.key).length;
                 return (
                   <TableRow key={item.key}>
                     <TableCell>
@@ -221,12 +235,22 @@ export function AdminFilesPage() {
                         ) : (
                           <span>{item.name}</span>
                         )}
+                        {linkCount > 0 && (
+                          <button
+                            className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-[10px] text-primary hover:bg-primary/20"
+                            onClick={() => setShareTarget(item)}
+                            aria-label={`${linkCount} active share ${linkCount === 1 ? 'link' : 'links'}`}
+                          >
+                            <Link2 className="h-3 w-3" />
+                            {linkCount}
+                          </button>
+                        )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
                       {item.type === 'folder' ? '-' : formatFileSize(item.size)}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="hidden text-muted-foreground sm:table-cell">
                       {formatDate(item.lastModified)}
                     </TableCell>
                     <TableCell className="text-right">
@@ -238,9 +262,9 @@ export function AdminFilesPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {item.type === 'file' && (
-                            <DropdownMenuItem onClick={() => handleCopyUrl(item)}>
-                              <Link className="mr-2 h-4 w-4" />
-                              Copy URL
+                            <DropdownMenuItem onClick={() => setShareTarget(item)}>
+                              <Link2 className="mr-2 h-4 w-4" />
+                              Share
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem
@@ -281,7 +305,14 @@ export function AdminFilesPage() {
         open={uploadOpen}
         onOpenChange={setUploadOpen}
         currentPrefix={prefix}
-        onUploaded={() => fetchFiles(prefix)}
+        onUploaded={() => { fetchFiles(prefix); fetchLinks(); }}
+      />
+
+      <ShareLinksDialog
+        file={shareTarget}
+        links={links}
+        onOpenChange={(open) => !open && setShareTarget(null)}
+        onChanged={fetchLinks}
       />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
@@ -291,7 +322,7 @@ export function AdminFilesPage() {
             <AlertDialogDescription>
               Are you sure you want to delete "{deleteTarget?.name}"?
               {deleteTarget?.type === 'folder' && ' This will delete all files inside.'}
-              This action cannot be undone.
+              {' '}Any share links stop working. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -1,3 +1,5 @@
+import { EMAIL_DOMAIN } from '@shared/types';
+
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 B';
   const k = 1024;
@@ -36,6 +38,9 @@ export function getFileIcon(contentType?: string, isFolder?: boolean): string {
 export const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
 export const MULTIPART_THRESHOLD = 100 * 1024 * 1024; // 100MB
 
-export function getPublicUrl(key: string): string {
-  return `https://r2.ashishkumarsingh.com/${key}`;
+export const FILES_ADMIN_ORIGIN = window.location.hostname === EMAIL_DOMAIN ? `https://mail.${EMAIL_DOMAIN}` : '';
+export const SITE_ORIGIN = window.location.origin.replace('://mail.', '://');
+
+export function shareUrl(token: string): string {
+  return `${SITE_ORIGIN}/s/${token}`;
 }

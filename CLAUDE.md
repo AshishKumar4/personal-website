@@ -90,6 +90,13 @@ Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage i
 - There is no default password. While the `auth` record is missing, sign-in fails; only the recovery password below can create it
 - Recovery: while the `ADMIN_RECOVERY_PASSWORD` Worker secret is set, signing in with exactly that value makes it the password and clears 2FA, sessions and the lockout, so login continues into 2FA setup. A salted marker applies each value once (`worker/admin-recovery.ts`); delete the secret afterwards. The procedure is in `README.md`
 
+### Files and share links
+
+- The `general-hosting` bucket (`FILES_BUCKET`) is private and nothing serves it by key. The Files admin runs at `mail.ashishkumarsingh.com/admin/files`, behind Cloudflare Access; on the public host `/admin/files` redirects there
+- Every `/api/files` and `/api/shares` route needs the Access JWT (`accessMiddleware`) as well as the admin session. Share routes refuse API tokens
+- A share link is `https://ashishkumarsingh.com/s/<token>`, where the token is 256 random bits stored as a `ShareLinkEntity`. `worker/file-shares.ts` streams the file with byte ranges. Revoking a link, its expiry, or deleting or overwriting the file makes it 404 at once. Unknown, revoked and expired tokens all get the same 404
+- `worker/share-links.test.ts` runs the real Worker under `wrangler dev`, with a local JWKS standing in for Access
+
 ### Public data
 
 - `GET /api/home` returns config, experiences, projects and post summaries in one request (preloaded from `index.html`)
@@ -115,7 +122,7 @@ Custom rules prevent common React bugs:
 ### Wrangler (wrangler.jsonc)
 
 - Single `GlobalDurableObject` class handles all entity storage
-- Assets serve as SPA with worker-first routing for `/api/*`
+- Assets serve as SPA with worker-first routing for `/api/*` and `/s/*`
 
 ### Worker Previews
 

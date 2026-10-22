@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { ArrowUpRight, Briefcase, Code, FileText, HardDrive, Inbox, LayoutDashboard, LogOut, Mail, Moon, Settings, Shield, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/use-theme';
+import { FILES_ADMIN_ORIGIN, SITE_ORIGIN } from '@/lib/file-utils';
 
 const groups = [
   {
@@ -21,7 +22,7 @@ const groups = [
     label: 'Site',
     items: [
       { href: '/admin/settings', label: 'Settings', icon: Settings },
-      { href: '/admin/files', label: 'Files', icon: HardDrive },
+      { href: `${FILES_ADMIN_ORIGIN}/admin/files`, label: 'Files', icon: HardDrive },
       { href: '/admin/security', label: 'Security', icon: Shield },
     ],
   },
@@ -77,7 +78,7 @@ export function AdminSidebar({ onNavigate, onLogout, loggingOut }: AdminSidebarP
         ))}
       </nav>
       <div className="space-y-0.5 border-t border-border p-3">
-        <a href="/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground">
+        <a href={`${SITE_ORIGIN}/`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground">
           <ArrowUpRight className="h-4 w-4" /> View site
         </a>
         <a href="/mail/inbox" className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground">
