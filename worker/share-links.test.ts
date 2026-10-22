@@ -18,6 +18,8 @@ let base = '';
 let wrangler: Subprocess | undefined;
 let jwks: Server<undefined> | undefined;
 let accessJwt = '';
+let unpinnedAlgorithmJwt = '';
+let neverExpiringJwt = '';
 let session = '';
 
 function freePort(): number {
@@ -74,20 +76,18 @@ beforeAll(async () => {
   if (tls.exitCode !== 0) throw new Error(tls.stderr.toString());
 
   const { publicKey, privateKey } = await generateKeyPair('RS256');
-  const keys = [{ ...(await exportJWK(publicKey)), kid: 'test', alg: 'RS256', use: 'sig' }];
+  const ec = await generateKeyPair('ES256');
+  const keys = [{ ...(await exportJWK(publicKey)), kid: 'test', alg: 'RS256', use: 'sig' }, { ...(await exportJWK(ec.publicKey)), kid: 'ec' }];
   jwks = Bun.serve({
     port: 0,
     tls: { cert: readFileSync(join(dir, 'cert.pem'), 'utf8'), key: readFileSync(join(dir, 'key.pem'), 'utf8') },
     fetch: () => Response.json({ keys }),
   });
   const teamDomain = `127.0.0.1:${jwks.port}`;
-  accessJwt = await new SignJWT({ email: 'owner@example.com' })
-    .setProtectedHeader({ alg: 'RS256', kid: 'test' })
-    .setIssuer(`https://${teamDomain}`)
-    .setAudience(ACCESS_AUD)
-    .setIssuedAt()
-    .setExpirationTime('1h')
-    .sign(privateKey);
+  const claims = () => new SignJWT({ email: 'owner@example.com' }).setIssuer(`https://${teamDomain}`).setAudience(ACCESS_AUD).setIssuedAt();
+  accessJwt = await claims().setProtectedHeader({ alg: 'RS256', kid: 'test' }).setExpirationTime('1h').sign(privateKey);
+  unpinnedAlgorithmJwt = await claims().setProtectedHeader({ alg: 'ES256', kid: 'ec' }).setExpirationTime('1h').sign(ec.privateKey);
+  neverExpiringJwt = await claims().setProtectedHeader({ alg: 'RS256', kid: 'test' }).sign(privateKey);
 
   const twoFactorKey = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64');
   writeFileSync(join(dir, '.env'), [
@@ -152,6 +152,8 @@ describe('share links', () => {
 
     expect((await postJson('/api/shares', { key: 'docs/screencast.webm', ttlSeconds: null }, { access: false })).status).toBe(403);
     expect((await call('/api/files?prefix=docs/', { access: false })).status).toBe(403);
+    expect((await call('/api/files?prefix=docs/', { access: false, headers: { 'Cf-Access-Jwt-Assertion': unpinnedAlgorithmJwt } })).status).toBe(403);
+    expect((await call('/api/files?prefix=docs/', { access: false, headers: { 'Cf-Access-Jwt-Assertion': neverExpiringJwt } })).status).toBe(403);
     expect((await postJson('/api/shares', { key: 'docs/screencast.webm', ttlSeconds: null }, { bearer: 'not-a-session' })).status).toBe(401);
     expect((await postJson('/api/shares', { key: 'docs/screencast.webm', ttlSeconds: null }, { bearer: apiToken.token })).status).toBe(401);
     expect((await call('/api/shares', { bearer: apiToken.token })).status).toBe(401);

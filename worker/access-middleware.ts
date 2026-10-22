@@ -39,6 +39,8 @@ export async function verifyAccessJWT(
     await jwtVerify(jwt, jwks, {
       issuer: `https://${teamDomain}`,
       audience: aud,
+      algorithms: ['RS256'],
+      requiredClaims: ['exp'],
     });
     return { valid: true };
   } catch (err) {
