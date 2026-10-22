@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Env, Entity } from './core-utils';
-import { BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEntity, projectsMigrationStore, ContactEntity, EmailEntity, EmailThreadEntity, EmailLabelEntity, EmailDraftEntity, EmailAddressEntity, BlockedSenderEntity, EmailFeedEntity, ApiTokenEntity, ShareLinkEntity } from "./entities";
+import { BlogEntity, AuthEntity, SiteConfigEntity, ExperienceEntity, ProjectEntity, projectsMigrationStore, ContactEntity, EmailEntity, EmailThreadEntity, EmailLabelEntity, EmailDraftEntity, EmailAddressEntity, BlockedSenderEntity, EmailFeedEntity, ApiTokenEntity } from "./entities";
 import { hashPasswordPBKDF2, hashPasswordLegacySHA256, generateSalt } from './auth-crypto';
 import { recoveredAdmin } from './admin-recovery';
 import { generateApiToken, hashSecret } from './api-token';
@@ -9,7 +9,7 @@ import * as twoFactor from './two-factor';
 import { TwoFactorError, type TwoFactorEnv } from './two-factor';
 import type { AuthUser } from '@shared/types';
 import { ok, bad, notFound, isStr, mergeUnique, Index } from './core-utils';
-import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, ApiTokenPublic, ApiTokenCreated, R2FileItem, MultipartUploadPart, CreateShareLinkPayload, SiteFact, PostSummary, HomePayload, GitHubSnapshot, RepoStats } from "@shared/types";
+import type { BlogPost, SiteConfig, ChangePasswordPayload, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAttachment, EmailAddress, EmailAddressKind, BlockedSender, EmailFeed, MailStats, ApiTokenPublic, ApiTokenCreated, SiteFact, PostSummary, HomePayload, GitHubSnapshot, RepoStats } from "@shared/types";
 import { runProjectsMigration, PROJECTS_MIGRATION } from './content-migration';
 import { EMAIL_DOMAIN, clampTtlMinutes, ACCENT_PRESETS, DEFAULT_SITE_EXTRAS, SCENE_IDS } from "@shared/types";
 import { postCoverImage, postExcerpt, postReadingTime } from '@shared/post-preview';
@@ -20,12 +20,11 @@ import { normalizeLocalPart, validateLocalPart } from '@shared/address-validatio
 import { createMimeMessage } from 'mimetext';
 import { accessMiddleware } from './access-middleware';
 import { withDurableRetry, mapWithConcurrency, DEFAULT_CONCURRENCY } from './durable-batch';
-import { generateShareToken, isShareToken, isLiveShareLink, sharedFileResponse, SHARE_HEADERS } from './file-shares';
+import { fileAdminRoutes, sharedFileRoutes } from './file-routes';
 
 interface ExtendedEnv extends Env {
   IMAGES_BUCKET?: R2Bucket;
   EMAIL_BUCKET?: R2Bucket;
-  FILES_BUCKET?: R2Bucket;
   EMAIL_SENDER?: any;
   GITHUB_TOKEN?: string;
   ADMIN_RECOVERY_PASSWORD?: string;
@@ -54,11 +53,6 @@ async function listAllEntities<S>(env: Env, EntityClass: IndexedEntityClass<S>):
   return mapWithConcurrency(ids, DEFAULT_CONCURRENCY, (id) =>
     withDurableRetry(() => new EntityClass(env, id).getState())
   );
-}
-
-async function revokeShareLinks(env: Env, matches: (key: string) => boolean): Promise<void> {
-  const links = await listAllEntities(env, ShareLinkEntity);
-  await ShareLinkEntity.deleteMany(env, links.filter(link => matches(link.key)).map(link => link.id));
 }
 
 function getAllEmails(env: Env): Promise<Email[]> {
@@ -1455,277 +1449,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     return ok(c, { deleted: true });
   });
 
-  // ============ FILE MANAGER ROUTES ============
-
-  app.use('/api/files/*', accessMiddleware);
-  app.use('/api/shares/*', accessMiddleware);
-
-  // List files with prefix/delimiter
-  app.get('/api/files', adminAuthMiddleware, async (c) => {
-    const env = c.env as ExtendedEnv;
-    if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
-
-    const prefix = c.req.query('prefix') || '';
-    const cursor = c.req.query('cursor');
-    const limit = Math.min(parseInt(c.req.query('limit') || '100', 10), 1000);
-
-    const listed = await env.FILES_BUCKET.list({
-      prefix,
-      delimiter: '/',
-      cursor,
-      limit,
-    });
-
-    const items: R2FileItem[] = [];
-
-    if (listed.delimitedPrefixes) {
-      for (const folderPrefix of listed.delimitedPrefixes) {
-        const name = folderPrefix.slice(prefix.length).replace(/\/$/, '');
-        items.push({
-          key: folderPrefix,
-          name,
-          size: 0,
-          lastModified: 0,
-          type: 'folder',
-        });
-      }
-    }
-
-    for (const obj of listed.objects) {
-      if (obj.key === prefix) continue;
-      const name = obj.key.slice(prefix.length);
-      if (name.endsWith('/') && obj.size === 0) continue;
-      items.push({
-        key: obj.key,
-        name,
-        size: obj.size,
-        lastModified: obj.uploaded.getTime(),
-        type: 'file',
-        contentType: obj.httpMetadata?.contentType,
-      });
-    }
-
-    items.sort((a, b) => {
-      if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
-
-    return ok(c, {
-      items,
-      prefix,
-      cursor: listed.truncated ? listed.cursor : undefined,
-      truncated: listed.truncated,
-    });
-  });
-
-  // Simple upload for small files
-  app.post('/api/files/upload', adminAuthMiddleware, async (c) => {
-    const env = c.env as ExtendedEnv;
-    if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
-
-    const formData = await c.req.formData();
-    const file = formData.get('file') as File;
-    const key = formData.get('key') as string;
-
-    if (!file) return bad(c, 'No file provided');
-    if (!key) return bad(c, 'No key provided');
-
-    await revokeShareLinks(c.env, linkKey => linkKey === key);
-    await env.FILES_BUCKET.put(key, file.stream(), {
-      httpMetadata: { contentType: file.type || 'application/octet-stream' },
-    });
-
-    return ok(c, {
-      key,
-      size: file.size,
-      contentType: file.type || 'application/octet-stream',
-    });
-  });
-
-  // Initiate multipart upload
-  app.post('/api/files/upload/initiate', adminAuthMiddleware, async (c) => {
-    const env = c.env as ExtendedEnv;
-    if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
-
-    const { key, contentType } = await c.req.json();
-    if (!key) return bad(c, 'No key provided');
-
-    const multipart = await env.FILES_BUCKET.createMultipartUpload(key, {
-      httpMetadata: { contentType: contentType || 'application/octet-stream' },
-    });
-
-    return ok(c, {
-      uploadId: multipart.uploadId,
-      key: multipart.key,
-    });
-  });
-
-  // Upload part
-  app.put('/api/files/upload/part', adminAuthMiddleware, async (c) => {
-    const env = c.env as ExtendedEnv;
-    if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
-
-    const key = c.req.query('key');
-    const uploadId = c.req.query('uploadId');
-    const partNumber = parseInt(c.req.query('partNumber') || '0', 10);
-
-    if (!key || !uploadId || !partNumber) {
-      return bad(c, 'key, uploadId, and partNumber are required');
-    }
-
-    const multipart = env.FILES_BUCKET.resumeMultipartUpload(key, uploadId);
-    const body = await c.req.arrayBuffer();
-    const part = await multipart.uploadPart(partNumber, body);
-
-    return ok(c, {
-      partNumber: part.partNumber,
-      etag: part.etag,
-    });
-  });
-
-  // Complete multipart upload
-  app.post('/api/files/upload/complete', adminAuthMiddleware, async (c) => {
-    const env = c.env as ExtendedEnv;
-    if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
-
-    const { key, uploadId, parts } = await c.req.json() as {
-      key: string;
-      uploadId: string;
-      parts: MultipartUploadPart[];
-    };
-
-    if (!key || !uploadId || !parts?.length) {
-      return bad(c, 'key, uploadId, and parts are required');
-    }
-
-    const multipart = env.FILES_BUCKET.resumeMultipartUpload(key, uploadId);
-    const uploadedParts = parts.map(p => ({
-      partNumber: p.partNumber,
-      etag: p.etag,
-    }));
-
-    await revokeShareLinks(c.env, linkKey => linkKey === key);
-    await multipart.complete(uploadedParts);
-
-    return ok(c, { key, completed: true });
-  });
-
-  // Abort multipart upload
-  app.post('/api/files/upload/abort', adminAuthMiddleware, async (c) => {
-    const env = c.env as ExtendedEnv;
-    if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
-
-    const { key, uploadId } = await c.req.json();
-    if (!key || !uploadId) return bad(c, 'key and uploadId are required');
-
-    const multipart = env.FILES_BUCKET.resumeMultipartUpload(key, uploadId);
-    await multipart.abort();
-
-    return ok(c, { key, aborted: true });
-  });
-
-  // Create folder (PUT empty object with trailing /)
-  app.post('/api/files/folder', adminAuthMiddleware, async (c) => {
-    const env = c.env as ExtendedEnv;
-    if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
-
-    const { path } = await c.req.json();
-    if (!path) return bad(c, 'No path provided');
-
-    const folderKey = path.endsWith('/') ? path : `${path}/`;
-    await env.FILES_BUCKET.put(folderKey, new Uint8Array(0));
-
-    return ok(c, { key: folderKey, created: true });
-  });
-
-  // Delete folder recursively
-  app.delete('/api/files/folder/*', adminAuthMiddleware, async (c) => {
-    const env = c.env as ExtendedEnv;
-    if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
-
-    const prefix = decodeURIComponent(new URL(c.req.url).pathname.slice('/api/files/folder/'.length));
-    if (!prefix) return bad(c, 'No prefix provided');
-
-    const folderPrefix = prefix.endsWith('/') ? prefix : `${prefix}/`;
-    await revokeShareLinks(c.env, linkKey => linkKey.startsWith(folderPrefix));
-    let cursor: string | undefined;
-    let deletedCount = 0;
-
-    do {
-      const listed = await env.FILES_BUCKET.list({ prefix: folderPrefix, cursor });
-      if (listed.objects.length > 0) {
-        await Promise.all(listed.objects.map(obj => env.FILES_BUCKET!.delete(obj.key)));
-        deletedCount += listed.objects.length;
-      }
-      cursor = listed.truncated ? listed.cursor : undefined;
-    } while (cursor);
-
-    await env.FILES_BUCKET.delete(folderPrefix);
-
-    return ok(c, { prefix: folderPrefix, deletedCount, deleted: true });
-  });
-
-  // Delete file
-  app.delete('/api/files/*', adminAuthMiddleware, async (c) => {
-    const env = c.env as ExtendedEnv;
-    if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
-
-    const key = decodeURIComponent(new URL(c.req.url).pathname.slice('/api/files/'.length));
-    if (!key) return bad(c, 'No key provided');
-
-    await revokeShareLinks(c.env, linkKey => linkKey === key);
-    await env.FILES_BUCKET.delete(key);
-
-    return ok(c, { key, deleted: true });
-  });
-
-  // ============ SHARE LINKS ============
-
-  const shares = new Hono<{ Bindings: ExtendedEnv }>();
-
-  shares.get('/s/:token', async (c) => {
-    const token = c.req.param('token');
-    const link = isShareToken(token) ? await new ShareLinkEntity(c.env, token).getState() : null;
-    const served = link && c.env.FILES_BUCKET && isLiveShareLink(link, Date.now())
-      ? await sharedFileResponse(c.env.FILES_BUCKET, link, c.req.raw)
-      : null;
-    return served ?? new Response('Not found', { status: 404, headers: SHARE_HEADERS });
-  });
-
-  shares.get('/api/shares', sessionAuthMiddleware, async (c) => {
-    const now = Date.now();
-    const links = await listAllEntities(c.env, ShareLinkEntity);
-    const stale = links.filter(link => !isLiveShareLink(link, now));
-    if (stale.length > 0) await ShareLinkEntity.deleteMany(c.env, stale.map(link => link.id));
-    const items = links.filter(link => isLiveShareLink(link, now)).sort((a, b) => b.createdAt - a.createdAt);
-    return ok(c, { items });
-  });
-
-  shares.post('/api/shares', sessionAuthMiddleware, async (c) => {
-    if (!c.env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
-    const { key, ttlSeconds } = await c.req.json<Partial<CreateShareLinkPayload>>();
-    if (!isStr(key) || key.endsWith('/')) return bad(c, 'A file key is required');
-    if (ttlSeconds !== null && !(typeof ttlSeconds === 'number' && Number.isSafeInteger(ttlSeconds) && ttlSeconds > 0)) {
-      return bad(c, 'ttlSeconds must be a positive whole number, or null for a link that never expires');
-    }
-    const head = await c.env.FILES_BUCKET.head(key);
-    if (!head) return notFound(c, 'File not found');
-    const now = Date.now();
-    const link = await ShareLinkEntity.create(c.env, {
-      id: generateShareToken(),
-      key,
-      etag: head.etag,
-      createdAt: now,
-      expiresAt: ttlSeconds === null ? null : now + ttlSeconds * 1000,
-    });
-    return ok(c, link);
-  });
-
-  shares.delete('/api/shares/:token', sessionAuthMiddleware, async (c) => {
-    const token = c.req.param('token');
-    if (!(await ShareLinkEntity.delete(c.env, token))) return notFound(c, 'Link not found');
-    return ok(c, { id: token, deleted: true });
-  });
-
-  app.route('/', shares);
+  app.route('/', fileAdminRoutes);
+  app.route('/', sharedFileRoutes);
 }
