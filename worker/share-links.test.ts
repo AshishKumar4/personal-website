@@ -186,6 +186,13 @@ describe('share links', () => {
     });
     expect(full.headers.get('content-disposition')).toStartWith('inline; filename="screencast.webm"');
 
+    for (const range of [undefined, 'bytes=0-0', `bytes=${WEBM.length}-`]) {
+      const head = await fetch(`${base}/s/${link.id}`, { method: 'HEAD', headers: range ? { Range: range } : {} });
+      expect([head.status, head.headers.get('content-length'), head.headers.get('content-range'), head.headers.get('etag')])
+        .toEqual([200, String(WEBM.length), null, full.headers.get('etag')]);
+      expect((await head.arrayBuffer()).byteLength).toBe(0);
+    }
+
     const middle = await anonymous(`/s/${link.id}`, { Range: 'bytes=1000-1999' });
     expect(middle.status).toBe(206);
     expect(middle.headers.get('content-range')).toBe(`bytes 1000-1999/${WEBM.length}`);
