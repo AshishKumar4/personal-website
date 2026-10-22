@@ -48,7 +48,7 @@ function requestedRange(headers: Headers, object: R2Object): ByteRange | 'unsati
 
 export async function sharedFileResponse(bucket: R2Bucket, link: ShareLink, request: Request): Promise<Response | null> {
   const head = await bucket.head(link.key);
-  if (!head || head.etag !== link.etag) return null;
+  if (!head || head.version !== link.version) return null;
   const headers = new Headers(SHARE_HEADERS);
   headers.set('Accept-Ranges', 'bytes');
   headers.set('ETag', head.httpEtag);
@@ -65,9 +65,12 @@ export async function sharedFileResponse(bucket: R2Bucket, link: ShareLink, requ
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('Content-Length', String(range ? range.length : head.size));
   if (request.method === 'HEAD') return new Response(null, { headers });
-  const onlyIf = { etagMatches: link.etag };
-  const object = await bucket.get(link.key, range ? { range, onlyIf } : { onlyIf });
-  if (!object || !('body' in object)) return null;
+  const object = await bucket.get(link.key, range ? { range } : {});
+  if (!object) return null;
+  if (object.version !== link.version) {
+    await object.body.cancel();
+    return null;
+  }
   if (!range) return new Response(object.body, { headers });
   headers.set('Content-Range', `bytes ${range.offset}-${range.offset + range.length - 1}/${head.size}`);
   return new Response(object.body, { status: 206, headers });

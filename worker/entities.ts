@@ -283,7 +283,7 @@ export class ApiTokenEntity extends IndexedEntity<ApiTokenRecord> {
 export class ShareLinkEntity extends IndexedEntity<ShareLink> {
     static readonly entityName = "shareLink";
     static readonly indexName = "shareLinks";
-    static readonly initialState: ShareLink = { id: "", key: "", etag: "", createdAt: 0, expiresAt: null };
+    static readonly initialState: ShareLink = { id: "", key: "", version: "", createdAt: 0, expiresAt: null };
     static seedData: ShareLink[] = [];
 }
 export class EmailDraftEntity extends IndexedEntity<EmailDraft> {

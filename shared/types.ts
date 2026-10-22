@@ -360,7 +360,7 @@ export interface R2ListResponse {
 export interface ShareLink {
   id: string;
   key: string;
-  etag: string;
+  version: string;
   createdAt: number;
   expiresAt: number | null;
 }

@@ -252,6 +252,30 @@ describe('share links', () => {
     expect((await data<{ items: ShareLink[] }>(call('/api/shares'))).items).toEqual([]);
   });
 
+  test('a link created while its file is being replaced never serves the newer upload', async () => {
+    await upload('race.bin', PDF, 'application/octet-stream');
+    for (let round = 0; round < 25; round++) {
+      const [raced] = await Promise.all([share('race.bin', null), upload('race.bin', PDF, 'application/octet-stream')]);
+      const current = await share('race.bin', null);
+      expect((await anonymous(`/s/${raced.id}`)).status).toBe(raced.version === current.version ? 200 : 404);
+    }
+    await data(call(`/api/files/${encodeURIComponent('race.bin')}`, { method: 'DELETE' }));
+    expect((await data<{ items: ShareLink[] }>(call('/api/shares'))).items.filter(link => link.key === 'race.bin')).toEqual([]);
+  });
+
+  test('a link that missed revocation stops working once its file is rewritten, even with identical bytes', async () => {
+    await upload('outside.bin', PDF, 'application/octet-stream');
+    const link = await share('outside.bin', null);
+    expect((await anonymous(`/s/${link.id}`)).status).toBe(200);
+
+    const rewrite = await fetch(`${base}/cdn-cgi/local/explorer/api/r2/buckets/general-hosting/objects/outside.bin`, { method: 'PUT', body: PDF });
+    expect(rewrite.status).toBe(200);
+    expect((await data<{ items: ShareLink[] }>(call('/api/shares'))).items).toContainEqual(link);
+    expect((await anonymous(`/s/${link.id}`)).status).toBe(404);
+
+    await data(call(`/api/files/${encodeURIComponent('outside.bin')}`, { method: 'DELETE' }));
+  });
+
   test('a root file named "folder" and a folder named "folder" each delete through their own route', async () => {
     await upload('folder', PDF, 'application/pdf');
     await upload('folder/inner.pdf', PDF, 'application/pdf');

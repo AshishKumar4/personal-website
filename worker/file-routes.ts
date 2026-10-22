@@ -207,7 +207,7 @@ fileAdminRoutes.post('/api/shares', async (c) => {
   const link = await ShareLinkEntity.create(c.env, {
     id: generateShareToken(),
     key,
-    etag: head.etag,
+    version: head.version,
     createdAt: now,
     expiresAt: ttlSeconds === null ? null : now + ttlSeconds * 1000,
   });
