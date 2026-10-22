@@ -1663,19 +1663,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     return ok(c, { key, aborted: true });
   });
 
-  // Delete file
-  app.delete('/api/files/*', adminAuthMiddleware, async (c) => {
-    const env = c.env as ExtendedEnv;
-    if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
-
-    const key = c.req.path.replace('/api/files/', '');
-    if (!key) return bad(c, 'No key provided');
-
-    await env.FILES_BUCKET.delete(key);
-
-    return ok(c, { key, deleted: true });
-  });
-
   // Create folder (PUT empty object with trailing /)
   app.post('/api/files/folder', adminAuthMiddleware, async (c) => {
     const env = c.env as ExtendedEnv;
@@ -1695,7 +1682,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const env = c.env as ExtendedEnv;
     if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
 
-    const prefix = c.req.path.replace('/api/files/folder/', '');
+    const prefix = decodeURIComponent(new URL(c.req.url).pathname.slice('/api/files/folder/'.length));
     if (!prefix) return bad(c, 'No prefix provided');
 
     const folderPrefix = prefix.endsWith('/') ? prefix : `${prefix}/`;
@@ -1714,5 +1701,18 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     await env.FILES_BUCKET.delete(folderPrefix);
 
     return ok(c, { prefix: folderPrefix, deletedCount, deleted: true });
+  });
+
+  // Delete file
+  app.delete('/api/files/*', adminAuthMiddleware, async (c) => {
+    const env = c.env as ExtendedEnv;
+    if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
+
+    const key = decodeURIComponent(new URL(c.req.url).pathname.slice('/api/files/'.length));
+    if (!key) return bad(c, 'No key provided');
+
+    await env.FILES_BUCKET.delete(key);
+
+    return ok(c, { key, deleted: true });
   });
 }
