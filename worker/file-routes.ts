@@ -157,10 +157,8 @@ fileAdminRoutes.post('/api/files/folder', async (c) => {
   return ok(c, { key: folderKey, created: true });
 });
 
-fileAdminRoutes.delete('/api/files/folder/*', async (c) => {
-  const prefix = decodeURIComponent(new URL(c.req.url).pathname.slice('/api/files/folder/'.length));
-  if (!prefix) return bad(c, 'No prefix provided');
-
+fileAdminRoutes.delete('/api/files/folder/:prefix{.+}', async (c) => {
+  const prefix = c.req.param('prefix');
   const folderPrefix = prefix.endsWith('/') ? prefix : `${prefix}/`;
   await revokeShareLinks(c.env, linkKey => linkKey.startsWith(folderPrefix));
   let cursor: string | undefined;
@@ -180,10 +178,8 @@ fileAdminRoutes.delete('/api/files/folder/*', async (c) => {
   return ok(c, { prefix: folderPrefix, deletedCount, deleted: true });
 });
 
-fileAdminRoutes.delete('/api/files/*', async (c) => {
-  const key = decodeURIComponent(new URL(c.req.url).pathname.slice('/api/files/'.length));
-  if (!key) return bad(c, 'No key provided');
-
+fileAdminRoutes.delete('/api/files/:key{.+}', async (c) => {
+  const key = c.req.param('key');
   await revokeShareLinks(c.env, linkKey => linkKey === key);
   await c.var.bucket.delete(key);
 

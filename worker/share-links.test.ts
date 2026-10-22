@@ -228,10 +228,10 @@ describe('share links', () => {
     await upload('docs/screencast.webm', PDF, 'video/webm');
     expect((await anonymous(`/s/${overwritten.id}`)).status).toBe(404);
 
-    await upload('docs/lease.pdf', PDF, 'application/pdf');
-    const deleted = await share('docs/lease.pdf', null);
+    await upload('docs/lease 50% #1?ü.pdf', PDF, 'application/pdf');
+    const deleted = await share('docs/lease 50% #1?ü.pdf', null);
     expect((await anonymous(`/s/${deleted.id}`)).headers.get('content-type')).toBe('application/pdf');
-    await data(call(`/api/files/${encodeURIComponent('docs/lease.pdf')}`, { method: 'DELETE' }));
+    await data(call(`/api/files/${encodeURIComponent('docs/lease 50% #1?ü.pdf')}`, { method: 'DELETE' }));
     expect((await anonymous(`/s/${deleted.id}`)).status).toBe(404);
 
     await upload('trip/photos/a.png', PDF, 'image/png');
@@ -243,6 +243,21 @@ describe('share links', () => {
     expect(remaining.items.map(item => item.key)).toEqual(['docs/screencast.webm']);
     expect((await data<{ items: unknown[] }>(call('/api/files?prefix=trip/'))).items).toEqual([]);
     expect((await data<{ items: ShareLink[] }>(call('/api/shares'))).items).toEqual([]);
+  });
+
+  test('a root file named "folder" and a folder named "folder" each delete through their own route', async () => {
+    await upload('folder', PDF, 'application/pdf');
+    await upload('folder/inner.pdf', PDF, 'application/pdf');
+    const root = await share('folder', null);
+    const inner = await share('folder/inner.pdf', null);
+
+    await data(call(`/api/files/${encodeURIComponent('folder')}`, { method: 'DELETE' }));
+    expect((await anonymous(`/s/${root.id}`)).status).toBe(404);
+    expect((await anonymous(`/s/${inner.id}`)).status).toBe(200);
+
+    await data(call(`/api/files/folder/${encodeURIComponent('folder/')}`, { method: 'DELETE' }));
+    expect((await anonymous(`/s/${inner.id}`)).status).toBe(404);
+    expect((await data<{ items: unknown[] }>(call('/api/files?prefix=folder'))).items).toEqual([]);
   });
 
   test('active content downloads instead of rendering on the site origin', async () => {
