@@ -9,7 +9,7 @@ import type { ShareLink } from '@shared/types';
 
 const RECOVERY_PASSWORD = 'share-links recovery passphrase';
 const ACCESS_AUD = 'share-links-test';
-const WEBM = crypto.getRandomValues(new Uint8Array(96 * 1024));
+const WEBM = crypto.getRandomValues(new Uint8Array(64 * 1024));
 const PDF = new TextEncoder().encode('%PDF-1.7 signed lease');
 const LINK_TTL_SECONDS = 1;
 

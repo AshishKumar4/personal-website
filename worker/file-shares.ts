@@ -47,9 +47,9 @@ function requestedRange(headers: Headers, object: R2Object): ByteRange | 'unsati
   return { offset: first, length: Math.min(last, object.size - 1) - first + 1 };
 }
 
-export async function sharedFileResponse(bucket: R2Bucket, key: string, request: Request): Promise<Response | null> {
-  const head = await bucket.head(key);
-  if (!head) return null;
+export async function sharedFileResponse(bucket: R2Bucket, link: ShareLink, request: Request): Promise<Response | null> {
+  const head = await bucket.head(link.key);
+  if (!head || head.etag !== link.etag) return null;
   const headers = new Headers(SHARE_HEADERS);
   headers.set('Accept-Ranges', 'bytes');
   headers.set('ETag', head.httpEtag);
@@ -60,12 +60,13 @@ export async function sharedFileResponse(bucket: R2Bucket, key: string, request:
     return new Response(null, { status: 416, headers });
   }
   const contentType = head.httpMetadata?.contentType || 'application/octet-stream';
-  const fileName = key.slice(key.lastIndexOf('/') + 1);
+  const fileName = link.key.slice(link.key.lastIndexOf('/') + 1);
   headers.set('Content-Type', contentType);
   headers.set('Content-Disposition', contentDispositionHeader(INLINE_TYPES.test(contentType) ? 'inline' : 'attachment', fileName));
   headers.set('X-Content-Type-Options', 'nosniff');
-  const object = await bucket.get(key, range ? { range } : {});
-  if (!object) return null;
+  const onlyIf = { etagMatches: link.etag };
+  const object = await bucket.get(link.key, range ? { range, onlyIf } : { onlyIf });
+  if (!object || !('body' in object)) return null;
   headers.set('Content-Length', String(range ? range.length : head.size));
   if (!range) return new Response(object.body, { headers });
   headers.set('Content-Range', `bytes ${range.offset}-${range.offset + range.length - 1}/${head.size}`);

@@ -1731,17 +1731,18 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 
   // ============ SHARE LINKS ============
 
-  app.get('/s/:token', async (c) => {
-    const env = c.env as ExtendedEnv;
+  const shares = new Hono<{ Bindings: ExtendedEnv }>();
+
+  shares.get('/s/:token', async (c) => {
     const token = c.req.param('token');
     const link = isShareToken(token) ? await new ShareLinkEntity(c.env, token).getState() : null;
-    const served = link && env.FILES_BUCKET && isLiveShareLink(link, Date.now())
-      ? await sharedFileResponse(env.FILES_BUCKET, link.key, c.req.raw)
+    const served = link && c.env.FILES_BUCKET && isLiveShareLink(link, Date.now())
+      ? await sharedFileResponse(c.env.FILES_BUCKET, link, c.req.raw)
       : null;
     return served ?? new Response('Not found', { status: 404, headers: SHARE_HEADERS });
   });
 
-  app.get('/api/shares', sessionAuthMiddleware, async (c) => {
+  shares.get('/api/shares', sessionAuthMiddleware, async (c) => {
     const now = Date.now();
     const links = await listAllEntities(c.env, ShareLinkEntity);
     const stale = links.filter(link => !isLiveShareLink(link, now));
@@ -1750,28 +1751,31 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     return ok(c, { items });
   });
 
-  app.post('/api/shares', sessionAuthMiddleware, async (c) => {
-    const env = c.env as ExtendedEnv;
-    if (!env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
+  shares.post('/api/shares', sessionAuthMiddleware, async (c) => {
+    if (!c.env.FILES_BUCKET) return bad(c, 'Files bucket not configured');
     const { key, ttlSeconds } = await c.req.json<Partial<CreateShareLinkPayload>>();
     if (!isStr(key) || key.endsWith('/')) return bad(c, 'A file key is required');
     if (ttlSeconds !== null && !(typeof ttlSeconds === 'number' && Number.isSafeInteger(ttlSeconds) && ttlSeconds > 0)) {
       return bad(c, 'ttlSeconds must be a positive whole number, or null for a link that never expires');
     }
-    if (!(await env.FILES_BUCKET.head(key))) return notFound(c, 'File not found');
+    const head = await c.env.FILES_BUCKET.head(key);
+    if (!head) return notFound(c, 'File not found');
     const now = Date.now();
     const link = await ShareLinkEntity.create(c.env, {
       id: generateShareToken(),
       key,
+      etag: head.etag,
       createdAt: now,
       expiresAt: ttlSeconds === null ? null : now + ttlSeconds * 1000,
     });
     return ok(c, link);
   });
 
-  app.delete('/api/shares/:token', sessionAuthMiddleware, async (c) => {
+  shares.delete('/api/shares/:token', sessionAuthMiddleware, async (c) => {
     const token = c.req.param('token');
     if (!(await ShareLinkEntity.delete(c.env, token))) return notFound(c, 'Link not found');
     return ok(c, { id: token, deleted: true });
   });
+
+  app.route('/', shares);
 }
