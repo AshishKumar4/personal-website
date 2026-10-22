@@ -87,6 +87,7 @@ Uses react-router-dom with routes defined in `src/main.tsx`. Only the homepage i
 ### Admin auth
 
 - One `admin` account (`AuthEntity`): a PBKDF2 password (`worker/auth-crypto.ts`), mandatory 2FA (`worker/two-factor.ts`) and a 5-failure, 15-minute lockout
+- There is no default password. While the `auth` record is missing, sign-in fails; only the recovery password below can create it
 - Recovery: while the `ADMIN_RECOVERY_PASSWORD` Worker secret is set, signing in with exactly that value makes it the password and clears 2FA, sessions and the lockout, so login continues into 2FA setup. A salted marker applies each value once (`worker/admin-recovery.ts`); delete the secret afterwards. The procedure is in `README.md`
 
 ### Public data
@@ -120,7 +121,7 @@ Custom rules prevent common React bugs:
 
 - Every non-production branch builds a [Worker Preview](https://developers.cloudflare.com/workers/previews/) via Workers Builds (`npx wrangler preview`), and the URL is posted on the pull request
 - The `previews` block in `wrangler.jsonc` only redeclares the `GlobalDurableObject` binding (Previews do not inherit bindings, and without it every data route returns 500). Each Preview gets its own Durable Object storage seeded with default content, and no R2 or email bindings, so nothing in a Preview can touch production data
-- Admin login stays blocked in Previews unless `TWO_FACTOR_KEY` is added to the Preview base config; do not add it, since Previews seed the default admin password
+- Previews have no admin account, so admin login fails there. Do not add `ADMIN_RECOVERY_PASSWORD` or `TWO_FACTOR_KEY` to the Preview base config
 - `bun run preview:deploy` creates a Preview for the current branch from a local machine
 
 Please dont add comments in any of the code files.

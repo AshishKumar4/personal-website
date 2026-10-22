@@ -5,7 +5,6 @@ import { Entity, IndexedEntity, Index } from "./core-utils";
 import type { Env } from "./core-utils";
 import { SEED_PROJECTS, EMPTY_MIGRATION_MARKER, isReplaceableField } from "./content-migration";
 import { EXPERIENCE_STORIES, isReplaceableStory } from "./entry-stories";
-import { hashPasswordPBKDF2, generateSalt } from "./auth-crypto";
 import type { MigrationMarker, ProjectsMigrationStore } from "./content-migration";
 import type { BlogPost, AuthUser, PendingAuth, SiteConfig, Experience, Project, ContactMessage, Email, EmailThread, EmailLabel, EmailDraft, EmailAddress, BlockedSender, EmailFeed, ApiTokenPublic } from "@shared/types";
 import { EMAIL_DOMAIN } from "@shared/types";
@@ -164,17 +163,7 @@ export class PendingAuthEntity extends IndexedEntity<PendingAuth> {
 }
 export class AuthEntity extends Entity<AuthUser> {
     static readonly entityName = "auth";
-    static readonly initialState: AuthUser = { username: "", hashedPassword: "", salt: "", sessionToken: "", tokenExpiry: 0 };
-    static async seedData(env: { GlobalDurableObject: DurableObjectNamespace<any> }): Promise<void> {
-        const adminUser = new AuthEntity(env, "admin");
-        if (!(await adminUser.exists())) {
-            const password = "admin";
-            const salt = generateSalt();
-            const hashedPassword = await hashPasswordPBKDF2(password, salt);
-            await adminUser.save({ username: "admin", hashedPassword, salt, sessionToken: "", tokenExpiry: 0 });
-            console.log("Default admin user created with PBKDF2 hashing.");
-        }
-    }
+    static readonly initialState: AuthUser = { username: "admin", hashedPassword: "", salt: "", sessionToken: "", tokenExpiry: 0 };
 }
 // SITE CONFIG ENTITY
 export class SiteConfigEntity extends Entity<SiteConfig> {

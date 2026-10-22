@@ -280,12 +280,10 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/test', (c) => c.json({ success: true, data: { name: 'CF Workers Demo' }}));
   // AUTH
   app.post('/api/login', async (c) => {
-    await AuthEntity.seedData(c.env);
     const { username, password } = await c.req.json();
     if (!isStr(username) || !isStr(password)) return bad(c, 'username and password required');
     if (username !== 'admin') return c.json({ success: false, error: 'Invalid credentials' }, 401);
     const user = new AuthEntity(c.env, 'admin');
-    if (!await user.exists()) return notFound(c, 'user not found');
 
     if (await twoFactor.isLocked(c.env)) {
       return c.json({ success: false, error: 'Too many attempts. Try again later.' }, 429);
@@ -293,6 +291,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 
     const recovered = await recoveredAdmin(await user.getState(), password, (c.env as ExtendedEnv).ADMIN_RECOVERY_PASSWORD);
     if (recovered) await user.save(recovered);
+    if (!(await user.exists())) return c.json({ success: false, error: 'Invalid credentials' }, 401);
 
     if (!(await verifyAdminPassword(user, await user.getState(), password))) {
       await twoFactor.recordFailure(c.env);
