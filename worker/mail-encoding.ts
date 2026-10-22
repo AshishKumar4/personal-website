@@ -42,6 +42,8 @@ export function isSafeMessageIdHeader(value: string): boolean {
   return /^<[^\s<>]+>$/.test(value.trim());
 }
 
+export const PASSIVE_INLINE_TYPE = /^(image\/(png|jpeg|gif|webp|avif)|video\/[^;]+|audio\/[^;]+|application\/pdf|text\/plain)\s*(;|$)/i;
+
 export function contentDispositionHeader(disposition: 'inline' | 'attachment', filename: string): string {
   const ascii = filename.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
   const encoded = encodeURIComponent(filename).replace(/['()*]/g, (ch) => `%${ch.charCodeAt(0).toString(16).toUpperCase()}`);

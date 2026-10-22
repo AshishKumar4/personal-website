@@ -13,7 +13,7 @@ import { runProjectsMigration, PROJECTS_MIGRATION } from './content-migration';
 import { EMAIL_DOMAIN, clampTtlMinutes, ACCENT_PRESETS, DEFAULT_SITE_EXTRAS, SCENE_IDS } from "@shared/types";
 import { postCoverImage, postExcerpt, postReadingTime } from '@shared/post-preview';
 import { getEmailRaw, getAttachment, generateThreadId } from './email-utils';
-import { arrayBufferToBase64, isSafeMessageIdHeader, contentDispositionHeader } from './mail-encoding';
+import { arrayBufferToBase64, isSafeMessageIdHeader, contentDispositionHeader, PASSIVE_INLINE_TYPE } from './mail-encoding';
 import { generateThrowawayLocalPart, getActiveFromAddress } from './address-utils';
 import { normalizeLocalPart, validateLocalPart } from '@shared/address-validation';
 import { createMimeMessage } from 'mimetext';
@@ -1107,7 +1107,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     if (!attachment) return notFound(c, 'Attachment not found');
     const data = await getAttachment(c.env as ExtendedEnv, attachment.r2Key);
     if (!data) return notFound(c, 'Attachment data not found');
-    const disposition = attachment.disposition === 'inline' ? 'inline' : 'attachment';
+    const disposition = attachment.disposition === 'inline' && PASSIVE_INLINE_TYPE.test(data.contentType) ? 'inline' : 'attachment';
     return new Response(data.data, {
       headers: {
         'Content-Type': data.contentType,

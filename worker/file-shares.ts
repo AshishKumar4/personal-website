@@ -1,10 +1,9 @@
 import type { ShareLink } from '@shared/types';
 import { randomBase64url } from './api-token';
-import { contentDispositionHeader } from './mail-encoding';
+import { contentDispositionHeader, PASSIVE_INLINE_TYPE } from './mail-encoding';
 
 const TOKEN_BYTES = 32;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
-const INLINE_TYPES = /^(image\/(png|jpeg|gif|webp|avif)|video\/[^;]+|audio\/[^;]+|application\/pdf|text\/plain)\s*(;|$)/i;
 
 export const SHARE_HEADERS = {
   'Cache-Control': 'private, no-store',
@@ -62,7 +61,7 @@ export async function sharedFileResponse(bucket: R2Bucket, link: ShareLink, requ
   const contentType = head.httpMetadata?.contentType || 'application/octet-stream';
   const fileName = link.key.slice(link.key.lastIndexOf('/') + 1);
   headers.set('Content-Type', contentType);
-  headers.set('Content-Disposition', contentDispositionHeader(INLINE_TYPES.test(contentType) ? 'inline' : 'attachment', fileName));
+  headers.set('Content-Disposition', contentDispositionHeader(PASSIVE_INLINE_TYPE.test(contentType) ? 'inline' : 'attachment', fileName));
   headers.set('X-Content-Type-Options', 'nosniff');
   const onlyIf = { etagMatches: link.etag };
   const object = await bucket.get(link.key, range ? { range, onlyIf } : { onlyIf });
